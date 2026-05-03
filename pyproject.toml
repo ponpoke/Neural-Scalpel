@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neural-scalpel"
+version = "1.0.0"
+description = "A mathematical framework for cross-architecture intelligence transplantation."
+authors = [
+    {name = "Ponpoke", email = "ponpoke10@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0.0",
+]
+
+[project.optional-dependencies]
+cli = [
+    "transformers",
+    "safetensors",
+    "peft"
+]
+experimental = [
+    "vllm",
+    "sglang"
+]
+
+[project.scripts]
+neural-scalpel = "neural_scalpel.cli.main:main"
