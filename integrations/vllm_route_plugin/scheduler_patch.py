@@ -87,10 +87,12 @@ def inject_route_aware_scheduler():
             active_route = "__base__"
 
         self.active_route_id = active_route
+        
+        # Set the active route globally for the ModelRunner hook to pick up
+        RoutePluginMetrics.set_active_route(active_route)
 
-        # Attach route to SchedulerOutput so ModelRunner can see it.
+        # Attach route to SchedulerOutput so ModelRunner can see it (if it uses SchedulerOutput)
         try:
-            # We use setattr so we don't break the original class structure
             setattr(output, "active_route_id", active_route)
         except Exception:
             pass
