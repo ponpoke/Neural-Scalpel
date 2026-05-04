@@ -28,9 +28,10 @@ def test_kv_cache_isolation():
     # We mock the thread local active route
     thread_local = threading.local()
     
-    # Mock hash_function
+    # Mock hash_function to actually hash the input so differences are reflected
     def dummy_hash(x):
-        return b"hash"
+        import hashlib
+        return hashlib.md5(str(x).encode()).digest()
         
     # Mock parent hash to avoid NONE_HASH NameError inside vLLM
     parent_hash = ("parent", ())
