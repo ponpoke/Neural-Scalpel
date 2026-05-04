@@ -1,6 +1,10 @@
 """
 KV Cache Isolation Policy for vLLM internal integration.
 """
+import threading
+
+# Global thread-local context for route_id
+route_context = threading.local()
 
 def inject_route_aware_kv_cache():
     """
@@ -30,9 +34,7 @@ def inject_route_aware_kv_cache():
         This respects vLLM's caching mechanism while ensuring isolation.
         """
         # Extract the active route
-        import threading
-        thread_local = threading.local()
-        active_route = getattr(thread_local, "active_route_id", "__base__")
+        active_route = getattr(route_context, "active_route_id", "__base__")
         
         if extra_keys is None:
             extra_keys = ()

@@ -25,8 +25,8 @@ def test_kv_cache_isolation():
     if not hasattr(kv_utils, "hash_block_tokens"):
         pytest.skip("hash_block_tokens not exposed in this version.")
 
-    # We mock the thread local active route
-    thread_local = threading.local()
+    # We use the thread local active route from the actual plugin context
+    from integrations.vllm_route_plugin.kv_cache_policy import route_context
     
     # Mock hash_function to actually hash the input so differences are reflected
     def dummy_hash(x):
@@ -37,15 +37,15 @@ def test_kv_cache_isolation():
     parent_hash = ("parent", ())
     
     # Hash for route A
-    thread_local.active_route_id = "routeA"
+    route_context.active_route_id = "routeA"
     hash_a = kv_utils.hash_block_tokens(dummy_hash, parent_hash, [1, 2, 3, 4], None)
     
     # Hash for route B
-    thread_local.active_route_id = "routeB"
+    route_context.active_route_id = "routeB"
     hash_b = kv_utils.hash_block_tokens(dummy_hash, parent_hash, [1, 2, 3, 4], None)
     
     # Hash for __base__
-    thread_local.active_route_id = "__base__"
+    route_context.active_route_id = "__base__"
     hash_base = kv_utils.hash_block_tokens(dummy_hash, parent_hash, [1, 2, 3, 4], None)
     
     assert hash_a != hash_b, "Hash collision: Route A and Route B generated same hash for same prompt"
