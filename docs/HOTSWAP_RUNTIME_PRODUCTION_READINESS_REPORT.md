@@ -298,17 +298,23 @@ These items are **not yet validated** and must be addressed before any productio
 - Mixed-route batches correctly split/rejected.
 - 150-request stress test confirmed 0 route leakage.
 
-**Step 4B: Internal Integration (MOCK COMPLETE)**
-*Mock architecture (`vllm_internal_mock.py`) successfully verifies Route-Homogeneous Batching and KV Cache isolation logic.*
+**Step 4B: Internal vLLM Plugin Integration**
 
-| Item | Description | Mock Verified |
-|------|-------------|---------------|
-| Route-aware Scheduler | Groups requests to prevent mixed-route continuous batches | ✅ |
-| KV cache tagging / isolation | Embeds `route_id` in BlockAllocator metadata and rejects leakage | ✅ |
-| Swap timing / ModelRunner | Performs `swap()` pre-forward and `rollback()` post-forward safely | ✅ |
-| Fail-close quarantine | Rejects mixed batches and triggers rollback/quarantine on failure | ✅ |
-| Native continuous batching | Allow mixed routes in internal scheduler with per-token adapters | Out of Scope |
-| TTFT / throughput degradation | Quantify overhead vs. baseline vLLM (Real Engine needed) | Pending |
+**Status: Monkey Patch Implementation Complete; Live Linux/vLLM Validation Pending.**
+
+**Implemented:**
+- route_id metadata injection
+- route-homogeneous Scheduler patch
+- route-aware KV cache hash policy
+- GPUModelRunner swap/rollback hook
+- route registry adapter skeleton
+
+**Pending (Phase 7+):**
+- live vLLM import/runtime tests
+- end-to-end generation under patched vLLM
+- KV cache collision validation in real engine
+- throughput / TTFT degradation measurement
+- 1K / 10K mixed-route endurance
 
 ### Priority 2: Actual Trained LoRA Evaluation (COMPLETE)
 
@@ -353,14 +359,14 @@ Neural-Scalpel Hot-Swap Runtimeは、以下の到達点にある：
 | route注入中品質評価 (simulated delta) | **完了** |
 | 実学習済みLoRA評価 (Priority 2) | **完了** |
 | External vLLM backend統合 (Step 4A) | **完了** |
-| Internal vLLM plugin設計・モック (Step 4B) | **完了** |
-| Internal vLLM plugin本体統合 (Step 4B) | **未完了** |
+| Internal vLLM plugin Monkey Patch実装 (Step 4B) | **完了** |
+| Internal vLLM plugin Live検証 (Phase 7+) | **未完了** |
 | API Hardening (Priority 3) | **完了** |
 | 外部顧客向けSLA | **未完了** |
 
 > **外部プロキシ層を介したvLLM実環境連携（Step 4A）において、厳密なRoute分離とLeakage 0が確認された。**
 > **実学習済みLoRAの能力移植（Priority 2）において、168個のテンソルを注入・ロールバックしてもモデルの論理能力（Coding）が一切破壊されず、確実にスタイルが移行することを証明した。**
-> **vLLM内部統合（Step 4B）に向けたアーキテクチャ設計・モックアップ構築を完了し、Scheduler/KV Cacheにおける安全なRoute-Homogeneousバッチングと分離管理のロジックが検証された。残るはvLLM本体ソースコードへのパッチ適用のみである。**
+> **vLLM内部統合（Step 4B）に向けたMonkey Patch実装（Phase 0-6）を構築し、Scheduler/KV Cacheにおける安全なRoute-Homogeneousバッチングと分離管理の骨組みが実装された。ただし、実vLLM Linux環境でのE2E検証（Phase 7+）は未完了であり、安全性は完全には実証されていない。**
 
 ---
 
