@@ -300,21 +300,19 @@ These items are **not yet validated** and must be addressed before any productio
 
 **Step 4B: Internal vLLM Plugin Integration**
 
-**Status: Monkey Patch Implementation Complete; Live Linux/vLLM Validation Pending.**
+**Status: Internal Core Logic Validated (Phase 7A-7D Complete); Live E2E Pending.**
 
-**Implemented:**
-- route_id metadata injection
-- route-homogeneous Scheduler patch
-- route-aware KV cache hash policy
-- GPUModelRunner swap/rollback hook
-- route registry adapter skeleton
+**Implemented & Validated:**
+- [x] Phase 7A: vLLM import/patch smoke test
+- [x] Phase 7B: Route-homogeneous Scheduler logic
+- [x] Phase 7C: Route-aware KV cache isolation (via extra_keys)
+- [x] Phase 7D: GPUModelRunner swap/rollback hooks
+- [x] Phase 2: route_id metadata injection
 
-**Pending (Phase 7+):**
-- live vLLM import/runtime tests
-- end-to-end generation under patched vLLM
-- KV cache collision validation in real engine
-- throughput / TTFT degradation measurement
-- 1K / 10K mixed-route endurance
+**Pending (Phase 7E+):**
+- [ ] live vLLM 100/1K request E2E generation
+- [ ] Throughput / TTFT degradation measurement
+- [ ] 10K mixed-route endurance in real engine
 
 ### Priority 2: Actual Trained LoRA Evaluation (COMPLETE)
 
@@ -359,8 +357,8 @@ Neural-Scalpel Hot-Swap Runtimeは、以下の到達点にある：
 | route注入中品質評価 (simulated delta) | **完了** |
 | 実学習済みLoRA評価 (Priority 2) | **完了** |
 | External vLLM backend統合 (Step 4A) | **完了** |
-| Internal vLLM plugin Monkey Patch実装 (Step 4B) | **完了** |
-| Internal vLLM plugin Live検証 (Phase 7+) | **未完了** |
+| Internal vLLM plugin Core Logic (Phase 7A-7D) | **完了** |
+| Internal vLLM plugin Live E2E (Phase 7E+) | **未完了** |
 | API Hardening (Priority 3) | **完了** |
 | 外部顧客向けSLA | **未完了** |
 
