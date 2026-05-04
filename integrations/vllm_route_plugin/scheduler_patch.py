@@ -104,8 +104,15 @@ def inject_route_aware_scheduler():
         # Determine the active route for this forward pass
         if len(unique_routes) == 1:
             active_route = next(iter(unique_routes))
+        elif len(unique_routes) == 0:
+            # If no "newly scheduled" requests are in output, 
+            # check the current running queue (essential for decode steps)
+            if hasattr(self, "running") and self.running:
+                active_route = _get_request_route_id(self.running[0])
+            else:
+                active_route = "__base__"
         else:
-            # Empty batch or only base
+            # Mixed routes (already raised RuntimeError above, but fail-safe here)
             active_route = "__base__"
 
         self.active_route_id = active_route
