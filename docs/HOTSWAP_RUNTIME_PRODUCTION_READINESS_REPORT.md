@@ -279,7 +279,7 @@ These items are **not yet validated** and must be addressed before any productio
 | Multi-route scaling | High | **RESOLVED** -- 50 routes tested with identical performance |
 | PPL/KL regression at scale | Medium | **RESOLVED** -- PPL delta = 0.000000 across all endurance runs |
 | External vLLM integration | **Critical** | **RESOLVED (Step 4A)** -- Route-aware proxy ensures strict batch isolation and 0 route leakage with real vLLM backend |
-| Internal vLLM plugin | **Critical** | Phase 0-6 monkey patch implementation complete; live Linux/vLLM validation pending. Internal safety is not yet proven under real continuous batching. |
+| Internal vLLM plugin | **Critical** | **PARTIALLY RESOLVED** -- Phase 7E-1/7E-2 live vLLM E2E hook/fail-close validation passed; Phase 7F-1 route lifecycle retention across decode steps passed. Active route-aware scheduling enforcement, real payload swap inside vLLM, 10K mixed-route endurance, and throughput/TTFT regression testing remain pending. |
 | Authentication | **High** | **RESOLVED** -- JWT-based tenant auth and Admin API keys implemented in proxy. |
 | TLS / Network security | **Medium** | Prototype runs over plain HTTP. |
 | Streaming output | **Medium** | No SSE/WebSocket support; responses are synchronous. |
@@ -300,7 +300,7 @@ These items are **not yet validated** and must be addressed before any productio
 
 **Step 4B: Internal vLLM Plugin Integration**
 
-**Status: Internal Monkey-Patch Core Logic Unit-Validated (Phase 7A-7D); Live E2E Pending.**
+**Status: Internal Monkey-Patch Live Hook/Fallback Validation Passed through Phase 7F-1; Scheduling Enforcement Pending.**
 
 **単体検証済み (Unit-Validated):**
 - [x] Phase 7A: vLLM import/patch smoke test
