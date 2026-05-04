@@ -16,6 +16,7 @@ def inject_route_aware_scheduler():
 
     original_schedule = vllm_scheduler.Scheduler.schedule
     original_init = vllm_scheduler.Scheduler.__init__
+    original_select_queue = getattr(vllm_scheduler.Scheduler, "_select_waiting_queue_for_scheduling", None)
 
     def patched_init(self, *args, **kwargs):
         original_init(self, *args, **kwargs)
@@ -131,4 +132,12 @@ def inject_route_aware_scheduler():
     # Apply patches
     vllm_scheduler.Scheduler.__init__ = patched_init
     vllm_scheduler.Scheduler.schedule = patched_schedule
+    
+    if original_select_queue:
+        def patched_select_queue(self):
+            queue = original_select_queue(self)
+            # Future home of Route-Aware queue selection logic
+            return queue
+        vllm_scheduler.Scheduler._select_waiting_queue_for_scheduling = patched_select_queue
+
     vllm_scheduler.Scheduler._scalpel_scheduler_patched = True
