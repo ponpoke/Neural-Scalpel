@@ -1,9 +1,13 @@
 import pytest
-from vllm.v1.request import Request
-from vllm.sampling_params import SamplingParams
-from integrations.vllm_route_plugin.route_metadata import inject_route_id_to_vllm_request
-
 def test_request_accepts_route_id():
+    try:
+        import vllm
+    except ImportError:
+        pytest.skip("vLLM not installed. This test requires a valid vLLM installation.")
+        
+    from vllm.v1.request import Request
+    from vllm.sampling_params import SamplingParams
+    from integrations.vllm_route_plugin.route_metadata import inject_route_id_to_vllm_request
     inject_route_id_to_vllm_request()
     
     # Test default

@@ -19,28 +19,31 @@ def inject_route_aware_kv_cache():
         # Fallback if hash_block_tokens is not exposed in this vLLM version
         return
 
-    def patched_hash_block_tokens(*args, **kwargs):
+    def patched_hash_block_tokens(
+        hash_function,
+        parent_block_hash,
+        curr_block_token_ids,
+        extra_keys=None,
+    ):
         """
         Wrapper around original hash_block_tokens that injects the route_id into the hash state.
         For true isolation, the request's route_id must be part of the tuple that gets hashed.
         """
-        # Calculate the original hash which is typically based on (is_prompt, tuple(token_ids), lora_req)
-        base_hash = original_hash_block_tokens(*args, **kwargs)
+        # Calculate the original hash
+        base_hash = original_hash_block_tokens(
+            hash_function,
+            parent_block_hash,
+            curr_block_token_ids,
+            extra_keys,
+        )
         
-        # We need to extract the route_id. In a real integration, the hash_block_tokens
-        # signature needs to accept the request or route_id. Since we monkey-patch,
-        # we might have to rely on thread-local storage or modify the caller (Request) to pass it.
-        # For this prototype, we'll assume we can retrieve the active route from context.
-        # This is a conceptual implementation of Phase 4 (Level 2: Route-tagged cache key).
+        # Extract the active route
         import threading
         thread_local = threading.local()
         active_route = getattr(thread_local, "active_route_id", "__base__")
         
-        # Combine the original hash with the route_id
-        route_identity = f"{active_route}_payload_hash_stub"
-        
         # Return the new combined hash
-        return hash((base_hash, route_identity))
+        return (base_hash, active_route)
 
     kv_utils.hash_block_tokens = patched_hash_block_tokens
 
