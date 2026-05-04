@@ -1,0 +1,560 @@
+[
+  {
+    "mode": "Target Base",
+    "ppl": 14.9346,
+    "kl_divergence": -0.003887,
+    "coding_pass_rate": 0.64,
+    "coding_passed": 16,
+    "coding_total": 25,
+    "coding_details": [
+      {
+        "task_id": "fizzbuzz",
+        "passed": 0,
+        "total": 4,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "is_palindrome",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "factorial",
+        "passed": 1,
+        "total": 3,
+        "pass_rate": 0.3333333333333333
+      },
+      {
+        "task_id": "max_element",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "reverse_string",
+        "passed": 0,
+        "total": 3,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "count_vowels",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "sum_list",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "is_even",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      }
+    ],
+    "avg_output_length": 107.4,
+    "avg_repetition_rate": 0.0619,
+    "avg_token_entropy": 5.552,
+    "text_details": [
+      {
+        "output_length": 128,
+        "repetition_rate": 0.016,
+        "token_entropy": 6.089,
+        "output_preview": " Neural networks are useful for natural language processing (NLP) for several reasons:\n\n1. **Highly Scalable**: Neural networks can handle large amounts of data and can learn from complex patterns in "
+      },
+      {
+        "output_length": 128,
+        "repetition_rate": 0.224,
+        "token_entropy": 5.1744,
+        "output_preview": " Ingredients:\n- 2 cups all-purpose flour\n- 1/2 cup unsalted butter, softened\n- 1/2 cup granulated sugar\n- 1/2 cup brown sugar\n- 1/2 teaspoon baking soda\n- 1/2 teaspoon salt\n- 1/2 cup vegetable oil\n- 1"
+      },
+      {
+        "output_length": 86,
+        "repetition_rate": 0.012,
+        "token_entropy": 5.4131,
+        "output_preview": " The water cycle is a continuous process that involves the movement of water from the Earth's surface to the atmosphere, and back again. It involves the evaporation of water from the ground, condensat"
+      },
+      {
+        "output_length": 86,
+        "repetition_rate": 0.0482,
+        "token_entropy": 5.3053,
+        "output_preview": " 1. Improved cardiovascular health: Regular exercise helps to improve the function of the heart and lungs, which can lead to a healthier heart and lungs.\n\n2. Weight management: Exercise can help to bu"
+      },
+      {
+        "output_length": 109,
+        "repetition_rate": 0.0094,
+        "token_entropy": 5.7782,
+        "output_preview": " An API (Application Programming Interface) is a set of rules and protocols that allow different software applications to communicate with each other. It is a way for different programs to work togeth"
+      }
+    ]
+  },
+  {
+    "mode": "Target + Naive",
+    "ppl": 124.7942,
+    "kl_divergence": 127.4375,
+    "coding_pass_rate": 0.08,
+    "coding_passed": 2,
+    "coding_total": 25,
+    "coding_details": [
+      {
+        "task_id": "fizzbuzz",
+        "passed": 0,
+        "total": 4,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "is_palindrome",
+        "passed": 0,
+        "total": 3,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "factorial",
+        "passed": 1,
+        "total": 3,
+        "pass_rate": 0.3333333333333333
+      },
+      {
+        "task_id": "max_element",
+        "passed": 0,
+        "total": 3,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "reverse_string",
+        "passed": 0,
+        "total": 3,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "count_vowels",
+        "passed": 0,
+        "total": 3,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "sum_list",
+        "passed": 1,
+        "total": 3,
+        "pass_rate": 0.3333333333333333
+      },
+      {
+        "task_id": "is_even",
+        "passed": 0,
+        "total": 3,
+        "pass_rate": 0.0
+      }
+    ],
+    "avg_output_length": 86.8,
+    "avg_repetition_rate": 0.5475,
+    "avg_token_entropy": 2.7823,
+    "text_details": [
+      {
+        "output_length": 0,
+        "repetition_rate": 0,
+        "token_entropy": 0,
+        "output_preview": ""
+      },
+      {
+        "output_length": 128,
+        "repetition_rate": 0.856,
+        "token_entropy": 3.3783,
+        "output_preview": " I have a recipe for chocolate chip cookies. i have a recipe for chocolate chipcookies. i have a recipe for chocolate chip cookies. i have a recipe for chocolate chip cookies. i have a recipe for choc"
+      },
+      {
+        "output_length": 128,
+        "repetition_rate": 0.872,
+        "token_entropy": 3.2051,
+        "output_preview": " The water cycle is the water cycle in simple terms. The water cycle is the water cycle in simple terms. The water cycle isthe water cycle in simple terms. The water cycle isthe water cycle in simple "
+      },
+      {
+        "output_length": 128,
+        "repetition_rate": 0.584,
+        "token_entropy": 3.8043,
+        "output_preview": " 1. What are three benefits of regular exercise? 2. What are three benefits of regular exercise? 3. What are three benefits of regular exercise? 4. What are three benefits of regular exercise? 5. What"
+      },
+      {
+        "output_length": 50,
+        "repetition_rate": 0.4255,
+        "token_entropy": 3.5239,
+        "output_preview": " A. programmer is to someone who is nota programmer. b. programmer is to someone who is nota programmer. c. programmer is to someone who is nota programmer. d. programmer is to someone who is nota pro"
+      }
+    ]
+  },
+  {
+    "mode": "Target + Random LR",
+    "ppl": 14.8842,
+    "kl_divergence": 0.030838,
+    "coding_pass_rate": 0.64,
+    "coding_passed": 16,
+    "coding_total": 25,
+    "coding_details": [
+      {
+        "task_id": "fizzbuzz",
+        "passed": 0,
+        "total": 4,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "is_palindrome",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "factorial",
+        "passed": 1,
+        "total": 3,
+        "pass_rate": 0.3333333333333333
+      },
+      {
+        "task_id": "max_element",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "reverse_string",
+        "passed": 0,
+        "total": 3,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "count_vowels",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "sum_list",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "is_even",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      }
+    ],
+    "avg_output_length": 114.2,
+    "avg_repetition_rate": 0.071,
+    "avg_token_entropy": 5.6104,
+    "text_details": [
+      {
+        "output_length": 128,
+        "repetition_rate": 0.0,
+        "token_entropy": 6.1456,
+        "output_preview": " Neural networks are useful for natural language processing (NLP) for several reasons:\n\n1. **Highly Efficient**: Neural networks can process large amounts of data quickly and accurately, making them i"
+      },
+      {
+        "output_length": 128,
+        "repetition_rate": 0.224,
+        "token_entropy": 5.2026,
+        "output_preview": " Ingredients:\n- 2 cups all-purpose flour\n- 1/2 cup unsalted butter, softened\n- 1/2 cup granulated sugar\n- 1/2 cup brown sugar\n- 1/2 teaspoon baking soda\n- 1/2 teaspoon salt\n- 1/2 cup vegetable oil\n- 1"
+      },
+      {
+        "output_length": 128,
+        "repetition_rate": 0.032,
+        "token_entropy": 5.8408,
+        "output_preview": " The water cycle is a continuous process that involves the movement of water from the Earth's surface to the atmosphere, and back again. It involves the following steps:\n\n1. Evaporation: Water on the "
+      },
+      {
+        "output_length": 86,
+        "repetition_rate": 0.0482,
+        "token_entropy": 5.3053,
+        "output_preview": " 1. Improved cardiovascular health: Regular exercise helps to improve the function of the heart and lungs, which can lead to a healthier heart and lungs.\n\n2. Weight management: Exercise can help to bu"
+      },
+      {
+        "output_length": 101,
+        "repetition_rate": 0.051,
+        "token_entropy": 5.5576,
+        "output_preview": " An API (Application Programming Interface) is a set of rules and protocols that allows different software applications to communicate with each other. It is a way for different programs to work toget"
+      }
+    ]
+  },
+  {
+    "mode": "Target + Projected",
+    "ppl": 14.8849,
+    "kl_divergence": 0.016205,
+    "coding_pass_rate": 0.64,
+    "coding_passed": 16,
+    "coding_total": 25,
+    "coding_details": [
+      {
+        "task_id": "fizzbuzz",
+        "passed": 0,
+        "total": 4,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "is_palindrome",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "factorial",
+        "passed": 1,
+        "total": 3,
+        "pass_rate": 0.3333333333333333
+      },
+      {
+        "task_id": "max_element",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "reverse_string",
+        "passed": 0,
+        "total": 3,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "count_vowels",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "sum_list",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "is_even",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      }
+    ],
+    "avg_output_length": 115.2,
+    "avg_repetition_rate": 0.0681,
+    "avg_token_entropy": 5.6361,
+    "text_details": [
+      {
+        "output_length": 128,
+        "repetition_rate": 0.016,
+        "token_entropy": 6.0995,
+        "output_preview": " Neural networks are useful for natural language processing (NLP) for several reasons:\n\n1. **Highly Scalable**: Neural networks can handle large amounts of data and can learn from complex patterns in "
+      },
+      {
+        "output_length": 128,
+        "repetition_rate": 0.224,
+        "token_entropy": 5.2026,
+        "output_preview": " Ingredients:\n- 2 cups all-purpose flour\n- 1/2 cup unsalted butter, softened\n- 1/2 cup granulated sugar\n- 1/2 cup brown sugar\n- 1/2 teaspoon baking soda\n- 1/2 teaspoon salt\n- 1/2 cup vegetable oil\n- 1"
+      },
+      {
+        "output_length": 128,
+        "repetition_rate": 0.016,
+        "token_entropy": 5.8304,
+        "output_preview": " The water cycle is a continuous process that involves the movement of water from the Earth's surface to the atmosphere, and back again. It involves the following steps:\n\n1. Evaporation: Water on the "
+      },
+      {
+        "output_length": 83,
+        "repetition_rate": 0.075,
+        "token_entropy": 5.2696,
+        "output_preview": " 1. Improved cardiovascular health: Regular exercise helps to improve the function of the heart and lungs, which can lead to a healthier heart and lungs.\n\n2. Weight management: Exercise can help to bu"
+      },
+      {
+        "output_length": 109,
+        "repetition_rate": 0.0094,
+        "token_entropy": 5.7782,
+        "output_preview": " An API (Application Programming Interface) is a set of rules and protocols that allow different software applications to communicate with each other. It is a way for different programs to work togeth"
+      }
+    ]
+  },
+  {
+    "mode": "Target + Actual LoRA",
+    "ppl": 17.5804,
+    "kl_divergence": 7.320312,
+    "coding_pass_rate": 0.64,
+    "coding_passed": 16,
+    "coding_total": 25,
+    "coding_details": [
+      {
+        "task_id": "fizzbuzz",
+        "passed": 0,
+        "total": 4,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "is_palindrome",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "factorial",
+        "passed": 1,
+        "total": 3,
+        "pass_rate": 0.3333333333333333
+      },
+      {
+        "task_id": "max_element",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "reverse_string",
+        "passed": 0,
+        "total": 3,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "count_vowels",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "sum_list",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "is_even",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      }
+    ],
+    "avg_output_length": 71.2,
+    "avg_repetition_rate": 0.1363,
+    "avg_token_entropy": 4.8214,
+    "text_details": [
+      {
+        "output_length": 86,
+        "repetition_rate": 0.3133,
+        "token_entropy": 5.1961,
+        "output_preview": " Neural networks are useful for natural language processing because they can learn from large amounts of data and make predictions based on that data. They can also be used to create models that can u"
+      },
+      {
+        "output_length": 128,
+        "repetition_rate": 0.336,
+        "token_entropy": 4.6439,
+        "output_preview": " Ingredients:\n- 1 cup all-purpose flour\n- 1/2 cup unsalted butter\n- 1/2 cup granulated sugar\n- 1/2 cup brown sugar\n- 1/2 cup cocoa powder\n- 1/2 teaspoon baking soda\n- 1/2 teaspoon salt\n- 1/2 cup veget"
+      },
+      {
+        "output_length": 65,
+        "repetition_rate": 0.0323,
+        "token_entropy": 4.7794,
+        "output_preview": " The water cycle is a continuous process that involves the movement of water from the oceans to the atmosphere, and back again. It involves the evaporation of water from the oceans, condensation, prec"
+      },
+      {
+        "output_length": 32,
+        "repetition_rate": 0.0,
+        "token_entropy": 4.5625,
+        "output_preview": " 1. Improved cardiovascular health\n2. Increased muscle strength and endurance\n3. Reduced risk of chronic diseases such as diabetes, heart disease, and obesity."
+      },
+      {
+        "output_length": 45,
+        "repetition_rate": 0.0,
+        "token_entropy": 4.925,
+        "output_preview": " An API is a set of instructions that allows a program to communicate with another program. It is a way for two programs to exchange data and information. APIs are used to make it easier for developer"
+      }
+    ]
+  },
+  {
+    "mode": "After Rollback",
+    "ppl": 14.9346,
+    "kl_divergence": -0.003887,
+    "coding_pass_rate": 0.64,
+    "coding_passed": 16,
+    "coding_total": 25,
+    "coding_details": [
+      {
+        "task_id": "fizzbuzz",
+        "passed": 0,
+        "total": 4,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "is_palindrome",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "factorial",
+        "passed": 1,
+        "total": 3,
+        "pass_rate": 0.3333333333333333
+      },
+      {
+        "task_id": "max_element",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "reverse_string",
+        "passed": 0,
+        "total": 3,
+        "pass_rate": 0.0
+      },
+      {
+        "task_id": "count_vowels",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "sum_list",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      },
+      {
+        "task_id": "is_even",
+        "passed": 3,
+        "total": 3,
+        "pass_rate": 1.0
+      }
+    ],
+    "avg_output_length": 107.4,
+    "avg_repetition_rate": 0.0619,
+    "avg_token_entropy": 5.552,
+    "text_details": [
+      {
+        "output_length": 128,
+        "repetition_rate": 0.016,
+        "token_entropy": 6.089,
+        "output_preview": " Neural networks are useful for natural language processing (NLP) for several reasons:\n\n1. **Highly Scalable**: Neural networks can handle large amounts of data and can learn from complex patterns in "
+      },
+      {
+        "output_length": 128,
+        "repetition_rate": 0.224,
+        "token_entropy": 5.1744,
+        "output_preview": " Ingredients:\n- 2 cups all-purpose flour\n- 1/2 cup unsalted butter, softened\n- 1/2 cup granulated sugar\n- 1/2 cup brown sugar\n- 1/2 teaspoon baking soda\n- 1/2 teaspoon salt\n- 1/2 cup vegetable oil\n- 1"
+      },
+      {
+        "output_length": 86,
+        "repetition_rate": 0.012,
+        "token_entropy": 5.4131,
+        "output_preview": " The water cycle is a continuous process that involves the movement of water from the Earth's surface to the atmosphere, and back again. It involves the evaporation of water from the ground, condensat"
+      },
+      {
+        "output_length": 86,
+        "repetition_rate": 0.0482,
+        "token_entropy": 5.3053,
+        "output_preview": " 1. Improved cardiovascular health: Regular exercise helps to improve the function of the heart and lungs, which can lead to a healthier heart and lungs.\n\n2. Weight management: Exercise can help to bu"
+      },
+      {
+        "output_length": 109,
+        "repetition_rate": 0.0094,
+        "token_entropy": 5.7782,
+        "output_preview": " An API (Application Programming Interface) is a set of rules and protocols that allow different software applications to communicate with each other. It is a way for different programs to work togeth"
+      }
+    ]
+  }
+]

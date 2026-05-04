@@ -1,0 +1,42 @@
+{
+  "config": {
+    "model": "Qwen/Qwen2.5-0.5B",
+    "device": "cuda",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "route_count": 50,
+    "request_count": 10000,
+    "workers": 4,
+    "elapsed_seconds": 75.4
+  },
+  "results": {
+    "successes": 10000,
+    "errors": 0,
+    "route_leakage_count": 0,
+    "rollback_failure_count": 0
+  },
+  "latency_ms": {
+    "e2e_p50": 29.8605,
+    "e2e_p99": 36.6407,
+    "e2e_p999": 59.2162,
+    "swap_p50": 3.4575,
+    "swap_p99": 4.3015,
+    "rollback_p50": 0.5692,
+    "rollback_p99": 0.836
+  },
+  "quality": {
+    "ppl_baseline": 21.093,
+    "ppl_after_endurance": 21.093,
+    "ppl_delta": 0.0,
+    "rollback_integrity": "PASS"
+  },
+  "memory": {
+    "vram_before_mb": 983.95,
+    "vram_peak_mb": 1009.65,
+    "vram_after_mb": 987.7,
+    "vram_leak_mb": 3.75
+  },
+  "audit": {
+    "log_entries": 70000,
+    "expected_minimum": 40000
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Scalpel Route Manifest",
+  "type": "object",
+  "required": [
+    "route_schema_version",
+    "route_id",
+    "source_model",
+    "target_model",
+    "source_adapter_sha256",
+    "target_model_sha256",
+    "projection_method",
+    "diagnostics",
+    "layers",
+    "signature"
+  ],
+  "properties": {
+    "route_schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "route_id": {
+      "type": "string"
+    },
+    "source_model": {
+      "type": "string"
+    },
+    "target_model": {
+      "type": "string"
+    },
+    "source_adapter_sha256": {
+      "type": "string"
+    },
+    "target_model_sha256": {
+      "type": "string"
+    },
+    "tenant_id": {
+      "type": "string"
+    },
+    "license": {
+      "type": "string"
+    },
+    "projection_method": {
+      "type": "string"
+    },
+    "calibration": {
+      "type": "object",
+      "properties": {
+        "forward_passes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dataset_hash": {
+          "type": "string"
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "required": ["verdict", "ppl_degradation", "kl_divergence"],
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "enum": ["PASS", "CAUTION", "FAIL"]
+        },
+        "ppl_degradation": {
+          "type": "number"
+        },
+        "kl_divergence": {
+          "type": "number"
+        },
+        "portability_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "description": "Reference to the safetensors file containing weight deltas",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["safetensors"]
+        },
+        "uri": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["format", "uri", "sha256"]
+    },
+    "layers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "shape", "dtype", "delta_sha256"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "shape": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "dtype": {
+            "type": "string"
+          },
+          "delta_sha256": {
+            "type": "string"
+          },
+          "payload_key": {
+            "type": "string",
+            "description": "Key in the safetensors payload file for this layer's delta. Defaults to layer name."
+          }
+        }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": {
+          "type": "string"
+        },
+        "key_id": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

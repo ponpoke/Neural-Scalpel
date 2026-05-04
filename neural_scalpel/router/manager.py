@@ -60,7 +60,7 @@ class ScalpelRouteManager:
         route_data["signature"] = None
         payload = json.dumps(route_data, sort_keys=True).encode('utf-8')
         
-        signature = hmac.new(provider_key.encode('utf-8'), payload, hashlib.sha256).hexdigest()
+        signature = hmac.HMAC(provider_key.encode('utf-8'), payload, hashlib.sha256).hexdigest()
         route_data["signature"] = signature
         
         with open(filepath, "w") as f:
@@ -87,7 +87,7 @@ class ScalpelRouteManager:
             
             verified = False
             for key in trusted_keys:
-                expected_sig = hmac.new(key.encode('utf-8'), payload, hashlib.sha256).hexdigest()
+                expected_sig = hmac.HMAC(key.encode('utf-8'), payload, hashlib.sha256).hexdigest()
                 if hmac.compare_digest(expected_sig, signature):
                     verified = True
                     break

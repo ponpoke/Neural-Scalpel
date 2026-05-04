@@ -1,15 +1,36 @@
 import torch
 import re
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Union
+from transformers import AutoConfig
 from neural_scalpel.core.math import soft_routing_head_pooling, pca_guided_subspace_injection
 
 class BaseAdapter:
-    def __init__(self, source_info: Tuple[int, int], target_info: Tuple[int, int]):
-        self.source_hidden, self.source_heads = source_info
-        self.target_hidden, self.target_heads = target_info
-        
+    def __init__(self, source_info: Union[Tuple, Dict], target_info: Union[Tuple, Dict]):
+        if isinstance(source_info, tuple):
+            self.source_hidden, self.source_heads = source_info[:2]
+            self.source_inter = source_info[2] if len(source_info) > 2 else 14336
+            self.source_kv_heads = source_info[3] if len(source_info) > 3 else 8
+        else:
+            self.source_hidden = source_info.get("hidden_size", 4096)
+            self.source_heads = source_info.get("num_attention_heads", 32)
+            self.source_inter = source_info.get("intermediate_size", 14336)
+            self.source_kv_heads = source_info.get("num_key_value_heads", 8)
+
+        if isinstance(target_info, tuple):
+            self.target_hidden, self.target_heads = target_info[:2]
+            self.target_inter = target_info[2] if len(target_info) > 2 else 14336
+            self.target_kv_heads = target_info[3] if len(target_info) > 3 else 8
+        else:
+            self.target_hidden = target_info.get("hidden_size", 4096)
+            self.target_heads = target_info.get("num_attention_heads", 32)
+            self.target_inter = target_info.get("intermediate_size", 14336)
+            self.target_kv_heads = target_info.get("num_key_value_heads", 8)
+            
         self.source_head_dim = self.source_hidden // self.source_heads
         self.target_head_dim = self.target_hidden // self.target_heads
+        
+        self.source_kv_dim = self.source_kv_heads * self.source_head_dim
+        self.target_kv_dim = self.target_kv_heads * self.target_head_dim
 
     def map_key(self, key: str) -> str:
         """Translates the state dict key from source to target architecture."""
@@ -26,7 +47,7 @@ class Llama3ToQwen2Adapter(BaseAdapter):
     Demonstrates Soft-Routing Head Pooling (SRHP) for head reduction,
     and supports Wasserstein Discrete Routing (WDR) to avoid robotomy.
     """
-    def __init__(self, source_info: Tuple[int, int], target_info: Tuple[int, int], routing_matrix: torch.Tensor = None):
+    def __init__(self, source_info: Union[Tuple, Dict], target_info: Union[Tuple, Dict], routing_matrix: torch.Tensor = None):
         super().__init__(source_info, target_info)
         self.routing_matrix = routing_matrix # (s_heads, t_heads)
 
@@ -45,9 +66,16 @@ class Llama3ToQwen2Adapter(BaseAdapter):
             r = tensor.shape[0]
             in_features = tensor.shape[1]
             
-            if is_qkv or is_mlp:
+            if is_qkv:
                 # input is main hidden_size
                 if in_features == self.source_hidden:
+                    return self._project_dim(tensor, self.source_hidden, self.target_hidden, dim=1)
+            elif is_mlp:
+                if "down_proj" in key:
+                    # down_proj input is intermediate_size
+                    return self._project_dim(tensor, self.source_inter, self.target_inter, dim=1)
+                else:
+                    # gate/up input is hidden_size
                     return self._project_dim(tensor, self.source_hidden, self.target_hidden, dim=1)
             elif is_o:
                 # input is num_heads * head_dim
@@ -63,15 +91,26 @@ class Llama3ToQwen2Adapter(BaseAdapter):
             r = tensor.shape[1]
             
             if is_qkv:
-                # output is num_heads * head_dim
+                # k_proj and v_proj outputs are kv_dim, q_proj is hidden_size
                 if out_features == self.source_hidden:
+                    # q_proj
                     if self.routing_matrix is not None:
                         return self._apply_wdr_on_out_features(tensor, r)
                     return self._apply_srhp_on_out_features(tensor, r)
-            elif is_o or is_mlp:
+                elif out_features == self.source_kv_dim:
+                    # k_proj / v_proj
+                    return self._project_dim(tensor, self.source_kv_dim, self.target_kv_dim, dim=0)
+            elif is_o:
                 # output is main hidden_size
                 if out_features == self.source_hidden:
                     return self._project_dim(tensor, self.source_hidden, self.target_hidden, dim=0)
+            elif is_mlp:
+                if "down_proj" in key:
+                    # down_proj output is hidden_size
+                    return self._project_dim(tensor, self.source_hidden, self.target_hidden, dim=0)
+                else:
+                    # gate/up output is intermediate_size
+                    return self._project_dim(tensor, self.source_inter, self.target_inter, dim=0)
 
         return tensor
 
@@ -104,7 +143,14 @@ class Llama3ToQwen2Adapter(BaseAdapter):
         pooled = soft_routing_head_pooling(tensor_transposed, self.target_heads) # (r, t_heads, h_dim)
         
         h_dim_actual = pooled.shape[2]
-        out_pooled = pooled.permute(1, 2, 0).reshape(self.target_heads * h_dim_actual, r)
+        
+        # truncate/pad to target_head_dim
+        if h_dim_actual > self.target_head_dim:
+            pooled = pooled[:, :, :self.target_head_dim]
+        elif h_dim_actual < self.target_head_dim:
+            pooled = torch.nn.functional.pad(pooled, (0, self.target_head_dim - h_dim_actual))
+            
+        out_pooled = pooled.permute(1, 2, 0).reshape(self.target_heads * self.target_head_dim, r)
         return out_pooled
 
     def _apply_srhp_on_in_features(self, tensor: torch.Tensor, r: int) -> torch.Tensor:
@@ -119,7 +165,15 @@ class Llama3ToQwen2Adapter(BaseAdapter):
         pooled = soft_routing_head_pooling(tensor_reshaped, self.target_heads) # (r, t_heads, h_dim)
         
         h_dim_actual = pooled.shape[2]
-        return pooled.reshape(r, self.target_heads * h_dim_actual)
+        
+        # We must truncate/pad h_dim_actual to target_head_dim
+        # pooled shape is (r, t_heads, h_dim_actual)
+        if h_dim_actual > self.target_head_dim:
+            pooled = pooled[:, :, :self.target_head_dim]
+        elif h_dim_actual < self.target_head_dim:
+            pooled = torch.nn.functional.pad(pooled, (0, self.target_head_dim - h_dim_actual))
+            
+        return pooled.reshape(r, self.target_heads * self.target_head_dim)
 
     def _apply_wdr_on_out_features(self, tensor: torch.Tensor, r: int) -> torch.Tensor:
         """Applies WDR (Wasserstein Discrete Routing) using pre-computed routing_matrix."""
@@ -142,7 +196,6 @@ class Llama3ToQwen2Adapter(BaseAdapter):
         
         # WDR: (r, s_heads, h_dim), (s_heads, t_heads) -> (r, t_heads, h_dim)
         routed = torch.einsum('rsh,st->rth', tensor_reshaped, self.routing_matrix)
-        
         return routed.reshape(r, t_heads * self.source_head_dim)
 
 
@@ -203,6 +256,22 @@ class SDXLToFluxAdapter(BaseAdapter):
         return tensor
 
 
+class SDXLToSDXLAdapter(BaseAdapter):
+    """
+    Adapter for SDXL-to-SDXL or SD-Turbo transplantation.
+    Ensures keys are preserved and correctly formatted for Diffusers.
+    """
+    def map_key(self, key: str) -> str:
+        # For SDXL, standard LoRA keys like 'lora_unet_...' should be kept as is.
+        # This allows diffusers to correctly identify them.
+        return key
+
+    def project_tensor(self, key: str, tensor: torch.Tensor) -> torch.Tensor:
+        # In a real surgery, we might apply JTSA or WDR here.
+        # For now, we ensure the tensor reaches the target with its stylistic data intact.
+        return tensor
+
+
 def get_adapter(source_arch: str, target_arch: str, source_info: Tuple[int, int], target_info: Tuple[int, int]) -> BaseAdapter:
     # A simple router. In a real scenario, infer `source_arch` and `target_arch` from the config.json `model_type`
     pair = f"{source_arch}_to_{target_arch}".lower()
@@ -213,5 +282,7 @@ def get_adapter(source_arch: str, target_arch: str, source_info: Tuple[int, int]
         return MistralToLlama3Adapter(source_info, target_info)
     elif "sdxl" in pair and "flux" in pair:
         return SDXLToFluxAdapter(source_info, target_info)
+    elif "sdxl" in pair and "sdxl" in pair:
+        return SDXLToSDXLAdapter(source_info, target_info)
     
     return BaseAdapter(source_info, target_info)

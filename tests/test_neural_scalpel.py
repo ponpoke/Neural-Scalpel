@@ -21,9 +21,9 @@ class TestPhase1(unittest.TestCase):
         mock_config.num_attention_heads = 32
         mock_from_pretrained.return_value = mock_config
         
-        hidden, heads = get_model_info("dummy_llama_path")
-        self.assertEqual(hidden, 4096)
-        self.assertEqual(heads, 32)
+        info = get_model_info("dummy_llama_path")
+        self.assertEqual(info["hidden_size"], 4096)
+        self.assertEqual(info["num_attention_heads"], 32)
         
     @patch('neural_scalpel.cli.main.AutoConfig.from_pretrained')
     def test_cli_end_to_end(self, mock_from_pretrained):
@@ -34,10 +34,12 @@ class TestPhase1(unittest.TestCase):
         
         with tempfile.TemporaryDirectory() as tmpdir:
             args = MagicMock()
-            args.source = "source"
-            args.target = "target"
+            args.source = "owner/source-lora"
+            args.target = "owner/target-base"
             args.domain = "general"
             args.output = tmpdir
+            args.routing_path = None
+            args.calibrate = None
             
             port_lora(args)
             
@@ -48,10 +50,12 @@ class TestPhase1(unittest.TestCase):
         from safetensors.torch import load_file
         with tempfile.TemporaryDirectory() as tmpdir:
             args = MagicMock()
-            args.source = "source"
-            args.target = "target"
+            args.source = "owner/source-lora"
+            args.target = "owner/target-base"
             args.domain = "general"
             args.output = tmpdir
+            args.routing_path = None
+            args.calibrate = None
             port_lora(args)
             
             tensors = load_file(os.path.join(tmpdir, "adapter_model.safetensors"))

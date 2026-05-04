@@ -67,5 +67,19 @@ output/
 mock_weights/
 .DS_Store
 
-定義書
 idea/
+demo/
+verification_demo/*.safetensors
+
+
+cagliostrolab/
+transplanted_lora.safetensors
+# Verification Demo Models
+verification_demo/source_llm_lora/
+verification_demo/transplanted_llm_lora/
+verification_demo/transplanted_lora.safetensors
+
+port_error.log
+
+tests/quality_eval_results/payloads/
+*.safetensors

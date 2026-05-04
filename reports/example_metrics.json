@@ -1,0 +1,10 @@
+{
+  "verdict": "CAUTION",
+  "portability_score": 67,
+  "ppl_degradation": 0.0006,
+  "kl_divergence": 0.0184,
+  "calibration_forward_passes": 64,
+  "adapter_norm_drift": "warning",
+  "architecture_homology": "medium",
+  "production_recommendation": "not_recommended"
+}

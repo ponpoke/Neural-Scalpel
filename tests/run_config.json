@@ -1,0 +1,10 @@
+{
+  "gpu": "NVIDIA GeForce RTX 5060 Ti",
+  "torch_version": "2.11.0+cu130",
+  "cuda_version": "13.0",
+  "model": "Mock-Qwen2.5-0.5B-Layers",
+  "route_count": 1,
+  "num_runs": 500,
+  "precision": "fp16",
+  "vram_peak_mb": 17.125
+}

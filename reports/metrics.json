@@ -1,0 +1,16 @@
+{
+    "verdict": "CAUTION",
+    "portability_score": 80,
+    "ppl_degradation": 0.0006,
+    "kl_divergence": 0.0184,
+    "calibration_forward_passes": 64,
+    "architecture_homology": "medium",
+    "production_recommendation": "not_recommended_pending_downstream",
+    "license_risk": {
+        "source_model_license": "unknown",
+        "target_model_license": "apache-2.0",
+        "source_lora_license": "unknown",
+        "commercial_risk": "HIGH",
+        "recommendation": "Manual license review required before commercial use."
+    }
+}

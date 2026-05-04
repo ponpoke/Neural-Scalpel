@@ -1,6 +1,7 @@
 import threading
 import time
 import torch
+from neural_scalpel.kernel import atomic_swap, HAS_CUDA_KERNEL
 
 class VRAMHotSwapAPI:
     """
@@ -62,9 +63,9 @@ class VRAMHotSwapAPI:
     
     def inject_concept_shadow(self, task_vector, layer_name: str):
         """
-        Shadow Registering (Double Buffering):
+        Shadow Registering (Double Buffering) with CUDA-Synchronized Fallback:
         Copies the live tensor to a shadow buffer, applies the task vector, 
-        and atomically swaps the pointer. Reduces Mutex hold time to microseconds.
+        and atomically swaps the pointer.
         """
         state = self._get_state_dict()
         if state is None or layer_name not in state:
@@ -80,18 +81,25 @@ class VRAMHotSwapAPI:
         # Compute in shadow memory
         shadow_tensor = live_tensor.clone() + task_vector.to(live_tensor.device)
         
-        # 2. Atomic Pointer Swap (Microsecond Lock)
-        print(f"[Hot-Swap V5] Acquiring lock for atomic pointer swap...")
+        # 2. Atomic Pointer Swap
+        kernel_status = "Native CUDA" if HAS_CUDA_KERNEL else "CUDA-Synchronized Fallback"
+        print(f"[Hot-Swap V5] Acquiring lock for pointer swap [{kernel_status}]...")
         with self.lock:
             with torch.no_grad():
-                state[layer_name].copy_(shadow_tensor)
-        print(f"[Hot-Swap V5] Atomic swap complete.")
+                if HAS_CUDA_KERNEL:
+                    atomic_swap(state[layer_name], shadow_tensor)
+                else:
+                    # Strict ACID Fallback for Enterprise
+                    if shadow_tensor.is_cuda:
+                        torch.cuda.synchronize(shadow_tensor.device)
+                    # Python-level atomic pointer swap after C++ streams are drained
+                    state[layer_name].data = shadow_tensor.data
+        print(f"[Hot-Swap V5] Swap complete.")
         
     def transactional_rollback(self, layer_name: str):
         """
         Strict Transactional Rollback:
-        Instantly reverts the tensor to the exact state preserved in the shadow buffer 
-        before the last operation, ensuring 100% zero-state restoration.
+        Instantly reverts the tensor to the exact state preserved in the shadow buffer.
         """
         if layer_name not in self.shadow_buffers:
             print(f"[Rollback] No shadow buffer found for {layer_name}. Cannot rollback.")
@@ -104,7 +112,12 @@ class VRAMHotSwapAPI:
         print(f"[Rollback] CRITICAL: Reverting {layer_name} to pristine shadow state...")
         with self.lock:
             with torch.no_grad():
-                state[layer_name].copy_(self.shadow_buffers[layer_name])
+                if HAS_CUDA_KERNEL:
+                    atomic_swap(state[layer_name], self.shadow_buffers[layer_name])
+                else:
+                    if state[layer_name].is_cuda:
+                        torch.cuda.synchronize(state[layer_name].device)
+                    state[layer_name].data = self.shadow_buffers[layer_name].data
                     
         # Clear buffer after use
         del self.shadow_buffers[layer_name]
