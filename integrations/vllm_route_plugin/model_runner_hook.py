@@ -31,7 +31,9 @@ def inject_model_runner_hook():
             # Double-check homogeneity (Fail-Close)
             from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
             for req_state in getattr(scheduler_output, "scheduled_new_reqs", []):
-                req_route = getattr(req_state.request, "route_id", "__base__")
+                # Unwrap if necessary (vLLM version compatibility)
+                req = getattr(req_state, "request", req_state)
+                req_route = getattr(req, "route_id", "__base__")
                 if req_route != active_route:
                     RoutePluginMetrics.record_violation()
                     raise RuntimeError(f"CRITICAL: Mixed-route batch leaked into ModelRunner! "

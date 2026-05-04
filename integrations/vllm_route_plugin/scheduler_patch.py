@@ -22,7 +22,16 @@ def inject_route_aware_scheduler():
         self.route_window_tokens_left = 0
         self.MAX_ROUTE_WINDOW_TOKENS = 8192  # Configurable fairness threshold
 
-    def _get_request_route_id(req: Request) -> str:
+    def _unwrap_request(obj):
+        """
+        vLLM version compatibility:
+        - Some queues contain Request directly.
+        - Some queues contain RequestState-like objects with .request.
+        """
+        return getattr(obj, "request", obj)
+
+    def _get_request_route_id(req_or_state) -> str:
+        req = _unwrap_request(req_or_state)
         return getattr(req, "route_id", "__base__")
 
     def patched_schedule(self):
@@ -34,17 +43,17 @@ def inject_route_aware_scheduler():
         """
         # If there are running requests, the active route is strictly their route
         if self.running:
-            self.active_route_id = _get_request_route_id(self.running[0].request)
+            self.active_route_id = _get_request_route_id(self.running[0])
             # Ensure all running are indeed the active route (Fail-Close)
             for running_req in self.running:
-                req_route = _get_request_route_id(running_req.request)
+                req_route = _get_request_route_id(running_req)
                 if req_route != self.active_route_id:
                     raise RuntimeError(f"Mixed routes in running queue! Expected {self.active_route_id}, got {req_route}")
         else:
             # If nothing is running, we can pick a new active route
             # For simplicity, we pick the route of the oldest waiting request
             if self.waiting:
-                self.active_route_id = _get_request_route_id(self.waiting[0].request)
+                self.active_route_id = _get_request_route_id(self.waiting[0])
                 self.route_window_tokens_left = self.MAX_ROUTE_WINDOW_TOKENS
             else:
                 self.active_route_id = None
@@ -57,7 +66,7 @@ def inject_route_aware_scheduler():
         non_matching_waiting = []
         
         for req_state in self.waiting:
-            req_route = _get_request_route_id(req_state.request)
+            req_route = _get_request_route_id(req_state)
             if req_route == self.active_route_id:
                 matching_waiting.append(req_state)
             else:
@@ -69,12 +78,11 @@ def inject_route_aware_scheduler():
         try:
             # Call the original scheduler with only matching requests
             output = original_schedule(self)
-            
             # Record metrics / Validate homogeneity
             if hasattr(output, "scheduled_new_reqs") and output.scheduled_new_reqs:
                 from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
                 for scheduled_req in output.scheduled_new_reqs:
-                    req_route = getattr(scheduled_req.request, "route_id", "__base__")
+                    req_route = _get_request_route_id(scheduled_req)
                     if req_route != self.active_route_id:
                         RoutePluginMetrics.record_violation()
                         raise RuntimeError(f"CRITICAL: Unsafe mixed-route batch detected during scheduling! "
@@ -86,11 +94,14 @@ def inject_route_aware_scheduler():
             self.waiting.extend(non_matching_waiting)
             
             # Sort waiting queue by priority/arrival time again since we messed with the order
-            self.waiting.sort(key=lambda req_state: (
-                req_state.request.priority,
-                req_state.request.arrival_time,
-                req_state.request.request_id
-            ))
+            def _sort_key(req_or_state):
+                req = _unwrap_request(req_or_state)
+                return (
+                    getattr(req, "priority", 0),
+                    getattr(req, "arrival_time", 0),
+                    getattr(req, "request_id", ""),
+                )
+            self.waiting.sort(key=_sort_key)
             
         return output
 
