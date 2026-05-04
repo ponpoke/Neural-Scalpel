@@ -279,7 +279,7 @@ These items are **not yet validated** and must be addressed before any productio
 | Multi-route scaling | High | **RESOLVED** -- 50 routes tested with identical performance |
 | PPL/KL regression at scale | Medium | **RESOLVED** -- PPL delta = 0.000000 across all endurance runs |
 | External vLLM integration | **Critical** | **RESOLVED (Step 4A)** -- Route-aware proxy ensures strict batch isolation and 0 route leakage with real vLLM backend |
-| Internal vLLM plugin | **Critical** | `vllm_internal_mock.py` demonstrates Route-Homogeneous Batching and KV Cache Isolation safely (Step 4B Mock complete, full integration pending). |
+| Internal vLLM plugin | **Critical** | Phase 0-6 monkey patch implementation complete; live Linux/vLLM validation pending. Internal safety is not yet proven under real continuous batching. |
 | Authentication | **High** | **RESOLVED** -- JWT-based tenant auth and Admin API keys implemented in proxy. |
 | TLS / Network security | **Medium** | Prototype runs over plain HTTP. |
 | Streaming output | **Medium** | No SSE/WebSocket support; responses are synchronous. |
