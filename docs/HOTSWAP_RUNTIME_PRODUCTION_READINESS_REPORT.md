@@ -311,7 +311,7 @@ These items are **not yet validated** and must be addressed before any productio
 
 **Pending (Phase 7E+):**
 - [x] Phase 7E-1: Live vLLM same-route 100 request generation (SUCCESS)
-- [ ] Phase 7E-2: Live vLLM mixed-route fail-close validation
+- [x] Phase 7E-2: Live vLLM mixed-route fail-close validation (SUCCESS)
 - [ ] Phase 7F: Continuous Batching route-homogeneous scheduling enforcement
 - [ ] 10K mixed-route endurance in real engine
 - [ ] Throughput / TTFT degradation measurement
@@ -361,7 +361,8 @@ Neural-Scalpel Hot-Swap Runtimeは、以下の到達点にある：
 | External vLLM backend統合 (Step 4A) | **完了** |
 | Internal vLLM plugin Core Logic (Phase 7A-7D) | **完了** |
 | Internal vLLM plugin Same-Route E2E (7E-1) | **完了** |
-| Internal vLLM plugin Mixed-Route E2E (7E-2+) | **進行中** |
+| Internal vLLM plugin Mixed-Route Fail-Close (7E-2) | **完了** |
+| Internal vLLM plugin Mixed-Route Scheduling (7F+) | **進行中** |
 | API Hardening (Priority 3) | **完了** |
 | 外部顧客向けSLA | **未完了** |
 
