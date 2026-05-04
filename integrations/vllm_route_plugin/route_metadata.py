@@ -38,9 +38,10 @@ def inject_route_id_to_vllm_request():
         original_init(self, *args, **kwargs)
         self.route_id = route_id
         
-        # Record metrics
+        # Record metrics with request_id mapping
         from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
-        RoutePluginMetrics.record_request(route_id)
+        request_id = getattr(self, "request_id", None)
+        RoutePluginMetrics.record_request(route_id, request_id=request_id)
 
     # Apply patch
     vllm_request.Request.__init__ = patched_init

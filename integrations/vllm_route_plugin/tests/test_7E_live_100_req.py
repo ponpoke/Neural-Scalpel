@@ -56,9 +56,12 @@ async def run_llm_test(route_pattern: List[str], expected_violations: int = 0):
     # 5. Verify Metrics
     print(f"\n[Phase 7E] Runtime Metrics (Pattern: {route_pattern[:3]}...):")
     print(f" - Request Count: {RoutePluginMetrics.request_count}")
+    print(f" - Forward Count: {RoutePluginMetrics.forward_count}")
+    print(f" - Active Route (Last): {RoutePluginMetrics.get_active_route()}")
     print(f" - Swap Count: {RoutePluginMetrics.swap_count}")
     print(f" - Rollback Count: {RoutePluginMetrics.rollback_count}")
     print(f" - Violations: {RoutePluginMetrics.mixed_batch_violation_count}")
+    print(f" - Request Routes Sample: {list(RoutePluginMetrics.request_routes.items())[:3]}")
 
     if len(route_pattern) == 1:
         # Same route case: should pass

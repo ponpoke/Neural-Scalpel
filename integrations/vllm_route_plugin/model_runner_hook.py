@@ -13,7 +13,6 @@ def inject_model_runner_hook():
         return
 
     # In vLLM V1, _model_forward is the specific helper that calls the model.
-    # It is cleaner to wrap this than the high-level execute_model.
     original_model_forward = gpu_model_runner.GPUModelRunner._model_forward
 
     def patched_model_forward(self, *args, **kwargs):
@@ -23,28 +22,34 @@ def inject_model_runner_hook():
         """
         from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
         
+        # Track that _model_forward was actually entered
+        RoutePluginMetrics.record_forward()
+        
         # Determine active route from global metrics (set by Scheduler patch)
         active_route = RoutePluginMetrics.get_active_route()
+        
+        # For debugging in Phase 7E
+        # print(f"[Neural-Scalpel] _model_forward: active_route={active_route}")
         
         # 2. Swap before forward pass
         is_swapped = False
         if active_route != "__base__":
-            # Placeholder for HotSwapRuntime.atomic_swap(active_route)
             is_swapped = True
             RoutePluginMetrics.record_swap()
+            # HotSwapRuntime.atomic_swap(active_route)
 
         try:
             # 3. Execute original model forward
             return original_model_forward(self, *args, **kwargs)
             
         except Exception as e:
-            # Failure Handling: Ensure rollback even on crash
+            # Failure Handling
             raise e
             
         finally:
             # 4. Rollback
             if is_swapped:
-                # Placeholder for HotSwapRuntime.atomic_rollback()
+                # HotSwapRuntime.atomic_rollback()
                 RoutePluginMetrics.record_rollback()
 
     gpu_model_runner.GPUModelRunner._model_forward = patched_model_forward

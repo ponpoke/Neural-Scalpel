@@ -31,8 +31,30 @@ def inject_route_aware_scheduler():
         return getattr(obj, "request", obj)
 
     def _get_request_route_id(req_or_state) -> str:
+        from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+        
         req = _unwrap_request(req_or_state)
-        return getattr(req, "route_id", "__base__")
+        
+        # 1. Try to get directly from the object
+        route_id = getattr(req, "route_id", None)
+        if route_id:
+            return route_id
+            
+        # 2. Try to look up via request_id (vLLM V1 might use lightweight IDs in some queues)
+        request_id = getattr(req, "request_id", None)
+        if request_id is not None:
+            return RoutePluginMetrics.get_route_for_request_id(request_id)
+            
+        # 3. Try common alternative attribute names
+        request_id = getattr(req, "req_id", None)
+        if request_id is not None:
+            return RoutePluginMetrics.get_route_for_request_id(request_id)
+            
+        # 4. Handle case where the object itself is a request_id string
+        if isinstance(req, str):
+            return RoutePluginMetrics.get_route_for_request_id(req)
+
+        return "__base__"
 
     def _iter_scheduled_reqs(output):
         """
@@ -91,7 +113,7 @@ def inject_route_aware_scheduler():
         # Set the active route globally for the ModelRunner hook to pick up
         RoutePluginMetrics.set_active_route(active_route)
 
-        # Attach route to SchedulerOutput so ModelRunner can see it (if it uses SchedulerOutput)
+        # Attach route to SchedulerOutput so ModelRunner can see it
         try:
             setattr(output, "active_route_id", active_route)
         except Exception:
