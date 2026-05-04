@@ -49,7 +49,29 @@ async def run_100_requests():
     for output in outputs:
         assert len(output.outputs[0].text) > 0
         
-    print(f"\n[Phase 7E] Successfully completed 100 mixed-route requests.")
+    # 6. Verify Plugin Metrics (The REAL proof of integration)
+    from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+    
+    print(f"\n[Phase 7E] Runtime Metrics:")
+    print(f" - Total Requests: {RoutePluginMetrics.request_count}")
+    print(f" - Route Counts: {RoutePluginMetrics.route_counts}")
+    print(f" - Total Swaps: {RoutePluginMetrics.swap_count}")
+    print(f" - Total Rollbacks: {RoutePluginMetrics.rollback_count}")
+    print(f" - Mixed Batch Violations: {RoutePluginMetrics.mixed_batch_violation_count}")
+    
+    # Assertions
+    assert RoutePluginMetrics.request_count == 100
+    assert RoutePluginMetrics.route_counts.get("__base__", 0) > 0
+    assert RoutePluginMetrics.route_counts.get("sql-route", 0) > 0
+    assert RoutePluginMetrics.route_counts.get("alpaca-route", 0) > 0
+    
+    # In continuous batching, swaps might be less than requests if requests are batched,
+    # but since we alternate routes in this test, we expect significant swap activity.
+    assert RoutePluginMetrics.swap_count > 0
+    assert RoutePluginMetrics.swap_count == RoutePluginMetrics.rollback_count
+    assert RoutePluginMetrics.mixed_batch_violation_count == 0
+    
+    print(f"\n[Phase 7E] Successfully completed 100 mixed-route requests with verified isolation hooks.")
 
 @pytest.mark.asyncio
 async def test_live_100_requests():

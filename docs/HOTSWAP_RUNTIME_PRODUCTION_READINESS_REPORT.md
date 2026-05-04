@@ -300,9 +300,9 @@ These items are **not yet validated** and must be addressed before any productio
 
 **Step 4B: Internal vLLM Plugin Integration**
 
-**Status: Internal Core Logic Validated (Phase 7A-7D Complete); Live E2E Pending.**
+**Status: Internal Monkey-Patch Core Logic Unit-Validated (Phase 7A-7D); Live E2E Pending.**
 
-**Implemented & Validated:**
+**単体検証済み (Unit-Validated):**
 - [x] Phase 7A: vLLM import/patch smoke test
 - [x] Phase 7B: Route-homogeneous Scheduler logic
 - [x] Phase 7C: Route-aware KV cache isolation (via extra_keys)

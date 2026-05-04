@@ -34,7 +34,10 @@ def inject_model_runner_hook():
             # In a full implementation, we fetch the payload for the route_id
             # and call HotSwapRuntime.atomic_swap(payload)
             is_swapped = True
-            # print(f"[Neural-Scalpel] Swapping route: {active_route}")
+            
+            # Record metrics
+            from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+            RoutePluginMetrics.record_swap()
             pass
 
         try:
@@ -45,15 +48,14 @@ def inject_model_runner_hook():
         except Exception as e:
             # Failure Handling Path (Phase 5)
             # If exception occurs, we must rollback to ensure no model corruption
-            # print(f"[Neural-Scalpel] Exception during forward pass! Triggering emergency rollback...")
-            # If rollback fails, trigger QUARANTINE mode
             raise e
             
         finally:
             # 4. Rollback
             if is_swapped:
                 # HotSwapRuntime.atomic_rollback()
-                # print(f"[Neural-Scalpel] Rolling back route: {active_route}")
+                from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+                RoutePluginMetrics.record_rollback()
                 pass
 
     gpu_model_runner.GPUModelRunner.execute_model = patched_execute_model

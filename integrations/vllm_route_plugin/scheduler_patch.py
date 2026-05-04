@@ -69,9 +69,18 @@ def inject_route_aware_scheduler():
         try:
             # Call the original scheduler with only matching requests
             output = original_schedule(self)
+            
+            # Record metrics / Validate homogeneity
+            if hasattr(output, "scheduled_new_reqs") and output.scheduled_new_reqs:
+                from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+                for scheduled_req in output.scheduled_new_reqs:
+                    req_route = getattr(scheduled_req.request, "route_id", "__base__")
+                    if req_route != self.active_route_id:
+                        RoutePluginMetrics.record_violation()
+                        
+            return output
         finally:
             # Restore the non-matching requests back to the waiting queue
-            # We append them so they maintain their relative order (matching ones that didn't fit might still be in self.waiting)
             self.waiting.extend(non_matching_waiting)
             
             # Sort waiting queue by priority/arrival time again since we messed with the order
