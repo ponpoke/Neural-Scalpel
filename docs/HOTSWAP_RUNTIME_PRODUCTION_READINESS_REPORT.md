@@ -310,9 +310,11 @@ These items are **not yet validated** and must be addressed before any productio
 - [x] Phase 2: route_id metadata injection
 
 **Pending (Phase 7E+):**
-- [ ] live vLLM 100/1K request E2E generation
-- [ ] Throughput / TTFT degradation measurement
+- [x] Phase 7E-1: Live vLLM same-route 100 request generation (SUCCESS)
+- [ ] Phase 7E-2: Live vLLM mixed-route fail-close validation
+- [ ] Phase 7F: Continuous Batching route-homogeneous scheduling enforcement
 - [ ] 10K mixed-route endurance in real engine
+- [ ] Throughput / TTFT degradation measurement
 
 ### Priority 2: Actual Trained LoRA Evaluation (COMPLETE)
 
@@ -358,7 +360,8 @@ Neural-Scalpel Hot-Swap Runtimeは、以下の到達点にある：
 | 実学習済みLoRA評価 (Priority 2) | **完了** |
 | External vLLM backend統合 (Step 4A) | **完了** |
 | Internal vLLM plugin Core Logic (Phase 7A-7D) | **完了** |
-| Internal vLLM plugin Live E2E (Phase 7E+) | **未完了** |
+| Internal vLLM plugin Same-Route E2E (7E-1) | **完了** |
+| Internal vLLM plugin Mixed-Route E2E (7E-2+) | **進行中** |
 | API Hardening (Priority 3) | **完了** |
 | 外部顧客向けSLA | **未完了** |
 
