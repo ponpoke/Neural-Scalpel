@@ -136,7 +136,20 @@ def inject_route_aware_scheduler():
     if original_select_queue:
         def patched_select_queue(self):
             queue = original_select_queue(self)
-            # Future home of Route-Aware queue selection logic
+            
+            # Observation logic for Phase 7F-2 (Safe, non-mutating)
+            try:
+                if queue is not None:
+                    # vLLM V1 RequestQueue usually has peek_request() or similar
+                    req = getattr(queue, "peek_request", lambda: None)()
+                    if req is not None:
+                        route = _get_request_route_id(req)
+                        from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+                        RoutePluginMetrics.record_scheduler_queue_observation(route)
+            except Exception:
+                # Fail silent for observation to avoid breaking scheduler
+                pass
+                
             return queue
         vllm_scheduler.Scheduler._select_waiting_queue_for_scheduling = patched_select_queue
 

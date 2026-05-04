@@ -19,6 +19,9 @@ class RoutePluginMetrics:
     # Current active route ID for the upcoming forward pass
     active_route_id = "__base__"
 
+    # Observation log for scheduler queue selection
+    scheduler_queue_observations = {}
+
     @classmethod
     def reset(cls):
         cls.request_count = 0
@@ -30,6 +33,7 @@ class RoutePluginMetrics:
         cls.route_counts = {}
         cls.request_routes = {}
         cls.active_route_id = "__base__"
+        cls.scheduler_queue_observations = {}
 
     @classmethod
     def record_request(cls, route_id, request_id=None):
@@ -57,6 +61,12 @@ class RoutePluginMetrics:
     @classmethod
     def record_violation(cls):
         cls.mixed_batch_violation_count += 1
+
+    @classmethod
+    def record_scheduler_queue_observation(cls, route_id):
+        cls.scheduler_queue_observations[route_id] = (
+            cls.scheduler_queue_observations.get(route_id, 0) + 1
+        )
 
     @classmethod
     def set_active_route(cls, route_id):

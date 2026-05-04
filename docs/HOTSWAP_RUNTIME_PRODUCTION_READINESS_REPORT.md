@@ -369,7 +369,7 @@ Neural-Scalpel Hot-Swap Runtimeは、以下の到達点にある：
 
 > **外部プロキシ層を介したvLLM実環境連携（Step 4A）において、厳密なRoute分離とLeakage 0が確認された。**
 > **実学習済みLoRAの能力移植（Priority 2）において、168個のテンソルを注入・ロールバックしてもモデルの論理能力（Coding）が一切破壊されず、確実にスタイルが移行することを証明した。**
-> **vLLM内部統合（Step 4B）では、Monkey Patch実装（Phase 0-6）を構築し、Phase 7A-7Dでコアロジックを単体検証した。さらにPhase 7E-1/7E-2において、実vLLM Linux環境でsame-route 100 request生成とmixed-route fail-closeを確認した。ただし、route-homogeneous scheduling enforcement、10K mixed-route endurance、実payload swap/rollback、SLA水準の本番安全性は未完了である。**
+> **vLLM内部統合（Step 4B）では、Monkey Patch実装（Phase 0-6）を構築し、Phase 7A-7Dでコアロジックを単体検証した。さらにPhase 7E-1/7E-2/7F-1において、実vLLM Linux環境でsame-route 100 request生成、mixed-route fail-close、decode stepを含むroute lifecycle retentionを確認した。ただし、route-homogeneous scheduling enforcement、10K mixed-route endurance、実payload swap/rollback、SLA水準の本番安全性は未完了である。**
 
 ---
 
