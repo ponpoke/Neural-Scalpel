@@ -312,7 +312,8 @@ These items are **not yet validated** and must be addressed before any productio
 **Pending (Phase 7E+):**
 - [x] Phase 7E-1: Live vLLM same-route 100 request generation (SUCCESS)
 - [x] Phase 7E-2: Live vLLM mixed-route fail-close validation (SUCCESS)
-- [ ] Phase 7F: Continuous Batching route-homogeneous scheduling enforcement
+- [x] Phase 7F-1: Route lifecycle retention across decode steps (SUCCESS)
+- [ ] Phase 7F-2: Continuous Batching route-homogeneous scheduling enforcement
 - [ ] 10K mixed-route endurance in real engine
 - [ ] Throughput / TTFT degradation measurement
 
