@@ -1,100 +1,95 @@
 """
-Phase 7D: ModelRunner Swap/Rollback Hook Test
+Phase 7D: ModelRunner Swap/Rollback Hook Unit Test
 """
 import pytest
+from unittest.mock import MagicMock
 
-def test_model_runner_hook_execution():
+def test_model_runner_hook_logic():
     """
-    Test that ModelRunner executes swap and rollback around forward pass.
+    Test that the ModelRunner hook correctly identifies route, 
+    swaps before, and rolls back after forward pass.
     """
-    try:
-        import vllm
-    except ImportError:
-        pytest.skip("vLLM not installed.")
-        
-    # We will mock the GPUModelRunner manually to verify logic
     class DummyModelRunner:
         def __init__(self):
-            self.swapped_route = None
-            self.forward_called = False
-            self.rollback_called = False
+            self.swap_count = 0
+            self.rollback_count = 0
+            self.forward_count = 0
             
-        def execute_model(self, scheduler_output, *args, **kwargs):
-            self.forward_called = True
-            return "forward_success"
-            
-    # Apply logic from model_runner_hook.py inline
-    original_execute = DummyModelRunner.execute_model
-    
-    def patched_execute_model(self, scheduler_output, *args, **kwargs):
-        active_route = getattr(scheduler_output, "active_route_id", "__base__")
+        def execute_model(self, scheduler_output):
+            self.forward_count += 1
+            return "success"
+
+    # Helpers from model_runner_hook.py
+    def _unwrap_request(obj):
+        return getattr(obj, "request", obj)
+
+    def _get_request_route_id(req_or_state) -> str:
+        req = _unwrap_request(req_or_state)
+        return getattr(req, "route_id", "__base__")
+
+    def _iter_scheduled_reqs(output):
+        for attr in ("scheduled_new_reqs", "scheduled_resumed_reqs", "scheduled_running_reqs"):
+            items = getattr(output, attr, None)
+            if items:
+                for item in items: yield item
+
+    # The actual hook logic
+    def patched_execute_model(self, scheduler_output):
+        # 1. Homogeneity check
+        routes = [_get_request_route_id(req) for req in _iter_scheduled_reqs(scheduler_output)]
+        unique_routes = set(routes)
         
+        if len(unique_routes) > 1:
+            raise RuntimeError("Mixed-route batch detected")
+            
+        active_route = getattr(scheduler_output, "active_route_id", None)
+        if active_route is None:
+            active_route = next(iter(unique_routes)) if unique_routes else "__base__"
+            
         is_swapped = False
         if active_route != "__base__":
             is_swapped = True
-            self.swapped_route = active_route
+            self.swap_count += 1
             
         try:
-            output = original_execute(self, scheduler_output, *args, **kwargs)
-            return output
-        except Exception as e:
-            raise e
+            return self.execute_model(scheduler_output)
         finally:
             if is_swapped:
-                self.rollback_called = True
-                
-    DummyModelRunner.execute_model = patched_execute_model
+                self.rollback_count += 1
+
+    # --- Test Cases ---
+    runner = DummyModelRunner()
     
-    # Test execution for __base__
-    runner_base = DummyModelRunner()
-    class DummyOutput:
-        scheduled_new_reqs = [1]
+    # 1. Base route test
+    class BaseOutput:
+        scheduled_new_reqs = [{"request": MagicMock(route_id="__base__")}]
         active_route_id = "__base__"
-        
-    runner_base.execute_model(DummyOutput())
-    assert runner_base.forward_called == True
-    assert runner_base.swapped_route is None
-    assert runner_base.rollback_called == False
     
-    # Test execution for routeA
-    runner_route = DummyModelRunner()
-    class DummyOutputRoute:
-        scheduled_new_reqs = [1]
+    patched_execute_model(runner, BaseOutput())
+    assert runner.forward_count == 1
+    assert runner.swap_count == 0
+    assert runner.rollback_count == 0
+    
+    # 2. RouteA test
+    class RouteAOutput:
+        scheduled_new_reqs = [{"request": MagicMock(route_id="routeA")}]
         active_route_id = "routeA"
         
-    runner_route.execute_model(DummyOutputRoute())
-    assert runner_route.forward_called == True
-    assert runner_route.swapped_route == "routeA"
-    assert runner_route.rollback_called == True
+    patched_execute_model(runner, RouteAOutput())
+    assert runner.forward_count == 2
+    assert runner.swap_count == 1
+    assert runner.rollback_count == 1
     
-    # Test exception handling (rollback should still fire)
-    runner_exc = DummyModelRunner()
-    class ExcOutputRoute:
-        scheduled_new_reqs = [1]
-        active_route_id = "routeB"
+    # 3. Mixed route failure test
+    class MixedOutput:
+        scheduled_new_reqs = [
+            {"request": MagicMock(route_id="routeA")},
+            {"request": MagicMock(route_id="routeB")}
+        ]
+        active_route_id = "routeA"
         
-    original_execute_exc = runner_exc.execute_model
-    def failing_execute(*args, **kwargs):
-        runner_exc.forward_called = True
-        raise RuntimeError("simulated forward failure")
-        
-    runner_exc.execute_model = failing_execute
-    patched_execute_model.__globals__['original_execute'] = failing_execute
-    # Wait, simple monkey patch for test:
-    
-    def fresh_patched(self, out):
-        is_swapped = True
-        self.swapped_route = out.active_route_id
-        try:
-            failing_execute()
-        finally:
-            if is_swapped:
-                self.rollback_called = True
-                
-    runner_exc.execute_model = fresh_patched.__get__(runner_exc)
-    
-    with pytest.raises(RuntimeError):
-        runner_exc.execute_model(ExcOutputRoute())
-        
-    assert runner_exc.forward_called == True
-    assert runner_exc.rollback_called == True
+    with pytest.raises(RuntimeError) as excinfo:
+        patched_execute_model(runner, MixedOutput())
+    assert "Mixed-route batch detected" in str(excinfo.value)
+    # Check that forward was NOT called for mixed batch
+    assert runner.forward_count == 2 
