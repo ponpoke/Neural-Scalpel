@@ -1,26 +1,26 @@
 """
 Route-Aware Scheduler Patch for vLLM V1.
+
+Phase 7E safe version:
+- Does NOT replace self.waiting / self.running queues (avoiding 'list' vs 'RequestQueue' errors).
+- Lets vLLM's native scheduler run.
+- Validates the emitted SchedulerOutput.
+- Fails closed if a mixed-route batch is detected.
 """
 
-from typing import List, Dict, Any, Set
-from collections import defaultdict
-
 def inject_route_aware_scheduler():
-    """
-    Monkey patch vLLM's Scheduler to enforce Route-Homogeneous Batching.
-    """
     import vllm.v1.core.sched.scheduler as vllm_scheduler
-    from vllm.v1.request import Request
-    
-    # Store original methods
+
+    if getattr(vllm_scheduler.Scheduler, "_scalpel_scheduler_patched", False):
+        return
+
     original_schedule = vllm_scheduler.Scheduler.schedule
     original_init = vllm_scheduler.Scheduler.__init__
 
     def patched_init(self, *args, **kwargs):
         original_init(self, *args, **kwargs)
         self.active_route_id = None
-        self.route_window_tokens_left = 0
-        self.MAX_ROUTE_WINDOW_TOKENS = 8192  # Configurable fairness threshold
+        self.MAX_ROUTE_WINDOW_TOKENS = 8192
 
     def _unwrap_request(obj):
         """
@@ -34,78 +34,70 @@ def inject_route_aware_scheduler():
         req = _unwrap_request(req_or_state)
         return getattr(req, "route_id", "__base__")
 
+    def _iter_scheduled_reqs(output):
+        """
+        vLLM version compatibility:
+        SchedulerOutput may expose different fields depending on version.
+        """
+        candidate_attrs = (
+            "scheduled_new_reqs",
+            "scheduled_resumed_reqs",
+            "scheduled_running_reqs",
+        )
+
+        for attr in candidate_attrs:
+            items = getattr(output, attr, None)
+            if not items:
+                continue
+
+            # Some attrs may be dict-like, some list-like.
+            if isinstance(items, dict):
+                iterable = items.values()
+            else:
+                iterable = items
+
+            for item in iterable:
+                yield item
+
     def patched_schedule(self):
-        """
-        Custom schedule() that enforces Route-Homogeneous Batching.
-        1. All running requests must share the same route_id.
-        2. We can only schedule waiting requests that match the active_route_id.
-        3. If running queue is empty, pick the next route_id using round-robin.
-        """
-        # If there are running requests, the active route is strictly their route
-        if self.running:
-            self.active_route_id = _get_request_route_id(self.running[0])
-            # Ensure all running are indeed the active route (Fail-Close)
-            for running_req in self.running:
-                req_route = _get_request_route_id(running_req)
-                if req_route != self.active_route_id:
-                    raise RuntimeError(f"Mixed routes in running queue! Expected {self.active_route_id}, got {req_route}")
+        from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+
+        # Let the original scheduler decide what to batch
+        output = original_schedule(self)
+
+        # Validate the batch for route homogeneity
+        routes = []
+        for scheduled_req in _iter_scheduled_reqs(output):
+            routes.append(_get_request_route_id(scheduled_req))
+
+        unique_routes = set(routes)
+
+        if len(unique_routes) > 1:
+            RoutePluginMetrics.record_violation()
+            raise RuntimeError(
+                f"CRITICAL: Unsafe mixed-route batch detected by Neural-Scalpel. "
+                f"routes={sorted(unique_routes)}"
+            )
+
+        # Determine the active route for this forward pass
+        if len(unique_routes) == 1:
+            active_route = next(iter(unique_routes))
         else:
-            # If nothing is running, we can pick a new active route
-            # For simplicity, we pick the route of the oldest waiting request
-            if self.waiting:
-                self.active_route_id = _get_request_route_id(self.waiting[0])
-                self.route_window_tokens_left = self.MAX_ROUTE_WINDOW_TOKENS
-            else:
-                self.active_route_id = None
+            # Empty batch or only base
+            active_route = "__base__"
 
-        if self.active_route_id is None:
-            return original_schedule(self)
+        self.active_route_id = active_route
 
-        # Separate waiting requests into matching and non-matching routes
-        matching_waiting = []
-        non_matching_waiting = []
-        
-        for req_state in self.waiting:
-            req_route = _get_request_route_id(req_state)
-            if req_route == self.active_route_id:
-                matching_waiting.append(req_state)
-            else:
-                non_matching_waiting.append(req_state)
-
-        # Temporarily hide non-matching requests from the original scheduler
-        self.waiting = matching_waiting
-        
+        # Attach route to SchedulerOutput so ModelRunner can see it.
         try:
-            # Call the original scheduler with only matching requests
-            output = original_schedule(self)
-            # Record metrics / Validate homogeneity
-            if hasattr(output, "scheduled_new_reqs") and output.scheduled_new_reqs:
-                from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
-                for scheduled_req in output.scheduled_new_reqs:
-                    req_route = _get_request_route_id(scheduled_req)
-                    if req_route != self.active_route_id:
-                        RoutePluginMetrics.record_violation()
-                        raise RuntimeError(f"CRITICAL: Unsafe mixed-route batch detected during scheduling! "
-                                         f"Expected {self.active_route_id}, got {req_route}")
-                        
-            return output
-        finally:
-            # Restore the non-matching requests back to the waiting queue
-            self.waiting.extend(non_matching_waiting)
-            
-            # Sort waiting queue by priority/arrival time again since we messed with the order
-            def _sort_key(req_or_state):
-                req = _unwrap_request(req_or_state)
-                return (
-                    getattr(req, "priority", 0),
-                    getattr(req, "arrival_time", 0),
-                    getattr(req, "request_id", ""),
-                )
-            self.waiting.sort(key=_sort_key)
-            
+            # We use setattr so we don't break the original class structure
+            setattr(output, "active_route_id", active_route)
+        except Exception:
+            pass
+
         return output
 
     # Apply patches
     vllm_scheduler.Scheduler.__init__ = patched_init
     vllm_scheduler.Scheduler.schedule = patched_schedule
-
+    vllm_scheduler.Scheduler._scalpel_scheduler_patched = True
