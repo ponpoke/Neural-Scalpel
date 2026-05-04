@@ -26,24 +26,25 @@ def inject_route_aware_kv_cache():
         extra_keys=None,
     ):
         """
-        Wrapper around original hash_block_tokens that injects the route_id into the hash state.
-        For true isolation, the request's route_id must be part of the tuple that gets hashed.
+        Wrapper around original hash_block_tokens that injects the route_id into the extra_keys state.
+        This respects vLLM's caching mechanism while ensuring isolation.
         """
-        # Calculate the original hash
-        base_hash = original_hash_block_tokens(
-            hash_function,
-            parent_block_hash,
-            curr_block_token_ids,
-            extra_keys,
-        )
-        
         # Extract the active route
         import threading
         thread_local = threading.local()
         active_route = getattr(thread_local, "active_route_id", "__base__")
         
-        # Return the new combined hash
-        return (base_hash, active_route)
+        if extra_keys is None:
+            extra_keys = ()
+            
+        extra_keys = tuple(extra_keys) + (("scalpel_route", active_route),)
+        
+        return original_hash_block_tokens(
+            hash_function,
+            parent_block_hash,
+            curr_block_token_ids,
+            extra_keys,
+        )
 
     kv_utils.hash_block_tokens = patched_hash_block_tokens
 

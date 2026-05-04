@@ -32,17 +32,20 @@ def test_kv_cache_isolation():
     def dummy_hash(x):
         return b"hash"
         
+    # Mock parent hash to avoid NONE_HASH NameError inside vLLM
+    parent_hash = ("parent", ())
+    
     # Hash for route A
     thread_local.active_route_id = "routeA"
-    hash_a = kv_utils.hash_block_tokens(dummy_hash, None, [1, 2, 3, 4], None)
+    hash_a = kv_utils.hash_block_tokens(dummy_hash, parent_hash, [1, 2, 3, 4], None)
     
     # Hash for route B
     thread_local.active_route_id = "routeB"
-    hash_b = kv_utils.hash_block_tokens(dummy_hash, None, [1, 2, 3, 4], None)
+    hash_b = kv_utils.hash_block_tokens(dummy_hash, parent_hash, [1, 2, 3, 4], None)
     
     # Hash for __base__
     thread_local.active_route_id = "__base__"
-    hash_base = kv_utils.hash_block_tokens(dummy_hash, None, [1, 2, 3, 4], None)
+    hash_base = kv_utils.hash_block_tokens(dummy_hash, parent_hash, [1, 2, 3, 4], None)
     
     assert hash_a != hash_b, "Hash collision: Route A and Route B generated same hash for same prompt"
     assert hash_a != hash_base, "Hash collision: Route A and base route generated same hash"

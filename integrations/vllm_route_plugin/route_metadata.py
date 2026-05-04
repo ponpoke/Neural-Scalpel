@@ -17,30 +17,27 @@ def inject_route_id_to_vllm_request():
     """
     import vllm.v1.request as vllm_request
     
+    if getattr(vllm_request.Request, "_scalpel_route_patched", False):
+        return
+
     # Save the original init
     original_init = vllm_request.Request.__init__
 
     def patched_init(self, *args, **kwargs):
-        # Extract route_id from kwargs if it exists, otherwise default to __base__
-        route_id = kwargs.pop("route_id", "__base__")
-        
-        # Check if route_id was passed in via sampling_params
-        sampling_params = kwargs.get("sampling_params")
-        if sampling_params is None and len(args) > 2:
-            # If passed as positional argument (3rd argument is usually sampling_params)
-            sampling_params = args[2]
-            
-        if sampling_params and hasattr(sampling_params, "extra_args") and sampling_params.extra_args:
-            extra_route = sampling_params.extra_args.get("route_id")
-            if extra_route:
-                route_id = extra_route
-                
-        # Call original init
+        route_id = kwargs.pop("route_id", None)
+
+        sampling_params = kwargs.get("sampling_params", None)
+        if route_id is None and sampling_params is not None:
+            extra_args = getattr(sampling_params, "extra_args", None)
+            if isinstance(extra_args, dict):
+                route_id = extra_args.get("route_id")
+
+        if route_id is None:
+            route_id = "__base__"
+
         original_init(self, *args, **kwargs)
-        
-        # Set route_id after init to ensure it's not overridden
-        if not hasattr(self, "route_id"):
-            self.route_id = route_id
+        self.route_id = route_id
 
     # Apply patch
     vllm_request.Request.__init__ = patched_init
+    vllm_request.Request._scalpel_route_patched = True
