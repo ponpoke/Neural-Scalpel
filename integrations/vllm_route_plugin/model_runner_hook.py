@@ -27,6 +27,15 @@ def inject_model_runner_hook():
             # For this patch, we pull from thread local or global registry logic.
             # Here, we assume the scheduler attached the route_id to the output.
             active_route = getattr(scheduler_output, "active_route_id", "__base__")
+            
+            # Double-check homogeneity (Fail-Close)
+            from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+            for req_state in getattr(scheduler_output, "scheduled_new_reqs", []):
+                req_route = getattr(req_state.request, "route_id", "__base__")
+                if req_route != active_route:
+                    RoutePluginMetrics.record_violation()
+                    raise RuntimeError(f"CRITICAL: Mixed-route batch leaked into ModelRunner! "
+                                     f"Expected {active_route}, got {req_route}")
         
         # 2. Swap before forward pass
         is_swapped = False

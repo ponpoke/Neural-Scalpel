@@ -77,6 +77,8 @@ def inject_route_aware_scheduler():
                     req_route = getattr(scheduled_req.request, "route_id", "__base__")
                     if req_route != self.active_route_id:
                         RoutePluginMetrics.record_violation()
+                        raise RuntimeError(f"CRITICAL: Unsafe mixed-route batch detected during scheduling! "
+                                         f"Expected {self.active_route_id}, got {req_route}")
                         
             return output
         finally:

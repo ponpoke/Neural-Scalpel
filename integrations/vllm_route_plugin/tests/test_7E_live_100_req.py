@@ -12,6 +12,10 @@ async def run_100_requests():
         pytest.skip("vLLM not installed.")
         
     from integrations.vllm_route_plugin.patch import apply_all_patches
+    from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+    
+    # 0. Reset metrics to ensure clean count for 7E
+    RoutePluginMetrics.reset()
     
     # 1. Apply all Neural-Scalpel patches
     apply_all_patches()
