@@ -1,5 +1,6 @@
 """
 ModelRunner Swap/Rollback Hook for vLLM internal integration.
+Phase 7G: Real Payload Integration.
 """
 
 def inject_model_runner_hook():
@@ -21,36 +22,49 @@ def inject_model_runner_hook():
         and roll it back afterwards.
         """
         from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+        from integrations.vllm_route_plugin.runtime_context import get_vllm_runtime
         
         # Track that _model_forward was actually entered
         RoutePluginMetrics.record_forward()
         
-        # Determine active route from global metrics (set by Scheduler patch)
-        active_route = RoutePluginMetrics.get_active_route()
+        # 1. Determine active route
+        route_id = RoutePluginMetrics.get_active_route()
         
-        # For debugging in Phase 7E
-        # print(f"[Neural-Scalpel] _model_forward: active_route={active_route}")
+        # 2. Get Runtime instance (lazily initialized with self.model)
+        runtime = get_vllm_runtime(self.model)
         
-        # 2. Swap before forward pass
         is_swapped = False
-        if active_route != "__base__":
-            is_swapped = True
-            RoutePluginMetrics.record_swap()
-            # HotSwapRuntime.atomic_swap(active_route)
+        if route_id != "__base__":
+            # Look up route definition in registry
+            route_data = runtime.registry.get_route(route_id)
+            if route_data:
+                try:
+                    # Perform Atomic Swap
+                    runtime.capture_and_verify(route_data)
+                    runtime.swap(route_data)
+                    is_swapped = True
+                    RoutePluginMetrics.record_swap()
+                except Exception as e:
+                    # In production, this should trigger Fail-Close for this request
+                    # For now, we log and allow fallback or crash
+                    print(f"[Neural-Scalpel] Swap failed for {route_id}: {e}")
+                    raise RuntimeError(f"Neural-Scalpel Swap Failure: {e}")
 
         try:
             # 3. Execute original model forward
             return original_model_forward(self, *args, **kwargs)
             
-        except Exception as e:
-            # Failure Handling
-            raise e
-            
         finally:
-            # 4. Rollback
+            # 4. Atomic Rollback
             if is_swapped:
-                # HotSwapRuntime.atomic_rollback()
-                RoutePluginMetrics.record_rollback()
+                try:
+                    runtime.rollback()
+                    RoutePluginMetrics.record_rollback()
+                except Exception as e:
+                    # CRITICAL: Rollback failure means model is corrupted!
+                    # HotSwapRuntime should have already quarantined itself.
+                    print(f"[Neural-Scalpel] CRITICAL: Rollback failed! {e}")
+                    raise RuntimeError(f"Neural-Scalpel CRITICAL Rollback Failure: {e}")
 
     gpu_model_runner.GPUModelRunner._model_forward = patched_model_forward
     gpu_model_runner.GPUModelRunner._scalpel_forward_patched = True
