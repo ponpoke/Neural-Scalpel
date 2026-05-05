@@ -146,6 +146,10 @@ cat docs/VERSION_LOCK.md
 ### Recovery
 1. Install the correct vLLM version: `pip install vllm==<locked_version>`
 2. Re-run startup self-test
+3. **Fallback**: If the version cannot be downgraded, switch to External Proxy Fallback mode.
+   - Internal vLLM plugin mode remains version-locked and controlled-validation-only.
+   - External Proxy Fallback provides a safer compatibility fallback when internal patching is unsupported.
+   - External Proxy Fallback trades VRAM efficiency and route density for operational stability.
 
 ---
 

@@ -57,6 +57,17 @@ rollback_started      → Weight rollback begun
 rollback_completed    → Weight rollback finished (checksum verified)
 route_quarantined     → Route placed in quarantine
 worker_quarantined    → Worker placed in quarantine (CRITICAL)
+
+### External Proxy Fallback Events
+
+fallback_mode_selected               → External proxy mode enabled
+internal_plugin_disabled             → Monkey-patch disabled
+internal_plugin_compatibility_failed → vLLM version unsupported
+backend_resolved                     → Route mapped to backend URL
+backend_unhealthy                    → External backend health check failed
+backend_request_failed               → External backend error
+backend_response_returned            → External backend response received
+route_policy_rejected                → Proxy rejected request before forwarding
 ```
 
 ### Log Format
@@ -128,3 +139,9 @@ Import `dashboards/grafana_scalpel_runtime.json` into Grafana for pre-built pane
 - Quarantine events timeline
 - Worker health status
 - VRAM utilization (requires node_exporter)
+
+## vLLM Version Dependency & Fallback
+
+- Internal vLLM plugin mode remains version-locked and controlled-validation-only.
+- External Proxy Fallback provides a safer compatibility fallback when internal patching is unsupported.
+- External Proxy Fallback trades VRAM efficiency and route density for operational stability.

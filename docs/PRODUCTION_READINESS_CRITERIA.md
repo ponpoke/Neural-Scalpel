@@ -109,8 +109,8 @@ Neural-Scalpel has achieved strong controlled runtime evidence and is best descr
 - [x] Text-level and top-token logprob trace determinism verified under tested cache-reset condition
 - [x] Repeated benchmark median across 3–5 runs collected
 - [x] Two-route mixed-batch transition validation completed (`__base__` ↔ Alpaca, 1000 requests, 0 violations, 0 quarantine)
-- [ ] 3+ route mixed-batch transition validation completed
-- [ ] Worst-case alternating route transition stress completed
+- [x] 3+ route mixed-batch transition validation completed
+- [x] Worst-case alternating route transition stress completed
 - [ ] 24h persistent-route soak completed
 
 ## Scope Limitations
@@ -121,3 +121,8 @@ This certification explicitly does NOT cover:
 - Multi-node/multi-GPU serving
 - Streaming response support
 - SLA guarantees without operator-controlled deployment
+
+### vLLM Version Dependency & Fallback
+- Internal vLLM plugin mode remains version-locked and controlled-validation-only.
+- External Proxy Fallback provides a safer compatibility fallback when internal patching is unsupported.
+- External Proxy Fallback trades VRAM efficiency and route density for operational stability.

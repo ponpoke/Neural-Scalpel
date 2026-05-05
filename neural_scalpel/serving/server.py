@@ -28,6 +28,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 
+from .engine import ServingEngine
 from neural_scalpel.serving.schemas import (
     InferRequest,
     InferResponse,
@@ -56,11 +57,13 @@ class PilotServer:
         registry,  # RouteRegistry instance (or mock)
         audit_logger=None,  # AuditLogger instance (optional)
         metrics: Optional[MetricsCollector] = None,
+        engine: Optional[ServingEngine] = None, # External or internal engine
     ):
         self.runtime = runtime
         self.registry = registry
         self.audit_logger = audit_logger
         self.metrics = metrics or MetricsCollector()
+        self.engine = engine
 
     def _generate_audit_ref(self, request_id: str) -> str:
         """Creates a unique, traceable audit reference for a request."""
@@ -137,24 +140,36 @@ class PilotServer:
 
             tenant_ctx = TenantContext(req.tenant_id)
 
-            def mock_inference():
-                """
-                Prototype inference function. In production, this would be
-                the actual model forward pass. Here we return a deterministic
-                marker that proves which route was active during execution.
-                """
-                return f"[route:{req.route_id}] Output for: {req.prompt[:50]}"
+            if self.engine:
+                # Use the new ServingEngine abstraction (Mode B or A-Wrapped)
+                output = await self.engine.infer(
+                    req=req,
+                    tenant_ctx=tenant_ctx,
+                    audit_ref=audit_ref
+                )
+                # Proxy or Wrapped engine timings (placeholder for now)
+                swap_ms = 0.0
+                rollback_ms = 0.0
+            else:
+                # Fallback to legacy HotSwapRuntime (Internal mode only)
+                def mock_inference():
+                    """
+                    Prototype inference function. In production, this would be
+                    the actual model forward pass. Here we return a deterministic
+                    marker that proves which route was active during execution.
+                    """
+                    return f"[route:{req.route_id}] Output for: {req.prompt[:50]}"
 
-            output = self.runtime.infer(
-                route_id=req.route_id,
-                current_tenant=tenant_ctx,
-                request_id=req.request_id,
-                inference_func=mock_inference,
-            )
+                output = self.runtime.infer(
+                    route_id=req.route_id,
+                    current_tenant=tenant_ctx,
+                    request_id=req.request_id,
+                    inference_func=mock_inference,
+                )
+                swap_ms = self.runtime.last_timings.get("swap_latency", 0) * 1000
+                rollback_ms = self.runtime.last_timings.get("rollback_latency", 0) * 1000
 
             e2e_ms = (time.perf_counter() - t_start) * 1000
-            swap_ms = self.runtime.last_timings.get("swap_latency", 0) * 1000
-            rollback_ms = self.runtime.last_timings.get("rollback_latency", 0) * 1000
 
             self.metrics.record_success(
                 swap_ms=swap_ms,
@@ -263,6 +278,7 @@ def create_app(
     registry,
     audit_logger=None,
     metrics: Optional[MetricsCollector] = None,
+    engine: Optional[ServingEngine] = None,
 ) -> FastAPI:
     """
     Factory function that creates a fully wired FastAPI application.
@@ -272,6 +288,7 @@ def create_app(
         registry: RouteRegistry instance
         audit_logger: Optional AuditLogger for structured event logging
         metrics: Optional MetricsCollector; created automatically if not provided
+        engine: Optional ServingEngine; if provided, overrides legacy runtime.infer
 
     Returns:
         A configured FastAPI app ready for uvicorn.run()
@@ -281,6 +298,7 @@ def create_app(
         registry=registry,
         audit_logger=audit_logger,
         metrics=metrics,
+        engine=engine,
     )
 
     app = FastAPI(
@@ -317,7 +335,11 @@ def create_app(
         quarantined = server.metrics.snapshot()["runtime_quarantined"]
         # Check runtime state machine if available
         runtime_healthy = True
-        if hasattr(server.runtime, "is_healthy"):
+        engine_health = None
+        if server.engine:
+            engine_health = server.engine.get_health()
+            runtime_healthy = engine_health.get("status") == "healthy"
+        elif hasattr(server.runtime, "is_healthy"):
             runtime_healthy = server.runtime.is_healthy
         if hasattr(server.runtime, "can_accept_requests"):
             runtime_healthy = runtime_healthy and server.runtime.can_accept_requests
@@ -330,6 +352,7 @@ def create_app(
                 "status": "ok" if is_healthy else "unhealthy",
                 "quarantined": quarantined or not runtime_healthy,
                 "accepting_requests": is_healthy,
+                "engine": engine_health,
             },
             status_code=status_code,
         )
