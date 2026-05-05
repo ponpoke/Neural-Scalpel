@@ -22,7 +22,25 @@ async def run_llm_test(route_pattern: List[str], expected_violations: int = 0):
     # 1. Apply all Neural-Scalpel patches
     apply_all_patches()
     
-    # 2. Initialize LLM Engine
+    # 1.5 Register Test Routes in Runtime
+    from integrations.vllm_route_plugin.runtime_context import get_vllm_runtime
+    # We need a placeholder model to get the runtime, will be replaced by actual model in hook
+    dummy_runtime = get_vllm_runtime(None) 
+    
+    # Target some layers of facebook/opt-125m
+    target_layers = [
+        {"name": "model.decoder.layers.0.self_attn.q_proj.weight", "shape": [768, 768], "dtype": "float16"},
+        {"name": "model.decoder.layers.0.self_attn.v_proj.weight", "shape": [768, 768], "dtype": "float16"},
+    ]
+    
+    for route_id in ["sql-route", "alpaca-route"]:
+        dummy_runtime.registry.register_route(
+            route_id=route_id,
+            tenant_id="test-tenant",
+            layers=target_layers,
+            payload_type="simulated" # Uses random deltas for validation
+        )
+    print(f"[Phase 7G] Registered routes for validation: sql-route, alpaca-route")
     # Small model for fast testing
     llm = LLM(model="facebook/opt-125m", enforce_eager=True) 
     
