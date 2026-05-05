@@ -1,10 +1,14 @@
 # Neural-Scalpel Ecosystem: Quality Assurance & Validation Report
 
-**Verification Status:** `MATHEMATICALLY VERIFIED (Research Preview)`  
+**Verification Status:** `CORE MATH VERIFIED / RUNTIME VALIDATED IN CONTROLLED TESTS (Research Preview)`  
 **Environment:** Local CI (Windows/CPU + CUDA)  
 **Version Target:** v1.0.0-alpha  
 **Test Framework:** pytest  
-**Total Tests:** 113
+**Total Non-Live Tests:** 193 passed
+
+> Live vLLM integration tests are excluded from the default suite and run separately in a controlled GPU environment.
+
+> Note: Earlier core-math-only reports referenced 113 tests. The current repository badge tracks 193 non-live tests passed, including additional runtime, serving, and vLLM integration validations.
 
 This report details the test suite executed to validate the core mathematical components of the Neural-Scalpel Ecosystem.
 
@@ -19,6 +23,8 @@ To ensure technical transparency, it is critical to define what this test suite 
 ---
 
 ## Test Suite Overview
+
+> The table below lists representative test files. The full non-live suite contains 193 passing tests across runtime, serving, route schema, failure-mode, and vLLM mock/integration modules.
 
 ### Test Files
 | File | Tests | Scope |
@@ -65,16 +71,57 @@ To ensure technical transparency, it is critical to define what this test suite 
 | **VRAM Hot-Swap (Sync)** | CUDA synchronization lock properly blocks asynchronous reads | ✅ PASS |
 | **PPL Gateway** | Automatic rollback triggered if PPL ratio exceeds threshold | ✅ PASS |
 
+Controlled soak validations were executed separately from the default non-live suite.
+
+- 1h extended soak: ✅ PASS
+- 6-hour mixed-route extended soak: ✅ PASS, 1,956,000 requests, 1,114,920 swaps/rollbacks, 0 violations, 0 errors, 0.0MB VRAM growth
+- Final 24h mixed-route soak: ⏳ PENDING
+
 ---
+
+## Phase 4-A Real-LoRA Route Smoke Check
+
+| Validation | Status | Result |
+|---|---:|---|
+| Qwen2.5-0.5B load smoke | ✅ PASS | vLLM engine initialized |
+| Real-LoRA payload conversion | ✅ PASS | 96 fused tensors generated for vLLM `gate_up_proj` / `qkv_proj` representation |
+| Qualitative route smoke check | ✅ PASS | Observable base-vs-Alpaca route output differences |
+| Native LoRA throughput baseline | ✅ COLLECTED | Base 3501.4 tok/s, Native LoRA 1968.25 tok/s, -43.79%; not Neural-Scalpel swap overhead |
+
+## Phase 4-B Preliminary Quantitative Smoke Evaluation
+
+| Item | Status | Result |
+|---|---:|---|
+| Evaluation harness | ✅ Implemented | Transformers track with un-fused vLLM payload |
+| Rollback consistency | ✅ PASS | Base score 0.6447, rollback score 0.6447 (Perfect match) |
+| Behavior change | ✅ Observed | Alpaca route output differed from base |
+| Task improvement | ❌ Not proven | Alpaca route score 0.5805 < base 0.6447 under keyword-overlap metric |
+
+This result confirms functional application and rollback consistency, but does not establish dataset-level task improvement.
 
 ## Conclusion
 
-**113 / 113 Tests Passed**.
+**193 / 193 non-live tests passed.**
 
 The Neural-Scalpel ecosystem has passed its mathematical and structural unit tests. The core linear and non-linear approximations (JTSA/HAMA) function according to their mathematical specifications under test conditions. 
 
 *Reminder: While the components are structurally verified, the quality of real-world cross-architecture projection depends significantly on architectural homology and calibration data.*
 
 ---
-*Verified via `python -m pytest tests/` on Python 3.10 / PyTorch 2.x / Windows*  
+
+## Live vLLM Validation
+
+| Validation | Status | Result |
+|---|---:|---|
+| Latest-branch 10K endurance rerun | ✅ PASS | 10,000 requests, 896 swaps, 896 rollbacks, 0 violations, VRAM stable |
+| 6-hour mixed-route extended soak | ✅ PASS | 1,956,000 requests, 1,114,920 swaps/rollbacks, 0 violations, 0 errors, VRAM growth 0.0MB |
+| Phase 5-C Route-Window Benchmark | ✅ PASS | swap_count=1 / 1600 tokens; verified_rollbacks=1 |
+| Checksum-level rollback | ✅ PASS | verified_rollbacks=1; bit-exact restoration proven |
+| Text-level exact match | ⚠️ Partial | exact_match=false in latest run |
+| Final 24h persistent-route soak | ⏳ Pending | Required before constrained Production Candidate declaration |
+
+---
+*Verified via `PYTHONPATH=. python -m pytest -v --tb=short -m "not vllm_live"`.*  
+*Default suite excludes live vLLM GPU tests, which are executed separately in a controlled Linux/GPU environment.*  
+*Latest live validation includes 10K endurance rerun and 6-hour mixed-route extended soak.*  
 *Last updated: May 2026*

@@ -1,4 +1,6 @@
-# Hot-Swap Runtime Phase C Report: Real-Model Quality & Benchmarks
+# Hot-Swap Runtime Validation Report (Phase C)
+
+> **Historical Note:** This report documents the earlier Phase C prototype. Later vLLM internal validation progressed through Phase 7H-2. See `docs/HOTSWAP_RUNTIME_PRODUCTION_READINESS_REPORT.md` for the current validated prototype status.
 
 **Status:** Completed (Controlled Prototype)
 
@@ -11,7 +13,7 @@
   - Baseline PPL: 1032.8550
   - Swapped PPL:  1033.6433 (Delta: 0.7883)
   - Rollback PPL: 1032.8550
-- **Conclusion:** Rollback functionality perfectly restores behavior with 0.0000 divergence. The checksum verification mechanism ensures mathematically identical restoration.
+- **Conclusion:** Rollback restored the measured behavior in this controlled TinyQwen run with 0.0000 measured divergence. Checksum verification indicated successful restoration of the targeted weights.
 
 ## 2. Latency Benchmarks (PyTorch Native)
 - **Goal:** Measure the raw overhead of `lock -> swap -> rollback` at the VRAM level.

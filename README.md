@@ -4,8 +4,8 @@
 
 [![Version](https://img.shields.io/badge/version-1.0.0--alpha-orange)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-153%20passed-brightgreen)](tests/TEST_REPORT.md)
-[![Verification](https://img.shields.io/badge/Status-Prototype--Validated-blue)](docs/LOGIC_CONSISTENCY_REPORT.md)
+[![Tests](https://img.shields.io/badge/tests-193%20non--live%20passed-brightgreen)](tests/TEST_REPORT.md)
+[![Verification](https://img.shields.io/badge/Status-Validated%20Prototype-blue)](docs/PRODUCTION_READINESS_CRITERIA.md)
 
 Neural-Scalpel is an experimental no-retraining LoRA migration toolkit for projecting learned adapter weights (Task Vectors / LoRAs) across partially compatible neural architectures.
 
@@ -38,28 +38,45 @@ Neural-Scalpel helps answer:
 
 ---
 
-## Project Maturity
+## Status: Validated Prototype with Strong Controlled Runtime Evidence
 
-Neural-Scalpel has completed a production-readiness evaluation prototype.
-It is an alpha-stage research project.
+Neural-Scalpel remains an experimental research prototype, but recent controlled vLLM validation has produced strong evidence for the route-window hot-swap runtime design.
+
+Phase 5-C and Phase 5-D provide controlled evidence that route-window persistent swapping removes the Phase 5-B per-token swap bottleneck under the tested Qwen2.5-0.5B / Alpaca workload. Phase 5-D further showed that the result was not limited to a single prompt, using a 50-prompt repeated benchmark.
+
+In the latest strict 50-prompt repeated benchmark (Phase 5-D):
+- **Base throughput:** ~3813 tok/s
+- **Scalpel v2 throughput:** ~2574 tok/s (median of 3 runs)
+- **vLLM Native LoRA throughput:** ~983 tok/s (median of 3 runs)
+- **Scalpel outperformed Native LoRA by +161.80%** under these controlled conditions.
+- Route application (`swap_count > 0`) and at least one checksum-verified rollback event (`verified_rollbacks > 0`) were recorded in every Scalpel run.
+
+The primary remaining gate for formal "Production Candidate" status is the 24h persistent-route soak test. Broader 3+ route and worst-case alternation stress tests remain future hardening work.
+
+These results are strong enough to describe Neural-Scalpel as a **paradigm-shift-class candidate in controlled validation**, but not yet as production-ready serving software.
 
 ### Stable / Verified
-- **Portability Diagnostics:** Signed route manifests, payload verification, PPL/KL evaluations.
-- **Experimental Hot-Swap Runtime:** PyTorch-native atomic injection/rollback.
-- **External vLLM Proxy Validation:** Strict route isolation and homogeneous batching enforcement validated against a live vLLM backend in controlled tests.
-- **Real-Model Endurance:** 16K Qwen2.5-0.5B PyTorch-native Hot-Swap requests with zero route leakage and zero rollback failures.
-- **Actual LoRA Evaluation:** Preserved exact-match coding performance while injecting domain-specific (Text-to-SQL / Alpaca) distributions via safetensors payloads.
-- **Internal vLLM Mock Design:** Architecture designed for `RouteAwareScheduler` and `RouteTaggedKVBlock`.
+- **Route-Window Swap Optimization (Phase 5-C):** Confirmed route application with `swap_count=1` over 1600 generated tokens and `verified_rollbacks=1`. This demonstrated removal of the Phase 5-B per-token swap/rollback bottleneck under the tested route-window workload. The latest single-prompt, route-homogeneous benchmark showed high throughput, though this should be interpreted as prompt-specific rather than a universal speedup.
+- **Internal vLLM Validated Prototype:** Live vLLM V1 monkey-patch integration validated through route-window persistent swapping, real safetensors payload swap/rollback inside `_model_forward`, latest-branch 10K mixed-route endurance, and 6-hour mixed-route extended soak.
+- **Refined Benchmarking (Phase 5-A):** Established a rigorous performance anchor against native vLLM LoRA.
+- **Repeated Median Benchmarking (Phase 5-D):** 50 prompts × 3 runs showed Scalpel v2 median throughput of ~2574 tok/s versus Native LoRA at ~983 tok/s under controlled conditions, with route application and verified rollback events enforced in every Scalpel run.
+- **Determinism Follow-up (Phase 5-F):** After explicit route cleanup and vLLM cache reset, Base-before and Base-after matched exactly, with 100.0% top-token logprob trace similarity for the tested prompt. This is a top-token trace proxy, not a full-vocabulary logits distribution comparison.
 
 ### Roadmap / Future Work
-- Native vLLM plugin source code patching
-- Internal Scheduler / KV Cache integration in a live vLLM environment
+
+- Final 24h mixed-route soak validation with `--require-worker-health`
+- Precise vLLM TTFT / TPOT regression measurement using real timing hooks
+- Real swap / rollback / payload-load latency measurement
+- Broader model coverage: Qwen/Llama-class fused attention variants
 - Long-running multi-tenant production pilots
 - GGUF/AWQ direct surgery
 
-### ⚠️ Not Production Ready
-- **Internal vLLM Plugin:** Phase 0-6 monkey patch implementation is complete, but live Linux/vLLM validation (Phase 7+) is pending. It is not yet proven safe under continuous batching in a real engine.
-- **SLA-Grade Serving:** This is a research prototype. It should not be used as a multi-tenant SLA proxy in an enterprise environment without further hardening.
+- **24h Soak Pending:** 6-hour and 10K endurance tests passed, but final 24h persistent-route soak validation remains pending.
+- **Two-route Mixed-Batch Validation Completed:** Phase 5-E-1 successfully demonstrated 0 route violations and verified safe isolation over 1000 dynamically routed requests across `__base__` and the Alpaca route. Broader 3+ route and worst-case alternation stress remain future hardening work.
+- **Determinism Follow-up Completed:** Phase 5-F demonstrated 100.0% top-token logprob trace similarity and exact text match after a verified checksum rollback for the tested prompt under explicit route cleanup and vLLM cache reset.
+- **Monkey-Patch Fragility:** The internal vLLM integration depends on vLLM V1 internals and may break across vLLM releases.
+- **Broader Model Coverage:** Validation beyond OPT-125M/Qwen2.5-class controlled tests remains future work.
+- **SLA-Grade Serving:** Not ready for uncontrolled public enterprise traffic or SLA commitments.
 
 ---
 
@@ -148,15 +165,25 @@ Neural-Scalpel includes an experimental PyTorch-native Hot-Swap Runtime for test
 **Current validation:**
 - Signed route registry with HMAC-SHA256 verification
 - Fail-closed policy gates (tenant, license, revocation, quarantine)
-- Checksum rollback verification (bit-exact restoration)
-- Structured JSON-L audit logging (100% event coverage)
-- External FastAPI proxy with strict temporal route isolation
-- Live stress-tested with `Qwen2.5-0.5B` and actual Text-to-SQL / Alpaca LoRAs
-- Internal vLLM integration architecture designed and mocked
+- Checksum rollback verification for targeted weights
+- Structured JSON-L audit logging for critical runtime events
+- External FastAPI proxy with route-isolated request handling
+- Live stress-tested with `Qwen2.5-0.5B`, real safetensors payloads, and an evaluation-only projected Alpaca LoRA payload for qualitative route smoke testing.
+- Internal vLLM live validation through Phase 7H-2 and extended soak:
+  - route metadata injection
+  - active route-homogeneous scheduling via shelving
+  - real safetensors payload swap/rollback inside `_model_forward`
+  - latest-branch 10K mixed-route endurance with 896 atomic swap/rollback cycles
+  - 6-hour mixed-route extended soak with 1,956,000 requests and 1,114,920 swap/rollback cycles
+  - zero route violations and zero errors in the tested environment
+  - 0.0MB VRAM growth during the 6-hour soak
 
 **⚠️ What is NOT Production Ready:**
-- **Full vLLM Internal Plugin:** The architecture is validated via mocks, but actual vLLM continuous batching source code has not been patched.
-- **SLA-Grade Serving:** Not ready for uncontrolled public enterprise traffic.
+- **24h Soak Pending:** Controlled live validations and coarse E2E throughput benchmarks have passed, but the final long-duration mixed-route soak test remains pending.
+- **Precise Performance Regression Pending:** Current benchmark results are coarse E2E throughput measurements. TTFT, TPOT, swap latency, and rollback latency still require precise timing hooks.
+- **Monkey-Patch Fragility:** The internal vLLM integration depends on vLLM V1 internals and may break across vLLM releases.
+- **Broader Model Coverage:** Validation beyond OPT-125M/Qwen2.5-class controlled tests remains future work.
+- **SLA-Grade Serving:** Not ready for uncontrolled public enterprise traffic or SLA commitments.
 - **1-GPU Multi-Tenant Scale:** Cannot yet serve hundreds of concurrent routes seamlessly without internal KV cache integration.
 
 *For full details on what works and what doesn't, see the [Production Readiness Report](docs/HOTSWAP_RUNTIME_PRODUCTION_READINESS_REPORT.md).*
@@ -193,6 +220,9 @@ VLLM_BACKEND_URL="http://localhost:8000/v1/completions" uvicorn neural_scalpel.s
 
 ## 9. Documentation & Reports
 - **[Hot-Swap Runtime Production Readiness Report](docs/HOTSWAP_RUNTIME_PRODUCTION_READINESS_REPORT.md):** 🚀 *Read this first!* Contains the endurance test results, actual LoRA evaluations, and integration benchmarks.
+- **[Production Readiness Criteria](docs/PRODUCTION_READINESS_CRITERIA.md):** Tracks remaining gates before constrained Production Candidate declaration.
+- **[Performance Regression Report](docs/PERFORMANCE_REGRESSION_REPORT.md):** Coarse E2E throughput benchmark and pending precise latency work.
+- **[Known Limitations](docs/KNOWN_LIMITATIONS.md):** Current runtime, benchmark, and deployment limitations.
 - **[vLLM Internal Integration Design](docs/VLLM_INTERNAL_INTEGRATION_DESIGN.md):** Architectural design for Step 4B integration.
 - **[Empirical Consistency Report](docs/LOGIC_CONSISTENCY_REPORT.md):** Details on mathematical evaluation metrics and failure modes.
 - **[Project Vision & Roadmap](docs/RESEARCH_AND_COMMERCIAL_ROADMAP.md):** Our strategy for ML research validation and commercial diagnostic tools.

@@ -37,22 +37,41 @@ To natively support Hot-Swap, vLLM must become "Route-Aware". This requires inje
 
 vLLM's continuous batching is designed to mix multiple requests together to maximize GPU utilization. Neural-Scalpel introduces a constraint: **A single forward pass can only execute under one active set of weights.**
 
-### Strategy A: Route-Homogeneous Batching (Initial Target)
-- **Concept:** The Scheduler is modified to group requests such that a single execution batch contains only requests sharing the same `route_id` (or Base/None).
-- **Pros:** Safety is mathematically guaranteed. The `ModelRunner` just swaps to Route X, runs the batch, and rolls back.
-- **Cons:** Lower throughput if requests are highly diverse, as batches will be smaller.
+## 8. Validation Update: Phase 7A-7H
 
-### Strategy B: Time-Sliced Route Windows (Intermediate Target)
-- **Concept:** Similar to Strategy A, but the `ModelRunner` holds the swapped weights for a brief window (e.g., 50ms) to allow multiple generation steps for Route X to complete before swapping to Route Y.
-- **Pros:** Reduces the overhead of swap/rollback operations.
-- **Cons:** Requires slight modifications to how vLLM handles step iteration.
+The initial Strategy A design, Route-Homogeneous Batching, has been validated as a controlled vLLM V1 monkey-patch prototype.
 
-### Strategy C: Mixed Route Batching via Per-Token Adapters (Future / Out of Scope)
-- **Concept:** The model allows multiple routes in the *same* forward pass, dynamically routing tokens to different LoRA weight matrices based on block metadata.
-- **Pros:** Maximum theoretical throughput (true vLLM style).
-- **Cons:** Requires custom CUDA kernels (e.g., Punica or S-LoRA) and breaks the architecture-agnostic promise of Neural-Scalpel. *This is explicitly NOT the goal of Neural-Scalpel.*
+Validated:
+- route metadata injection
+- active route-homogeneous scheduling via shelving
+- mixed-route fail-close
+- decode-step route lifecycle retention
+- real safetensors payload swap/rollback inside `_model_forward`
+- 10K mixed-route endurance with 896 atomic swap/rollback cycles
+- zero route violations in the tested environment
 
-**Decision:** We will implement **Strategy A (Route-Homogeneous Batching)** for the mock and initial vLLM patch, as it aligns perfectly with Neural-Scalpel's fail-close security and architecture-agnostic goals.
+## Validation Update: Phase 5-C to 5-F
+
+Validated:
+- Route-window persistent swapping implemented and benchmarked.
+- Phase 5-D repeated median benchmark completed across 50 prompts × 3 runs.
+- Phase 5-E-1 two-route mixed-batch validation passed across 1000 dynamically routed requests.
+- Phase 5-F determinism follow-up passed under explicit route cleanup and vLLM cache reset.
+
+Remaining:
+- 24h persistent-route soak validation.
+- 3+ route mixed-batch validation.
+- Worst-case alternating route transition stress.
+- Broader vLLM version compatibility.
+
+
+### Strategy B: Route-Window Persistent Swapping (Implemented in Phase 5-C)
+- **Concept:** The `ModelRunner` holds the swapped weights active until the route identity of the incoming batch changes or a cleanup/window timeout is reached.
+- **Pros:** Dramatically reduces the overhead of swap/rollback operations (one-time cost per window).
+- **Cons:** Requires explicit management of `active_route_id` and careful cleanup logic.
+
+**Decision:** We have transitioned to **Strategy B (Route-Window Persistent Swapping)** as the primary implementation in Phase 5-C, as it resolves the performance-prohibitive overhead of per-token swapping while maintaining architectural agnosticism.
+
 
 ---
 
@@ -66,5 +85,11 @@ vLLM's continuous batching is designed to mix multiple requests together to maxi
 
 ## 5. Performance Tradeoffs
 
-- **TTFT (Time To First Token):** Will increase by the duration of the `swap()` operation (~8-15ms for safetensors) for the first request of a new route.
+- **TTFT (Time To First Token):** May increase by the route swap/validation path. Recent controlled measurements include internal swap p50 around 0.59ms and rollback p50 around 2.19ms, while safetensors-heavy real-payload scenarios have shown higher p99 costs. Precise TTFT/TPOT remains pending.
 - **Throughput:** Will be lower than vanilla vLLM due to Route-Homogeneous Batching, but significantly higher than the Step 4A External Proxy, because vLLM can still manage memory efficiently and batch requests of the *same* route natively.
+
+## Phase 5-E/F Validation Updates
+
+- Phase 5-E-1 validated two-route mixed-batch execution across 1000 dynamically routed requests, with 0 route violations and 0 quarantine events.
+- Phase 5-F validated deterministic return-to-base behavior under explicit route cleanup and vLLM cache reset, using exact text match and top-token logprob trace similarity as a proxy check.
+- 3+ route mixed-batch and worst-case alternating route transitions remain future hardening work.

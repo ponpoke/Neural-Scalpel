@@ -1,0 +1,114 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Request Rate by Route",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "rate(scalpel_requests_total[5m])",
+          "legendFormat": "{{route}} ({{status}})"
+        }
+      ]
+    },
+    {
+      "title": "Worker Health",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "targets": [
+        {"expr": "scalpel_worker_health", "legendFormat": "Health"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": 0},
+              {"color": "green", "value": 1}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Route Violations",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "targets": [
+        {"expr": "scalpel_route_violation_total", "legendFormat": "Violations"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": 0},
+              {"color": "red", "value": 1}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Rollback Failures",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 4},
+      "targets": [
+        {"expr": "sum(scalpel_rollback_failure_total)", "legendFormat": "Failures"}
+      ]
+    },
+    {
+      "title": "Quarantine Events",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 4},
+      "targets": [
+        {"expr": "sum(scalpel_quarantine_total)", "legendFormat": "Total"}
+      ]
+    },
+    {
+      "title": "Swap Latency (p50/p99)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, rate(scalpel_swap_latency_seconds_bucket[5m]))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.99, rate(scalpel_swap_latency_seconds_bucket[5m]))", "legendFormat": "p99"}
+      ]
+    },
+    {
+      "title": "Rollback Latency (p50/p99)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, rate(scalpel_rollback_latency_seconds_bucket[5m]))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.99, rate(scalpel_rollback_latency_seconds_bucket[5m]))", "legendFormat": "p99"}
+      ]
+    },
+    {
+      "title": "Swap/Rollback Balance",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "targets": [
+        {"expr": "sum(scalpel_swap_total)", "legendFormat": "Swaps"},
+        {"expr": "sum(scalpel_rollback_total)", "legendFormat": "Rollbacks"}
+      ]
+    },
+    {
+      "title": "Payload Load Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "targets": [
+        {"expr": "histogram_quantile(0.99, rate(scalpel_payload_load_latency_seconds_bucket[5m]))", "legendFormat": "p99"}
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["neural-scalpel", "runtime"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "title": "Neural-Scalpel Runtime Dashboard",
+  "uid": "neural-scalpel-runtime"
+}

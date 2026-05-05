@@ -1,5 +1,7 @@
 # Neural-Scalpel Usage Guide
 
+> **Note:** This usage guide covers the research CLI and Python API. Some advanced examples are roadmap-oriented or experimental. For the latest validated runtime status, see `docs/HOTSWAP_RUNTIME_PRODUCTION_READINESS_REPORT.md`.
+
 Welcome to the **Neural-Scalpel** documentation. This toolkit provides experimental methods to approximate and project learned weight deltas (Task Vectors / LoRAs) from one neural architecture to another.
 
 This guide covers basic CLI usage and provides an overview of the Python API for research purposes.
@@ -136,9 +138,7 @@ For a fully working, executable example, please see `examples/llama3_to_qwen2_po
 
 ## 5. Semantic Routers (`.scalpel_route`)
 
-To prevent catastrophic forgetting and improve domain accuracy, the Neural-Scalpel ecosystem uses **Domain-Specific Router Hubs** (Layer 3).
-
-Instead of computing the semantic alignment dynamically (which requires representative prompt data), you can use pre-calculated `.scalpel_route` files. These files contain highly optimized Rotation ($R$) and Scaling ($s$) matrices calculated over massive domain-specific datasets (e.g., medical, coding).
+In the current research preview, `.scalpel_route` files are used for signed route manifests and evaluation payload metadata. Domain-specific router hubs with large-scale precomputed rotation/scaling matrices remain experimental and roadmap-oriented.
 
 ### Generating a Route via CLI:
 ```bash
@@ -186,7 +186,7 @@ neural-scalpel hotswap \
 ```
 
 ### Using the Python API (Shadow Registering):
-Shadow Registering (Double Buffering) eliminates thread deadlocks and allow for 100% strict transactional rollbacks.
+Shadow Registering is an experimental design intended to reduce lock duration and support rollback-oriented experiments. Production-grade guarantees require additional validation.
 
 ```python
 from neural_scalpel.experimental.hot_swap import VRAMHotSwapAPI
@@ -196,7 +196,7 @@ api = VRAMHotSwapAPI(target_model=my_live_pytorch_model)
 # Inject using a Shadow Buffer (Microsecond lock duration)
 api.inject_concept_shadow(task_vector=my_concept_tensor, layer_name="model.layers.0.self_attn.q_proj.weight")
 
-# If the PPL Gateway detects Catastrophic Forgetting, trigger a 100% perfect rollback:
+# If the PPL Gateway detects Catastrophic Forgetting, trigger a rollback attempt with checksum verification:
 if not api.ppl_gateway_monitor(current_ppl=12.5, baseline_ppl=6.2):
     api.transactional_rollback(layer_name="model.layers.0.self_attn.q_proj.weight")
 ```
@@ -209,3 +209,58 @@ To verify the I/O pipeline on actual production weights (Layer 2 adapters), you 
 ```bash
 python examples/verify_real_safetensors.py
 ```
+
+---
+
+## 8. Validated vLLM Smoke Checks
+
+### Qwen load smoke
+```bash
+PYTHONPATH=. python scratch/test_qwen.py
+```
+
+### vLLM engine probe
+```bash
+PYTHONPATH=. python scratch/probe_vllm.py
+```
+
+### Prepare an evaluation-only projected Alpaca payload
+```bash
+PYTHONPATH=. python scripts/prepare_actual_lora_payload.py \
+  --lora_id onurerkan/qwen2.5-0.5b-alpaca-lora-demo \
+  --output_dir routes/actual_loras \
+  --target-model Qwen/Qwen2.5-0.5B
+```
+
+### Run qualitative real-LoRA route smoke check
+```bash
+PYTHONPATH=. python scripts/verify_alpaca_improvement.py \
+  --payload routes/actual_loras/qwen2.5-0.5b-alpaca-lora-demo_payload.safetensors \
+  --output reports/qualitative_alpaca_smoke_check.json \
+  --dtype float16
+```
+
+### Run Phase 5-C Route-Window Benchmark
+```bash
+PYTHONPATH=. python scripts/bench_vllm_scalpel_overhead.py \
+  --model Qwen/Qwen2.5-0.5B \
+  --payload routes/actual_loras/qwen2.5-0.5b-alpaca-lora-demo_payload.safetensors \
+  --prompts 50 \
+  --max-tokens 32 \
+  --output reports/bench_vllm_scalpel_overhead.json
+```
+
+### Run same-prompt Native LoRA rerun
+```bash
+PYTHONPATH=. python scripts/bench_vllm_native_lora.py \
+  --model Qwen/Qwen2.5-0.5B \
+  --lora-repo onurerkan/qwen2.5-0.5b-alpaca-lora-demo \
+  --prompts 50 \
+  --max-tokens 32 \
+  --output reports/bench_vllm_native_lora.json
+```
+
+### Interpretation
+* **`swap_count > 0`**: Proves successful route application.
+* **`verified_rollbacks > 0`**: Proves bit-exact checksum-level rollback.
+* **`exact_match=false`**: Indicates that while weights are identical, text-level output determinism was not established in that specific run due to vLLM non-determinism.

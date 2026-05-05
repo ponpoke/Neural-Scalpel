@@ -1,0 +1,47 @@
+# Neural-Scalpel vLLM Integration - Docker Compose
+#
+# Usage:
+#   docker compose -f docker-compose.vllm-scalpel.yml up -d
+#
+# Prerequisites:
+#   - NVIDIA Container Toolkit installed
+#   - GPU driver >= 525
+
+services:
+  scalpel:
+    build:
+      context: .
+      dockerfile: Dockerfile.vllm-scalpel
+    container_name: neural-scalpel
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
+      - ADMIN_API_KEY=${ADMIN_API_KEY:-admin-dev-key}
+      - VLLM_BACKEND_URL=${VLLM_BACKEND_URL:-}
+      - MODEL_NAME=${MODEL_NAME:-Qwen/Qwen2.5-0.5B}
+      - ROUTE_REGISTRY_DIR=/data/routes
+      - PAYLOAD_DIR=/data/payloads
+      - AUDIT_LOG_PATH=/var/log/neural-scalpel/audit.jsonl
+    volumes:
+      - ./routes:/data/routes:ro
+      - ./payloads:/data/payloads:ro
+      - scalpel-logs:/var/log/neural-scalpel
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+volumes:
+  scalpel-logs:
+    driver: local

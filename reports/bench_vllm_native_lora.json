@@ -1,0 +1,50 @@
+{
+  "benchmark_type": "native_lora_same_prompt_rerun",
+  "canonical_prompt": "Write a short poem about a neural scalpel that swaps intelligence.",
+  "token_count_note": "generated_tokens counts only the main batch throughput run, not the 10 single-prompt latency samples.",
+  "config": {
+    "model": "Qwen/Qwen2.5-0.5B",
+    "lora_repo": "onurerkan/qwen2.5-0.5b-alpaca-lora-demo",
+    "lora_revision": null,
+    "lora_path": "/home/ponzu/.cache/huggingface/hub/models--onurerkan--qwen2.5-0.5b-alpaca-lora-demo/snapshots/edf752363f4cbe3a708809eab76408caecd07281",
+    "num_prompts": 50,
+    "max_tokens": 32,
+    "sampling_temperature": 0.0,
+    "enforce_eager": true,
+    "dtype": "float16",
+    "gpu_memory_utilization": 0.8,
+    "method_note": "Native LoRA benchmark measures single-adapter throughput using vLLM enable_lora=True and LoRARequest. Same prompt, sampling params, and engine config as the Neural-Scalpel Phase 5-C benchmark."
+  },
+  "base": {
+    "name": "base",
+    "batch_time_sec": 0.56,
+    "total_tokens": 1600,
+    "throughput_req_per_s": 89.4,
+    "throughput_tok_per_s": 2860.95,
+    "latency_ms": {
+      "p50": 476.24,
+      "p90": 505.53,
+      "p99": 517.05,
+      "avg": 478.37
+    },
+    "vram_used_mb_nvidia_smi": 14198.0
+  },
+  "native_lora": {
+    "name": "native_lora",
+    "batch_time_sec": 2.41,
+    "total_tokens": 1600,
+    "throughput_req_per_s": 20.72,
+    "throughput_tok_per_s": 662.99,
+    "latency_ms": {
+      "p50": 855.95,
+      "p90": 990.37,
+      "p99": 1452.86,
+      "avg": 924.24
+    },
+    "vram_used_mb_nvidia_smi": 14189.0
+  },
+  "comparison": {
+    "throughput_delta_pct": -76.83,
+    "vram_delta_mb_nvidia_smi": -9.0
+  }
+}

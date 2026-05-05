@@ -13,6 +13,7 @@ HotSwapRuntime.swap() can apply directly via tensor.add_(delta).
 """
 
 import hashlib
+import os
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -47,6 +48,16 @@ def resolve_payload_path(route_data: dict, base_dir: Optional[str] = None) -> Op
     uri = payload_block.get("uri", "")
     if not uri:
         return None
+
+    # Handle file:// or file: URIs
+    if uri.startswith("file://"):
+        uri = uri[7:]
+    elif uri.startswith("file:"):
+        uri = uri[5:]
+    
+    # On Windows, if we have /C:/..., strip the leading /
+    if os.name == "nt" and uri.startswith("/") and len(uri) > 2 and uri[2] == ":":
+        uri = uri[1:]
 
     path = Path(uri)
     if not path.is_absolute() and base_dir:

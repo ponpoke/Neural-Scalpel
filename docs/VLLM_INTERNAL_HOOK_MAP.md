@@ -32,13 +32,22 @@ This document outlines the strategic hook points within the vLLM (v0.20.1) core 
 - **Verification:** Reject any attempt to append to or read from a block whose `route_identity` does not match the requesting request's `route_identity`.
 
 ## 4. Model Runner Swap/Rollback Point
-**Goal:** Swap weights before the forward pass and rollback immediately after.
-**Hook Points:**
-- **`vllm/v1/worker/gpu_model_runner.py` (`GPUModelRunner.execute_model`):**
-  - Read `target_route_id` from the incoming `SchedulerOutput` / `InputBatch`.
-  - **Pre-forward:** Call `HotSwapRuntime.swap(target_route_id)`.
-  - **Forward:** `output = self.model.forward(...)`
-  - **Post-forward:** Call `HotSwapRuntime.rollback()` (if using Per-Forward Rollback mode).
+
+**Final validated hook point:**
+- `vllm/v1/worker/gpu_model_runner.py`
+- `GPUModelRunner._model_forward`
+
+Earlier prototypes targeted `GPUModelRunner.execute_model`, but live vLLM validation showed that `_model_forward` is the correct forward-boundary hook for Neural-Scalpel's per-forward swap/rollback lifecycle.
+
+Validated behavior after Phase 5-C:
+- read active route from runtime context
+- call `runtime.ensure_route(route_id)`
+- if the requested route is already active, skip redundant swap
+- if the route changes, rollback the previous route and apply the new route
+- execute original `_model_forward`
+- keep the route active across the route window
+- perform explicit cleanup rollback via `clear_active_route()`
+- verify rollback through audit counters and checksum verification
 
 ## 5. Failure Handling Path
 **Goal:** Guarantee fail-close behavior and quarantine upon critical errors.

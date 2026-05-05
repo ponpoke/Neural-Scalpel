@@ -1,0 +1,110 @@
+{
+  "status": "measured",
+  "benchmark_type": "phase_5c_route_window_swap_optimization",
+  "route_application_proven": true,
+  "rollback_proven": true,
+  "canonical_prompt": "Write a short poem about a neural scalpel that swaps intelligence.",
+  "model": "Qwen/Qwen2.5-0.5B",
+  "payload": "qwen2.5-0.5b-alpaca-lora-demo",
+  "performance_interpretation": "Phase 5-C Route-Window optimization result. Throughput delta vs base: 69.98%. Route proven: True, Rollback proven: True. exact_match: False. WARNING: Evidence incomplete.",
+  "config": {
+    "num_prompts": 50,
+    "max_tokens": 32,
+    "sampling_temperature": 0.0,
+    "enforce_eager": true,
+    "dtype": "float16",
+    "gpu_memory_utilization": 0.8
+  },
+  "metrics": {
+    "base_tok_per_sec": 2404.18,
+    "scalpel_tok_per_sec": 4086.68,
+    "throughput_delta_pct": 69.98,
+    "e2e_latency_p50_ms": 255.23,
+    "e2e_latency_p90_ms": 260.72,
+    "e2e_latency_p99_ms": 263.52,
+    "generated_tokens": 1600,
+    "swap_count": 1,
+    "rollback_count": 1,
+    "verified_rollbacks": 1,
+    "swaps_per_token": 0.000625,
+    "rollbacks_per_token": 0.000625,
+    "swap_latency_p50_ms": 79.96,
+    "swap_latency_p99_ms": 79.96,
+    "rollback_latency_p50_ms": 9.64,
+    "rollback_latency_p99_ms": 9.64,
+    "vram_peak_mb": 14461.0
+  },
+  "qualitative_samples": {
+    "base_sample": " The neural scalpel, a blade of precision,\nSwaps intelligence with a blade of precision.\nIt cuts through the brain, a knife's edge,\nA blade",
+    "scalpel_sample": " The poem should be about the neural scalpel and its ability to swap intelligence. The poem should be about the neural scalpel and its ability to swap intelligence.",
+    "post_cleanup_base_sample": " The neural scalpel, a blade of blade,\nSwaps intelligence with a blade of blade.\nIt cuts through the brain, a knife's edge,\nAnd leaves"
+  },
+  "post_cleanup_verification": {
+    "executed": true,
+    "exact_match": false,
+    "cleanup_rollback_executed": false,
+    "rollback_checksum_verified": true,
+    "active_route_after_cleanup": "UNKNOWN"
+  },
+  "raw": {
+    "base": {
+      "name": "base",
+      "batch_time_sec": 0.67,
+      "total_tokens": 1600,
+      "throughput_req_per_s": 75.13,
+      "throughput_tok_per_s": 2404.18,
+      "latency_ms": {
+        "p50": 272.82,
+        "p90": 287.87,
+        "p99": 310.28,
+        "avg": 276.3
+      },
+      "vram_used_mb_nvidia_smi": 14462.0,
+      "swap_count": 0,
+      "rollback_count": 1,
+      "swap_stats": {
+        "p50": 0.0,
+        "p90": 0.0,
+        "p99": 0.0,
+        "avg": 0.0
+      },
+      "rollback_stats": {
+        "p50": 9.39,
+        "p90": 9.39,
+        "p99": 9.39,
+        "avg": 9.39
+      },
+      "output_sample": " The neural scalpel, a blade of precision,\nSwaps intelligence with a blade of precision.\nIt cuts through the brain, a knife's edge,\nA blade"
+    },
+    "scalpel": {
+      "name": "scalpel_alpaca",
+      "batch_time_sec": 0.39,
+      "total_tokens": 1600,
+      "throughput_req_per_s": 127.71,
+      "throughput_tok_per_s": 4086.68,
+      "latency_ms": {
+        "p50": 255.23,
+        "p90": 260.72,
+        "p99": 263.52,
+        "avg": 255.68
+      },
+      "vram_used_mb_nvidia_smi": 14461.0,
+      "swap_count": 1,
+      "rollback_count": 1,
+      "swap_stats": {
+        "p50": 79.96,
+        "p90": 79.96,
+        "p99": 79.96,
+        "avg": 79.96
+      },
+      "rollback_stats": {
+        "p50": 9.64,
+        "p90": 9.64,
+        "p99": 9.64,
+        "avg": 9.64
+      },
+      "output_sample": " The poem should be about the neural scalpel and its ability to swap intelligence. The poem should be about the neural scalpel and its ability to swap intelligence.",
+      "verified_rollbacks": 1
+    }
+  }
+}

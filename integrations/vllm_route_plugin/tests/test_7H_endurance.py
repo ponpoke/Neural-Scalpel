@@ -121,6 +121,7 @@ async def run_endurance_test(num_requests: int = 1000):
     # (Allow small buffer for fragmented cache)
     assert vram_end <= vram_after_init + 100, f"Possible VRAM leak detected: {vram_end}MB > {vram_after_init}MB + 100MB"
 
+@pytest.mark.vllm_live
 @pytest.mark.asyncio
 async def test_10k_endurance():
     """Verify system stability over 10,000 mixed-route requests."""

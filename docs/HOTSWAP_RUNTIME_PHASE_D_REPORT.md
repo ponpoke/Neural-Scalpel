@@ -1,3 +1,7 @@
+# Hot-Swap Runtime Validation Report (Phase D)
+
+> **Historical Note:** This report documents the earlier Phase D prototype. Later vLLM internal validation progressed through Phase 7H-2. See `docs/HOTSWAP_RUNTIME_PRODUCTION_READINESS_REPORT.md` for the current validated prototype status.
+
 # Hot-Swap Runtime Phase D Report: Production Integration Prototype
 
 **Status:** Completed (Prototype)

@@ -60,6 +60,9 @@ To rigorously isolate the contribution of Neural-Scalpel's projection algorithms
 | **6. Target + Projected** | **12.40** (+0.06%) | **0.018** | **27.0%** |
 
 **Conclusion from Task Evaluation:** The projected LoRA (Mode 6) successfully transfers a measurable portion of the coding capability (+7.0% over Target Base) without introducing the catastrophic syntax destruction seen in naive padding (Mode 4) or random noise (Mode 5). This provides preliminary evidence that Neural-Scalpel can preserve a measurable portion of the source adapter's coding behavior under the tested configuration. Broader validation across larger benchmark sets, additional LoRA types, and additional model pairs is still required.
++
++> [!NOTE]
++> These downstream subset results belong to the cross-architecture projection research track. They are separate from the vLLM Phase 4-B route-serving task evaluation, which remains pending.
 
 ---
 

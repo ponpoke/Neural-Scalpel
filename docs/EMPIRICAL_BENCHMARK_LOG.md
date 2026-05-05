@@ -40,4 +40,4 @@ Measured the impact of the number of forward passes on projection stability.
 - **32 passes:** PPL +0.45%
 - **64 passes:** PPL +0.06% (Optimal)
 
-*Note: Broader downstream validation across full benchmark sets, additional LoRA types, and additional model pairs remains future work.*
+*Note: Broader downstream validation across full benchmark sets, additional LoRA types, and additional model pairs remains future work. These subset results are separate from the vLLM Phase 4-B route-serving task evaluation, which remains pending.*

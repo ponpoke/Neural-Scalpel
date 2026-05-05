@@ -7,6 +7,28 @@ import pytest
 import asyncio
 from typing import List
 
+from pathlib import Path
+import hashlib
+import torch
+from safetensors.torch import save_file
+
+def ensure_test_payload():
+    """Dynamically generates the required safetensors payload for the E2E test."""
+    payload_dir = Path("vllm_registry_storage/payloads")
+    payload_dir.mkdir(parents=True, exist_ok=True)
+    payload_path = payload_dir / "opt125m_sql_delta.safetensors"
+
+    if not payload_path.exists():
+        # Small delta for opt-125m QKV projection
+        delta = torch.full((2304, 768), 1e-5, dtype=torch.float16)
+        save_file(
+            {"model.decoder.layers.0.self_attn.qkv_proj.weight": delta},
+            str(payload_path),
+        )
+
+    sha256 = hashlib.sha256(payload_path.read_bytes()).hexdigest()
+    return str(payload_path), sha256
+
 async def run_llm_test(route_pattern: List[str], expected_violations: int = 0):
     try:
         from vllm import LLM, SamplingParams
@@ -21,11 +43,12 @@ async def run_llm_test(route_pattern: List[str], expected_violations: int = 0):
     RoutePluginMetrics.reset()
     
     # 1. Register Test Routes in Registry singleton
-    # We do this BEFORE LLM init so the registry is ready when hooks fire.
     registry = get_vllm_registry()
     
+    # Ensure payload exists and get correct SHA
+    payload_uri, payload_sha256 = ensure_test_payload()
+    
     # Target some layers of facebook/opt-125m
-    # In vLLM, OPT's Q/K/V projections are fused into qkv_proj
     target_layers = [
         {"name": "model.decoder.layers.0.self_attn.qkv_proj.weight", "shape": [2304, 768], "dtype": "float16"},
     ]
@@ -36,10 +59,11 @@ async def run_llm_test(route_pattern: List[str], expected_violations: int = 0):
         "tenant_id": "test-tenant",
         "layers": target_layers,
         "payload": {
-            "uri": "vllm_registry_storage/payloads/opt125m_sql_delta.safetensors",
-            "sha256": "a3179afda0cea4153bf6f5c3292c055e42e17c3b64c1ffffbd98cc0f8ffc3762"
+            "uri": payload_uri,
+            "sha256": payload_sha256
         }
     }
+
     
     # alpaca-route: Simulated for hybrid verification
     registry.routes["alpaca-route"] = {
@@ -103,11 +127,13 @@ async def run_llm_test(route_pattern: List[str], expected_violations: int = 0):
     assert RoutePluginMetrics.swap_count == RoutePluginMetrics.rollback_count
     assert RoutePluginMetrics.mixed_batch_violation_count == 0
 
+@pytest.mark.vllm_live
 @pytest.mark.asyncio
 async def test_live_same_route_100_req():
     """Verify that a consistent route processed by vLLM triggers hooks correctly."""
     await run_llm_test(route_pattern=["sql-route"])
 
+@pytest.mark.vllm_live
 @pytest.mark.asyncio
 async def test_live_mixed_route_homogeneous_scheduling():
     """Verify mixed-route requests complete via route-homogeneous scheduling."""

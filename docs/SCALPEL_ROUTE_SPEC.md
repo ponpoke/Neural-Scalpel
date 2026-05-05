@@ -1,7 +1,7 @@
 # Scalpel Route Specification
 
 **Version:** 0.1.0
-**Extension:** `.scalpel_route.json`
+**Extension:** `.scalpel_route`
 
 ## Overview
 A `.scalpel_route` file is a cryptographically verifiable manifest that defines a successful weight-delta projection (LoRA transplantation). It contains the necessary metadata, layer definitions, checksums, and signatures required for the Neural-Scalpel Hot-Swap Runtime to safely inject the adapter into a live model.
@@ -41,6 +41,8 @@ A `.scalpel_route` file is a cryptographically verifiable manifest that defines 
   - `algorithm`: (String) E.g., "ed25519", "hmac-sha256".
   - `key_id`: (String) Identifier of the signing key.
   - `value`: (String) The actual cryptographic signature.
++
++> Evaluation-only manifests may use `signature.algorithm = "none"` only when explicitly marked with `evaluation_only: true`. Production routes must be signed.
 
 ## Validation Protocol
 Before injection, the Hot-Swap Runtime MUST verify:

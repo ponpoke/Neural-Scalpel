@@ -23,7 +23,16 @@ cli = [
     "safetensors",
     "peft",
     "fastapi",
-    "uvicorn"
+    "uvicorn",
+    "pyjwt",
+    "httpx",
+]
+serving = [
+    "fastapi",
+    "uvicorn",
+    "pyjwt",
+    "httpx",
+    "prometheus-client",
 ]
 experimental = [
     "vllm",
@@ -36,3 +45,8 @@ test = [
 
 [project.scripts]
 neural-scalpel = "neural_scalpel.cli.main:main"
+
+[tool.pytest.ini_options]
+markers = [
+    "vllm_live: marks tests that require a live vLLM engine and significant GPU memory (deselect with '-m \"not vllm_live\"')",
+]

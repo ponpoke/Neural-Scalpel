@@ -64,7 +64,12 @@ Our commercial entry point is the **Diagnostic Suite**.
 ### Phase 1: OSS + Experimental Tooling (Current)
 - Open-source the core projection algorithms.
 - Establish the `diagnose` CLI to generate "LoRA Portability Feasibility Reports."
-- Build trust by transparently documenting failure modes (e.g., Cross-modality failure, Zero-dataset collapse).
+- **Phase 5-B: Per-Token Overhead Evaluation (Complete)** - Confirmed per-token swap is performance-prohibitive.
+- **Phase 5-C: Route-Window Optimization (Complete)** - Confirmed 1 swap / 1600 tokens; verified checksum rollback; recovered throughput performance.
+- [ ] **Phase 5-D: Performance Median** - Repeated benchmark median across multiple prompts/runs.
+- [ ] **Phase 5-E: Multi-Route Transitions** - Validation of mixed-route batch transitions.
+- [ ] **Phase 6: 24h Persistent-Route Soak** - Final endurance validation.
+
 
 ### Phase 2: Adapter Migration Diagnostics
 - Provide automated reports detailing:

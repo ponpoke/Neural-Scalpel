@@ -1,0 +1,69 @@
+# Neural-Scalpel vLLM Integration Runtime
+# Production Candidate Docker Image
+#
+# Build: docker build -f Dockerfile.vllm-scalpel -t neural-scalpel:latest .
+# Run:   docker run --gpus all -p 8000:8000 neural-scalpel:latest
+
+FROM nvidia/cuda:12.1.1-devel-ubuntu22.04 AS base
+
+# Avoid interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 \
+    python3.10-dev \
+    python3-pip \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3 /usr/bin/python
+
+# ── Python Dependencies ───────────────────────────────────────
+FROM base AS deps
+
+WORKDIR /app
+
+# Install PyTorch (CUDA 12.1)
+RUN pip install --no-cache-dir torch==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+
+# Install vLLM (version-locked)
+RUN pip install --no-cache-dir vllm==0.6.0
+
+# Install Neural-Scalpel dependencies
+COPY pyproject.toml setup.py ./
+RUN pip install --no-cache-dir -e ".[cli]" && \
+    pip install --no-cache-dir prometheus-client pyjwt httpx
+
+# ── Application ───────────────────────────────────────────────
+FROM deps AS app
+
+WORKDIR /app
+
+# Copy application code
+COPY neural_scalpel/ neural_scalpel/
+COPY integrations/ integrations/
+COPY scripts/ scripts/
+
+# Create data directories
+RUN mkdir -p /data/routes /data/payloads /var/log/neural-scalpel
+
+# Default environment
+ENV ROUTE_REGISTRY_DIR=/data/routes
+ENV PAYLOAD_DIR=/data/payloads
+ENV AUDIT_LOG_PATH=/var/log/neural-scalpel/audit.jsonl
+ENV MAX_PAYLOAD_BYTES=2147483648
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/healthz || exit 1
+
+EXPOSE 8000
+
+# Startup: run self-test then launch server
+CMD ["python3", "-m", "uvicorn", "neural_scalpel.serving.vllm_proxy:app", \
+     "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

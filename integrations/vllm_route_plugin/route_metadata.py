@@ -26,7 +26,11 @@ def inject_route_id_to_vllm_request():
     def patched_init(self, *args, **kwargs):
         route_id = kwargs.pop("route_id", None)
 
-        sampling_params = kwargs.get("sampling_params", None)
+        # Extraction from sampling_params (can be in args or kwargs)
+        sampling_params = kwargs.get("sampling_params")
+        if sampling_params is None and len(args) > 2:
+            sampling_params = args[2]
+
         if route_id is None and sampling_params is not None:
             extra_args = getattr(sampling_params, "extra_args", None)
             if isinstance(extra_args, dict):
@@ -41,7 +45,9 @@ def inject_route_id_to_vllm_request():
         # Record metrics with request_id mapping
         from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
         request_id = getattr(self, "request_id", None)
-        RoutePluginMetrics.record_request(route_id, request_id=request_id)
+        # Use request_id if available, otherwise use object id
+        actual_req_id = request_id if request_id is not None else id(self)
+        RoutePluginMetrics.record_request(route_id, request_id=actual_req_id)
 
     # Apply patch
     vllm_request.Request.__init__ = patched_init

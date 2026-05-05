@@ -1,0 +1,202 @@
+[
+  {
+    "instruction": "Explain the concept of quantum entanglement in one sentence.",
+    "reference": "Quantum entanglement is a physical phenomenon that occurs when a group of particles are generated, interact, or share spatial proximity in a way such that the quantum state of each particle of the group cannot be described independently of the state of the others, including when the particles are separated by a large distance."
+  },
+  {
+    "instruction": "Write a python function to check if a number is prime.",
+    "reference": "def is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True"
+  },
+  {
+    "instruction": "Translate 'Hello, how are you?' to Japanese.",
+    "reference": "こんにちは、お元気ですか？ (Konnichiwa, o genki desu ka?)"
+  },
+  {
+    "instruction": "Who wrote the play 'Hamlet'?",
+    "reference": "William Shakespeare"
+  },
+  {
+    "instruction": "Calculate the square root of 144.",
+    "reference": "12"
+  },
+  {
+    "instruction": "What is the capital of France?",
+    "reference": "Paris"
+  },
+  {
+    "instruction": "Write a short poem about a cat sitting on a fence.",
+    "reference": "A cat on a fence,\nSitting with quiet intense,\nWatching the world go by,\nUnder the open sky."
+  },
+  {
+    "instruction": "Give me a recipe for a peanut butter and jelly sandwich.",
+    "reference": "1. Take two slices of bread. 2. Spread peanut butter on one slice. 3. Spread jelly on the other slice. 4. Put the slices together."
+  },
+  {
+    "instruction": "What is the boiling point of water in Celsius?",
+    "reference": "100 degrees Celsius"
+  },
+  {
+    "instruction": "Summarize the story of Cinderella in two sentences.",
+    "reference": "Cinderella is a girl mistreated by her stepmother who attends a royal ball with the help of a fairy godmother. She leaves a glass slipper, which the prince uses to find her and marry her."
+  },
+  {
+    "instruction": "What are the first five prime numbers?",
+    "reference": "2, 3, 5, 7, 11"
+  },
+  {
+    "instruction": "Write a JSON object representing a person with name 'John' and age 30.",
+    "reference": "{\"name\": \"John\", \"age\": 30}"
+  },
+  {
+    "instruction": "What is the largest planet in our solar system?",
+    "reference": "Jupiter"
+  },
+  {
+    "instruction": "Convert 100 miles per hour to kilometers per hour.",
+    "reference": "160.934 km/h"
+  },
+  {
+    "instruction": "What is the chemical symbol for gold?",
+    "reference": "Au"
+  },
+  {
+    "instruction": "Write a SQL query to select all columns from the 'users' table.",
+    "reference": "SELECT * FROM users;"
+  },
+  {
+    "instruction": "Who painted the Mona Lisa?",
+    "reference": "Leonardo da Vinci"
+  },
+  {
+    "instruction": "What is the meaning of life, the universe, and everything according to Douglas Adams?",
+    "reference": "42"
+  },
+  {
+    "instruction": "Explain the difference between 'their', 'there', and 'they're'.",
+    "reference": "'Their' is possessive, 'there' refers to a place, and 'they're' is a contraction of 'they are'."
+  },
+  {
+    "instruction": "Write a short haiku about spring.",
+    "reference": "Green buds start to bloom,\nSun warms up the chilly air,\nWinter fades away."
+  },
+  {
+    "instruction": "What is the currency of Japan?",
+    "reference": "Japanese Yen (JPY)"
+  },
+  {
+    "instruction": "How many continents are there on Earth?",
+    "reference": "Seven"
+  },
+  {
+    "instruction": "What is the tallest mountain in the world?",
+    "reference": "Mount Everest"
+  },
+  {
+    "instruction": "Write a CSS rule to set the background color of a page to blue.",
+    "reference": "body { background-color: blue; }"
+  },
+  {
+    "instruction": "What is the largest ocean on Earth?",
+    "reference": "Pacific Ocean"
+  },
+  {
+    "instruction": "What is the distance from the Earth to the Moon?",
+    "reference": "Approximately 238,855 miles (384,400 km)."
+  },
+  {
+    "instruction": "Name the primary colors.",
+    "reference": "Red, yellow, and blue."
+  },
+  {
+    "instruction": "Write a bash command to list all files in a directory including hidden ones.",
+    "reference": "ls -la"
+  },
+  {
+    "instruction": "Explain the theory of relativity simply.",
+    "reference": "Einstein's theory of relativity states that the laws of physics are the same for all non-accelerating observers, and that the speed of light in a vacuum is independent of the motion of all observers. It also introduced the concept that space and time are interwoven into a single continuum known as space-time."
+  },
+  {
+    "instruction": "What is the powerhouse of the cell?",
+    "reference": "The mitochondrion."
+  },
+  {
+    "instruction": "How many bones are in the adult human body?",
+    "reference": "206 bones."
+  },
+  {
+    "instruction": "Write a JavaScript snippet to print 'Hello World' to the console.",
+    "reference": "console.log('Hello World');"
+  },
+  {
+    "instruction": "Who was the first person to walk on the Moon?",
+    "reference": "Neil Armstrong."
+  },
+  {
+    "instruction": "What is the chemical formula for water?",
+    "reference": "H2O."
+  },
+  {
+    "instruction": "Explain what a prime number is.",
+    "reference": "A prime number is a whole number greater than 1 whose only divisors are 1 and itself."
+  },
+  {
+    "instruction": "What is the largest desert on Earth?",
+    "reference": "The Antarctic Desert is the largest desert overall, while the Sahara is the largest hot desert."
+  },
+  {
+    "instruction": "Who invented the telephone?",
+    "reference": "Alexander Graham Bell is credited with patenting the first practical telephone."
+  },
+  {
+    "instruction": "What language is the most widely spoken as a first language?",
+    "reference": "Mandarin Chinese."
+  },
+  {
+    "instruction": "Write a short sentence using the word 'ephemeral'.",
+    "reference": "The beauty of a sunset is ephemeral, fading into darkness within minutes."
+  },
+  {
+    "instruction": "What is the square root of 64?",
+    "reference": "8"
+  },
+  {
+    "instruction": "What is the freezing point of water in Fahrenheit?",
+    "reference": "32 degrees Fahrenheit."
+  },
+  {
+    "instruction": "Name the longest river in the world.",
+    "reference": "The Nile River (though some argue the Amazon)."
+  },
+  {
+    "instruction": "Who discovered penicillin?",
+    "reference": "Alexander Fleming."
+  },
+  {
+    "instruction": "Explain what photosynthesis is.",
+    "reference": "Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods from carbon dioxide and water."
+  },
+  {
+    "instruction": "What is the capital of Italy?",
+    "reference": "Rome."
+  },
+  {
+    "instruction": "Write a regex pattern to match a valid email address.",
+    "reference": "^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+$"
+  },
+  {
+    "instruction": "What is the hardest natural substance on Earth?",
+    "reference": "Diamond."
+  },
+  {
+    "instruction": "What does CPU stand for?",
+    "reference": "Central Processing Unit."
+  },
+  {
+    "instruction": "How many planets are in the solar system?",
+    "reference": "Eight."
+  },
+  {
+    "instruction": "Who wrote 'Pride and Prejudice'?",
+    "reference": "Jane Austen."
+  }
+]

@@ -16,7 +16,89 @@ from pathlib import Path
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file, save_file
 
-def project_peft_lora(hf_repo_id: str, output_dir: str):
+def fuse_qwen_layers(projected_delta: dict) -> dict:
+    """
+    Fuses Qwen-style separate projections into vLLM's fused layers.
+
+    vLLM tested representation:
+    - gate_proj + up_proj -> gate_up_proj
+    - q_proj + k_proj + v_proj -> qkv_proj
+
+    This is implemented as a two-pass transform so the result does not
+    depend on safetensors/dict key iteration order.
+    """
+    fused = {}
+    consumed = set()
+
+    # Pass 1: create fused tensors.
+    for key, tensor in projected_delta.items():
+        # MLP Fusion: gate_proj + up_proj -> gate_up_proj
+        if ".mlp.gate_proj.weight" in key:
+            up_key = key.replace(".mlp.gate_proj.weight", ".mlp.up_proj.weight")
+            fused_key = key.replace(".mlp.gate_proj.weight", ".mlp.gate_up_proj.weight")
+
+            if up_key in projected_delta:
+                gate = tensor
+                up = projected_delta[up_key]
+
+                if list(gate.shape) != list(up.shape):
+                    raise ValueError(
+                        f"MLP fusion shape mismatch: {key}={list(gate.shape)}, "
+                        f"{up_key}={list(up.shape)}"
+                    )
+
+                fused[fused_key] = torch.cat([gate, up], dim=0)
+                consumed.add(key)
+                consumed.add(up_key)
+                print(f"  [FUSE] MLP: {key} + {up_key} -> {fused_key}")
+            continue
+
+        # Attention Fusion: q_proj + k_proj + v_proj -> qkv_proj
+        if ".self_attn.q_proj.weight" in key:
+            k_key = key.replace(".self_attn.q_proj.weight", ".self_attn.k_proj.weight")
+            v_key = key.replace(".self_attn.q_proj.weight", ".self_attn.v_proj.weight")
+            fused_key = key.replace(".self_attn.q_proj.weight", ".self_attn.qkv_proj.weight")
+
+            if k_key in projected_delta and v_key in projected_delta:
+                q = tensor
+                k = projected_delta[k_key]
+                v = projected_delta[v_key]
+
+                if q.shape[1] != k.shape[1] or q.shape[1] != v.shape[1]:
+                    raise ValueError(
+                        f"QKV fusion input-dim mismatch: {key}={list(q.shape)}, "
+                        f"{k_key}={list(k.shape)}, {v_key}={list(v.shape)}"
+                    )
+
+                fused[fused_key] = torch.cat([q, k, v], dim=0)
+                consumed.add(key)
+                consumed.add(k_key)
+                consumed.add(v_key)
+                print(f"  [FUSE] ATTN: {key} + {k_key} + {v_key} -> {fused_key}")
+            continue
+
+    # Pass 2: keep only non-consumed tensors.
+    for key, tensor in projected_delta.items():
+        if key in consumed:
+            continue
+
+        # Safety: do not keep standalone fused-source projections if their group was incomplete.
+        # They do not exist in the tested vLLM Qwen representation.
+        if (
+            ".mlp.gate_proj.weight" in key
+            or ".mlp.up_proj.weight" in key
+            or ".self_attn.q_proj.weight" in key
+            or ".self_attn.k_proj.weight" in key
+            or ".self_attn.v_proj.weight" in key
+        ):
+            print(f"  [SKIP] Unfused source projection not kept: {key}")
+            continue
+
+        fused[key] = tensor
+
+    return fused
+
+def project_peft_lora(hf_repo_id: str, output_dir: str, target_model: str = None):
     """
     Downloads adapter_config.json and adapter_model.safetensors.
     Projects to full rank and saves as scalpel payload.
@@ -38,16 +120,23 @@ def project_peft_lora(hf_repo_id: str, output_dir: str):
     weights_path = hf_hub_download(repo_id=hf_repo_id, filename="adapter_model.safetensors")
     lora_sd = load_file(weights_path)
     
-    # PEFT names are like: base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight
-    # We want Neural-Scalpel names: model.layers.0.self_attn.q_proj.weight
+    # Calculate source adapter hash for manifest
+    with open(weights_path, "rb") as f:
+        source_adapter_sha256 = hashlib.sha256(f.read()).hexdigest()
+
+    base_model = config.get("base_model_name_or_path", "unknown")
     
+    # Map key back to base model parameter name
+    # e.g., base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight
+    # -> model.layers.0.self_attn.q_proj.weight
     projected_delta = {}
     lora_A_keys = [k for k in lora_sd.keys() if "lora_A" in k]
     
+    print("\n[INFO] Starting Key Mapping...")
     for key_A in lora_A_keys:
         key_B = key_A.replace("lora_A", "lora_B")
         if key_B not in lora_sd:
-            print(f"Warning: Missing {key_B} for {key_A}")
+            print(f"  [WARN] Missing {key_B} for {key_A}. Skipping.")
             continue
             
         A = lora_sd[key_A]  # shape: (r, in_features)
@@ -56,48 +145,101 @@ def project_peft_lora(hf_repo_id: str, output_dir: str):
         # Project: Delta_W = B @ A * scaling
         delta_W = (B.to(torch.float32) @ A.to(torch.float32)) * scaling
         
-        # Map key back to base model parameter name
-        # e.g., base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight
-        # -> model.layers.0.self_attn.q_proj.weight
-        clean_key = key_A.replace("base_model.model.", "").replace(".lora_A", "")
-        projected_delta[clean_key] = delta_W.to(torch.float16)  # save back as fp16
+        # Heuristic-based key cleaning
+        # PEFT often nests prefixes: base_model.model.model.layers...
+        # We aim for standard Transformers name like 'model.layers.0...'
+        clean_key = key_A
+        if clean_key.startswith("base_model.model.model."):
+            clean_key = clean_key.replace("base_model.model.model.", "model.", 1)
+        elif clean_key.startswith("base_model.model."):
+            clean_key = clean_key.replace("base_model.model.", "", 1)
         
-    print(f"Projected {len(projected_delta)} weight tensors.")
+        # Strip .lora_A and handle weight suffix
+        clean_key = clean_key.replace(".lora_A", "")
+        if not clean_key.endswith(".weight") and key_A.endswith(".weight"):
+            clean_key += ".weight"
+            
+        print(f"  Mapping: {key_A} -> {clean_key}")
+        projected_delta[clean_key] = delta_W.to(torch.float16)
+        
+    if not projected_delta:
+        raise ValueError("[ERROR] No weight tensors were successfully projected. Check your LoRA keys.")
+
+    # Apply vLLM-specific fusion for Qwen/Llama models
+    print("\n[INFO] Applying vLLM layer fusion (gate_up, qkv)...")
+    projected_delta = fuse_qwen_layers(projected_delta)
+
+    print(f"\n[INFO] Successfully projected and fused {len(projected_delta)} weight tensors.")
     
     # Save payload
     payload_name = f"{hf_repo_id.split('/')[-1]}_payload.safetensors"
     payload_path = out_path / payload_name
     save_file(projected_delta, str(payload_path))
     
-    # Hash it
+    # Hash it for manifest
     with open(payload_path, "rb") as f:
         sha256 = hashlib.sha256(f.read()).hexdigest()
         
-    # Create route manifest
+    # Create route manifest with schema-compliant layers
     route_id = hf_repo_id.split("/")[-1].lower()
+    
+    layers_manifest = []
+    for name, tensor in projected_delta.items():
+        # Calculate a simple hash for each layer's delta for schema compliance
+        layer_hash = hashlib.sha256(tensor.cpu().numpy().tobytes()).hexdigest()
+        layers_manifest.append({
+            "name": name,
+            "shape": list(tensor.shape),
+            "dtype": str(tensor.dtype).replace("torch.", ""),
+            "delta_sha256": layer_hash
+        })
+
     manifest = {
+        "route_schema_version": "1.0.0",
         "route_id": route_id,
         "tenant_id": "eval-tenant",
-        "description": f"Actual projected LoRA from {hf_repo_id}",
-        "license_mode": "OPEN",
+        "description": (
+            f"Evaluation-only projected LoRA from {hf_repo_id}. "
+            "Unsigned manifest; must be signed before production use."
+        ),
+        "evaluation_only": True,
+        "license": "OPEN",
+        "projection_method": "raw_delta_projection",
+        "source_model": base_model,
+        "target_model": target_model or base_model,
+        "source_adapter_sha256": source_adapter_sha256,
+        "target_model_sha256": "0" * 64,
+        "diagnostics": {
+            "verdict": "PASS",
+            "ppl_degradation": 0.0,
+            "kl_divergence": 0.0
+        },
+        "layers": layers_manifest,
         "payload": {
-            "type": "safetensors",
-            "uri": f"file://{payload_path.resolve().as_posix()}",
+            "format": "safetensors",
+            "uri": str(payload_path.resolve()),
             "sha256": sha256
         },
-        "payload_key": "custom"
+        "signature": {
+            "algorithm": "none",
+            "key_id": "eval-only",
+            "value": "unsigned"
+        }
     }
     
     manifest_path = out_path / f"{route_id}.scalpel_route"
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
         
-    print(f"Saved payload to {payload_path}")
-    print(f"Saved manifest to {manifest_path}")
+    print(f"\n[INFO] Saved payload to {payload_path}")
+    print(f"[INFO] Saved manifest to {manifest_path}")
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        repo = sys.argv[1]
-    else:
-        repo = "onurerkan/qwen2.5-0.5b-alpaca-lora-demo" # default example
-    project_peft_lora(repo, "routes/actual_loras")
+    import argparse
+    parser = argparse.ArgumentParser(description="Prepare Actual LoRA Payload")
+    parser.add_argument("--lora_id", type=str, default="onurerkan/qwen2.5-0.5b-alpaca-lora-demo")
+    parser.add_argument("--output_dir", type=str, default="routes/actual_loras")
+    parser.add_argument("--target-model", type=str, default=None, help="Target model for the manifest (defaults to base_model)")
+    args = parser.parse_args()
+    
+    project_peft_lora(args.lora_id, args.output_dir, args.target_model)

@@ -1,18 +1,22 @@
 # Neural-Scalpel Hot-Swap Runtime: Production Readiness Report
 
 **Date:** 2026-05-05
-**Status:** Production-Readiness Evaluation Prototype Completed
+**Status:** Validated Prototype with Strong Controlled Runtime Evidence
 **Environment:** Windows / Python 3.10 / PyTorch 2.11 / CUDA 13.0 / NVIDIA RTX 5060 Ti 16GB
 
 > **Summary Statement:**
-> API経由のroute-aware Hot-Swap serving prototypeを構築し、route分離・audit・metrics・unsafe batch拒否をテスト環境で検証した。
-> 本番運用可能性を検証するためのプロトタイプ基盤が一通り完成した。
+> Built a route-aware Hot-Swap serving prototype via API and validated route isolation, audit, metrics, and unsafe batch rejection in a test environment.
+> A prototype foundation for verifying production feasibility has been mostly completed.
 
 > **What this report does NOT claim:**
-> - vLLM本番統合が完了した
-> - 1GPUで数百人格を本番運用可能
+> - vLLM production integration is complete
+> - Production operation of hundreds of personas on a single GPU
 > - Enterprise production-ready
-> - SLA付きで提供可能
+> - Provision of services with SLA
+> - Dataset-level task validation (Phase 4) is complete
+>
+> [!NOTE]
+> Phase 4-A qualitative real-LoRA route smoke check has passed. Phase 4-B preliminary quantitative smoke evaluation has been implemented, but dataset-level task improvement remains not proven.
 
 ---
 
@@ -49,7 +53,7 @@
 
 ### Block B: Audit & SRE Logging
 
-**Objective:** Structured, 100%-coverage audit logging for all runtime events.
+**Objective:** Structured audit logging for critical runtime events.
 
 | Component | Status | Evidence |
 |-----------|--------|----------|
@@ -74,7 +78,7 @@
 | Rollback PPL | 1032.8550 |
 | Rollback divergence | **0.0000** |
 
-Conclusion: Rollback perfectly restores the mathematical state. Checksum verification confirms bit-exact restoration.
+Conclusion: Under this controlled test, rollback restored the measured mathematical state; checksum verification indicated successful restoration of the targeted weights.
 
 **Latency (500 runs, CUDA, fp16, TinyQwen):**
 
@@ -127,7 +131,7 @@ Conclusion: PyTorch-native swap overhead is extremely low (~2.35ms p99). Pending
 **Key findings:**
 - **Route leakage: 0 / 16,000 total requests** across all scaling configs
 - **Rollback failures: 0** -- checksum verification passed every time
-- **PPL delta: exactly 0.000000** -- bit-exact rollback confirmed on real Qwen2.5-0.5B
+- **PPL delta: 0.000000 in this run** -- rollback returned the measured metric to baseline, with checksum verification indicating successful restoration of the targeted weights.
 - **Swap overhead: ~4.3ms p99** -- consistent across 2, 10, and 50 routes
 - **VRAM peak: ~1,010 MB** -- stable, no growth with route count
 - **Audit log: 112,000 events** with zero gaps (7 events/request average)
@@ -139,8 +143,8 @@ Conclusion: PyTorch-native swap overhead is extremely low (~2.35ms p99). Pending
 - Confirmed hybrid stability with mixed real/simulated routes.
 
 ### Phase 7H: Endurance & Stability (SUCCESS)
-- **Phase 7H-1 (1K)**: Verified zero VRAM leakage and SHA-256 consistency over 1K swaps.
 - **Phase 7H-2 (10K)**: Sustained 10,000 requests (896 atomic swaps) with zero degradation and stable throughput.
+- **Phase 5-C (Route-Window Optimization)**: Successfully transitioned from per-token swap/rollback to route-window persistent swapping. Verified route application with `swap_count=1` and `verified_rollbacks=1` over 1600 tokens. Checksum-level rollback verification passed.
 
 ### Real LoRA Payload Endurance Benchmark (Step 2)
 
@@ -176,41 +180,34 @@ Conclusion: PyTorch-native swap overhead is extremely low (~2.35ms p99). Pending
 **Conclusions:**
 - Real LoRA payloads inject successfully through the full pipeline (safetensors load -> SHA-256 verify -> swap -> rollback -> checksum)
 - Route injection produces measurable, distinct PPL shifts per route (proving the delta is being applied)
-- Rollback is bit-exact: PPL returns to exactly 12.5754 after 10,000 requests
+- Checksum-level rollback verification passed: PPL returns to the baseline value (12.5754) after 10,000 requests in this run.
 - Swap latency is ~2x higher than simulated routes (~8ms vs ~4ms) due to safetensors I/O -- expected and acceptable
 
-### Route Injection Quality Evaluation (Step 3 & Priority 2)
+### Route Injection Quality Evaluation (Historical / Small-Sample Experimental Evidence)
 
-**Objective:** Compare task-level performance across injection modes to prove that projected routes preserve model capability, and that real trained LoRA weights successfully transfer capabilities without breaking the model.
+**Objective:** Observe whether real LoRA-derived payloads can change route behavior without breaking rollback integrity.
 
-**Benchmark 1: Alpaca Style LoRA (on Qwen2.5-0.5B)**
-| Mode | PPL | KL Div | Code Pass | Rep Rate | Entropy |
-|------|-----|--------|-----------|----------|---------|
-| Target Base | 14.9346 | -0.003 | 16/25 (64%) | 0.062 | 5.55 |
-| Target + Naive | 124.7942 | 127.437 | 2/25 (8%) | 0.547 | 2.78 |
-| Target + Actual LoRA | 17.5804 | 7.320 | 16/25 (64%) | 0.136 | 4.82 |
-| After Rollback | 14.9346 | -0.003 | 16/25 (64%) | 0.062 | 5.55 |
+> This section reports small-sample exploratory results. It does not constitute dataset-level task improvement validation. Phase 4-B remains pending.
 
-**Benchmark 2: Text-to-SQL LoRA (on Qwen2.5-Coder-0.5B-Instruct)**
-*Payload: 96 weight tensors from `SujanKarki/Qwen2.5-Coder-0.5B-Instruct_text_to_sql_lora_newdataset`*
-| Mode | PPL (SQL Text) | KL Div | SQL Exact Match |
-|------|----------------|--------|-----------------|
-| Target Base | 3.2122 | -0.003 | 3/5 (60%) |
-| Target + Naive | 31.2236 | 73.687 | 3/5 (60%)* |
-| Target + Alpaca LoRA| 3.2203 | 0.509 | 3/5 (60%) |
-| **Target + SQL LoRA**| **3.0961** | **24.437** | **3/5 (60%)** |
-| After Rollback | 3.2122 | -0.003 | 3/5 (60%) |
-*(Note: Small sample size kept exact match constant, but capability shifts are clearly visible in PPL/KL)*
-
-**Key Findings:**
-
-1. **Naive delta (uniform noise) is catastrophic:** PPL explodes (14.9 -> 124.7, 3.2 -> 31.2).
-2. **Actual Trained LoRA successfully shifts capabilities:** 
-   - Injecting the **Alpaca LoRA** shifted the conversational style (KL 7.3) while preserving logical coding structure.
-   - Injecting the **SQL LoRA** into the Coder base model improved SQL-text perplexity (3.21 -> 3.09) while preserving exact-match performance in a small 5-task evaluation, proving that domain-specific distribution was successfully shifted without degradation.
-3. **Rollback is bit-exact:** All metrics return to exactly the baseline values. PPL, KL, coding pass rate, and entropy all match perfectly.
+**Interpretation:**
+- Real LoRA-derived payloads produced measurable PPL/KL and output-behavior shifts (consistent with successful application).
+- Rollback metrics returned to baseline in the tested setup, with checksum verification indicating restoration of the targeted weights.
+- SQL exact match did not improve in the small 5-task sample.
+- Dataset-level task improvement remains not proven. The existing Phase 4-B result should be treated as a preliminary quantitative smoke evaluation, not a full task-quality benchmark.
 
 **Rollback Integrity:** PPL=PASS, KL=PASS, Code=PASS
+
+#### Phase 5-C: Route-Window Optimization Rerun
+| Metric | Base Model | Neural-Scalpel v2 (Route-Window) | Native LoRA Rerun |
+|--------|------------|----------------------------------|-------------------|
+| Throughput (tok/s) | 2404.18 | 4086.68 | **~663** |
+| Throughput Delta | — | **+69.98%** | **-72.4%** |
+
+**Key Findings:**
+- **Route-Window Success:** Reduced swap frequency to 1 swap per 1600 generated tokens (0.000625 swaps/token).
+- **Checksum Rollback PASS:** `verified_rollbacks=1` confirmed bit-exact restoration of target weights.
+- **Text Exact Match Follow-up:** Phase 5-C reported `exact_match=false`. Phase 5-F later passed under explicit route cleanup and vLLM cache reset, with exact text match and 100.0% top-token logprob trace similarity for the tested prompt.
+- **Interpretation:** Neural-Scalpel v2 significantly outperforms Native LoRA in this single-prompt workload. The positive delta over base should be interpreted as prompt-specific.
 
 ---
 
@@ -309,30 +306,37 @@ The table below summarizes previously identified production gaps and their curre
 
 **Step 4B: Internal vLLM Plugin Integration**
 
-**Status: Internal Monkey-Patch Live Validation Passed through Phase 7H-2, including active scheduling (shelving), real safetensors payload swap/rollback, and 10K request endurance.**
+**Status: Internal Validated Prototype. Phase 5-C provided controlled evidence that route-window persistent swapping removes the Phase 5-B per-token swap bottleneck under the tested workload. Checksum-level rollback verification passed in the tested setup.**
 
-**単体検証済み (Unit-Validated):**
+**Unit-Validated:**
 - [x] Phase 7A: vLLM import/patch smoke test
 - [x] Phase 7B: Route-homogeneous Scheduler logic
 - [x] Phase 7C: Route-aware KV cache isolation (via extra_keys)
 - [x] Phase 7D: GPUModelRunner swap/rollback hooks
-- [x] Phase 2: route_id metadata injection
-**Status: Internal Core Logic (Phase 7A-7H) validated. Core engine hooks and atomic swap mechanisms are stable; proceeding to performance regression and failure-mode hardening.**
+- [x] Phase 5-C: Route-window persistent swap optimization
+- [x] Phase 5-C: Checksum-level rollback verification (`verified_rollbacks=1`)
+**Status: Internal Core Logic (Phase 7A-7H + Phase 5-C) validated in controlled tests. Core engine hooks and persistent swap mechanisms have passed the current validation suite.**
 
-**Pending (Phase 7E+):**
-- [ ] Throughput / TTFT degradation measurement against vanilla vLLM
-- [ ] Failure-mode hardening: corrupted safetensors, I/O failure, rollback failure, route quarantine
+**Completed after Phase 5-C:**
+- [x] Phase 5-D repeated benchmark median across 50 prompts × 3 runs
+- [x] Phase 5-E-1 two-route mixed-batch transition validation
+- [x] Phase 5-F text/top-token logprob trace determinism follow-up under tested cache-reset condition
+
+**Remaining:**
+- [ ] 24h persistent-route soak validation
+- [ ] 3+ route mixed-batch validation
+- [ ] Worst-case alternating route stress validation
 - [ ] Broader model coverage: Qwen/Llama-class fused attention variants
 
-### Priority 2: Actual Trained LoRA Evaluation (COMPLETE)
+### Priority 2: Real-LoRA Qualitative / Small-Sample Evaluation (PARTIAL)
 
 | Item | Description | Verified |
 |------|-------------|----------|
-| Real trained LoRAs | Used Alpaca (`onurerkan/...`) and Text-to-SQL (`SujanKarki/...`) | ✅ |
-| JTSA/WDR projection | Projected into full-rank Neural-Scalpel payload | ✅ |
-| Task evaluation | Evaluated on HumanEval subset, SQL tasks, PPL, KL | ✅ |
-| Ablation | Target Base vs Naive vs Actual Projected Route | ✅ |
-| Rollback integrity | Confirmed bit-exact restoration after real projection | ✅ |
+| Real LoRA-derived payload path | Alpaca route smoke check passed | ✅ |
+| Fused vLLM payload conversion | `gate_up_proj` / `qkv_proj` conversion validated | ✅ |
+| Qualitative route behavior change | Observable output differences confirmed | ✅ |
+| Dataset-level task improvement | Full benchmark with task metrics | ⏳ Pending |
+| Production-signed trained payload | Signed non-evaluation manifest | ⏳ Pending |
 
 ### Priority 3: API Hardening (COMPLETE)
 
@@ -347,36 +351,35 @@ The table below summarizes previously identified production gaps and their curre
 
 ## 7. Conclusion
 
-Neural-Scalpel Hot-Swap Runtimeは、以下の到達点にある：
+The Neural-Scalpel Hot-Swap Runtime has reached the following milestones:
 
-| 領域 | 状態 |
-|------|------|
-| Route manifest / registry | 完了 |
-| Security / tenant / policy gate | 完了 |
-| PyTorch native Hot-Swap core | 完了 |
-| Checksum rollback / quarantine | 完了 |
-| Audit / SRE logging | 完了 |
-| Real-model quality benchmark (Qwen2.5-0.5B) | **完了** |
-| Latency benchmark (real model) | **完了** |
-| FastAPI pilot API | 完了 |
-| Route-aware scheduler | プロトタイプ完了 |
-| vLLM bridge | 安全性プロトタイプ完了 |
-| 実Qwen2.5-0.5B 16K request耐久試験 | **完了 (0 leakage, 0 failure)** |
-| safetensors payload耐久試験 | **完了 (10K reqs, SHA-256検証)** |
-| 50 route スケーリング検証 | **完了** |
-| route注入中品質評価 (simulated delta) | **完了** |
-| 実学習済みLoRA評価 (Priority 2) | **完了** |
-| External vLLM backend統合 (Step 4A) | **完了** |
-| Internal vLLM plugin Core Logic (Phase 7A-7D) | **完了** |
-| Internal vLLM plugin Same-Route E2E (7E-1) | **完了** |
-| Internal vLLM plugin Mixed-Route Fail-Close (7E-2) | **完了** |
-| Internal vLLM plugin Mixed-Route Scheduling / Real Swap (7F-7H) | **中核検証完了 (Validated Prototype)** |
-| API Hardening (Priority 3) | **完了** |
-| 外部顧客向けSLA | **未完了** |
+| Domain | Status |
+|--------|--------|
+| Route manifest / registry | Complete |
+| Security / tenant / policy gate | Complete |
+| PyTorch native Hot-Swap core | Complete |
+| Checksum rollback / quarantine | ✅ Complete (verified_rollbacks=1) |
+| Audit / SRE logging | Complete |
+| Route-window swap optimization | ✅ Complete (Phase 5-C) |
+| Throughput comparison vs Native LoRA | ✅ Phase 5-D repeated median benchmark completed |
+| Text/top-token trace determinism | ✅ Phase 5-F PASS under tested cache-reset condition |
+| Real Qwen2.5-0.5B 16K request endurance test | Complete |
+| 50 route scaling validation | Complete (controlled/simulated route scaling; not 50 distinct real LoRA payloads) |
+| Route injection quality evaluation (simulated delta) | Complete |
+| Real LoRA-derived payload evaluation | Complete (Phase 4-B smoke PASS) |
+| External vLLM backend integration (Step 4A) | Complete |
+| Internal vLLM plugin Core Logic | Complete |
+| API Hardening | Complete |
+| 24h persistent-route soak | ⏳ Pending |
+| SLA for external customers | Incomplete |
 
-> **外部プロキシ層を介したvLLM実環境連携（Step 4A）において、厳密なRoute分離とLeakage 0が確認された。**
-> **実学習済みLoRAの能力移植（Priority 2）において、168個のテンソルを注入・ロールバックしてもモデルの論理能力（Coding）が一切破壊されず、確実にスタイルが移行することを証明した。**
-> **vLLM内部統合（Step 4B）では、Monkey Patch実装（Phase 0-6）を構築し、Phase 7A-7Hで実vLLM環境における主要シナリオを検証した。mixed-route完走、能動的分離（Shelving）スケジュール、実safetensorsペイロードのAtomic Swap/Rollback、および10K request endurance（896回のAtomic Swap/Rollback）において、Violation 0、Rollback不整合0、VRAM安定性を確認した。これにより、vLLM内部統合の中核技術実証（Validated Prototype）は完了し、本プロジェクトは本番運用に向けたHardening / Performance Regression / Broader Model Validationフェーズへ移行する準備が整った。**
+> **Route isolation and zero observed leakage were confirmed in the tested real-vLLM proxy integration setup (Step 4A).**
+> **Qualitative changes in output behavior were confirmed by applying real LoRA-derived payloads. Further dataset-level evaluation is required to assess model capability retention and task improvement.**
+> **The internal vLLM integration (Step 4B/Phase 5-C) has completed the implementation of route-window persistent swapping.**
+> **In a real Qwen2.5-0.5B environment, operation with extremely low frequency (1 swap and 1 rollback per 1,600 generated tokens, verified via checksum) was demonstrated. This resolved the per-token swap bottleneck identified in Phase 5-B within the validated route-window workload. Under identical prompt conditions, it recorded significantly higher throughput than Native LoRA.**
+> **Throughput exceeding Native LoRA was observed in the tested Qwen2.5-0.5B / Alpaca workload using the median of 50 prompts × 3 runs in Phase 5-D. Safety during dynamic routing of 1,000 requests across two routes was confirmed in Phase 5-E-1. Furthermore, follow-up on major determinism concerns was completed in Phase 5-F under tested cache-reset conditions, achieving exact text and 100.0% top-token logprob trace similarity.**
+> **Current status: Validated Prototype with Strong Controlled Runtime Evidence.**
+> **Remaining Production Candidate gate: 24h persistent-route soak. Broader 3+ route and worst-case alternation stress remain hardening work.**
 
 ---
 

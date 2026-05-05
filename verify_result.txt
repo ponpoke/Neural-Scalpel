@@ -1,0 +1,200 @@
+INFO 05-05 21:52:27 [nixl_utils.py:20] Setting UCX_RCACHE_MAX_UNRELEASED to '1024' to avoid a rare memory leak in UCX when using NIXL.
+WARNING 05-05 21:52:27 [nixl_utils.py:34] NIXL is not available
+WARNING 05-05 21:52:27 [nixl_utils.py:44] NIXL agent config is not available
+WARNING 05-05 21:52:27 [interface.py:686] Using 'pin_memory=False' as WSL is detected. This may slow down the performance.
+Registered route 'alpaca' in runtime registry.
+
+--- Running Base Generation ---
+INFO 05-05 21:52:27 [utils.py:233] non-default args: {'disable_log_stats': True, 'enforce_eager': True, 'model': 'Qwen/Qwen2.5-0.5B'}
+INFO 05-05 21:52:28 [model.py:555] Resolved architecture: Qwen2ForCausalLM
+INFO 05-05 21:52:28 [model.py:1680] Using max model len 32768
+INFO 05-05 21:52:28 [scheduler.py:239] Chunked prefill is enabled with max_num_batched_tokens=8192.
+INFO 05-05 21:52:28 [vllm.py:840] Asynchronous scheduling is enabled.
+WARNING 05-05 21:52:28 [vllm.py:896] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 05-05 21:52:28 [vllm.py:914] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 05-05 21:52:28 [kernel.py:205] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+INFO 05-05 21:52:28 [vllm.py:1089] Cudagraph is disabled under eager mode
+INFO 05-05 21:52:28 [compilation.py:303] Enabled custom fusions: norm_quant, act_quant
+WARNING 05-05 21:52:30 [system_utils.py:157] We must use the `spawn` multiprocessing start method. Overriding VLLM_WORKER_MULTIPROC_METHOD to 'spawn'. See https://docs.vllm.ai/en/latest/usage/troubleshooting.html#python-multiprocessing for more information. Reasons: WSL is detected and NVML is not compatible with fork
+(EngineCore pid=66914) INFO 05-05 21:52:36 [core.py:109] Initializing a V1 LLM engine (v0.20.1) with config: model='Qwen/Qwen2.5-0.5B', speculative_config=None, tokenizer='Qwen/Qwen2.5-0.5B', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=32768, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=Qwen/Qwen2.5-0.5B, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [8192], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['vllm_c', 'native']), enable_flashinfer_autotune=True, moe_backend='auto')
+(EngineCore pid=66914) WARNING 05-05 21:52:36 [nixl_utils.py:34] NIXL is not available
+(EngineCore pid=66914) WARNING 05-05 21:52:36 [nixl_utils.py:44] NIXL agent config is not available
+(EngineCore pid=66914) WARNING 05-05 21:52:37 [interface.py:686] Using 'pin_memory=False' as WSL is detected. This may slow down the performance.
+(EngineCore pid=66914) INFO 05-05 21:52:37 [parallel_state.py:1402] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://172.17.87.242:48003 backend=nccl
+(EngineCore pid=66914) INFO 05-05 21:52:37 [parallel_state.py:1715] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(EngineCore pid=66914) INFO 05-05 21:52:37 [gpu_model_runner.py:4777] Starting to load model Qwen/Qwen2.5-0.5B...
+(EngineCore pid=66914) INFO 05-05 21:52:38 [cuda.py:368] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(EngineCore pid=66914) INFO 05-05 21:52:38 [flash_attn.py:646] Using FlashAttention version 2
+(EngineCore pid=66914) INFO 05-05 21:52:39 [weight_utils.py:659] No model.safetensors.index.json found in remote.
+(EngineCore pid=66914) INFO 05-05 21:52:39 [weight_utils.py:904] Filesystem type for checkpoints: EXT4. Checkpoint size: 0.92 GiB. Available RAM: 20.22 GiB.
+(EngineCore pid=66914) INFO 05-05 21:52:39 [weight_utils.py:927] Auto-prefetch is disabled because the filesystem (EXT4) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(EngineCore pid=66914) INFO 05-05 21:52:39 [default_loader.py:384] Loading weights took 0.29 seconds
+(EngineCore pid=66914) INFO 05-05 21:52:40 [gpu_model_runner.py:4879] Model loading took 0.93 GiB memory and 1.960114 seconds
+(EngineCore pid=66914) INFO 05-05 21:52:39 [gpu_worker.py:440] Available KV cache memory: 13.13 GiB
+(EngineCore pid=66914) INFO 05-05 21:52:39 [kv_cache_utils.py:1708] GPU KV cache size: 1,146,912 tokens
+(EngineCore pid=66914) INFO 05-05 21:52:39 [kv_cache_utils.py:1709] Maximum concurrency for 32,768 tokens per request: 35.00x
+(EngineCore pid=66914) INFO 05-05 21:52:40 [core.py:306] init engine (profile, create kv cache, warmup model) took -0.16 s
+(EngineCore pid=66914) INFO 05-05 21:52:42 [vllm.py:840] Asynchronous scheduling is enabled.
+(EngineCore pid=66914) WARNING 05-05 21:52:42 [vllm.py:896] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+(EngineCore pid=66914) WARNING 05-05 21:52:42 [vllm.py:914] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+(EngineCore pid=66914) INFO 05-05 21:52:42 [kernel.py:205] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+(EngineCore pid=66914) INFO 05-05 21:52:42 [vllm.py:1089] Cudagraph is disabled under eager mode
+(EngineCore pid=66914) INFO 05-05 21:52:42 [compilation.py:303] Enabled custom fusions: norm_quant, act_quant
+
+--- Running Scalpel Generation (Alpaca Route) ---
+
+================================================================================
+ PHASE 4: REAL TASK VALUE PROOF (ALPACA)
+================================================================================
+
+PROMPT 1: Explain the theory of relativity in simple terms.
+----------------------------------------
+ROUTE: [__base__]
+OUTPUT:
+The theory of relativity states that the speed of light is always constant, and all physical laws are the same for everything at the same speed. This means that the laws of physics are the same for a moving object as they are for a stationary one. The theory of relativity also states that space and time are relative and can be warped or stretched or compressed depending on the speed of the observer.
+----------------------------------------
+ROUTE: [alpaca]
+OUTPUT:
+The theory of relativity is a set of scientific theories that describe the behavior of objects moving at different speeds and distances from each other. According to this theory, objects moving at a high speed (light speed) are influenced by the effects of gravity, and things that are moving slower than light can experience the effects of gravity more strongly.
+The theory was developed by Albert Einstein and is based on the idea that time and space are not absolute and can change depending on the motion of objects. This means that objects that are moving faster than light will appear to move slower in some places and faster in others.
+The theory of relativity has been tested and refined over the years, and it has helped to explain many phenomena in the universe, such as the bending of light and the behavior of particles and fields.
+================================================================================
+
+PROMPT 2: Write a short story about a time-traveling toaster.
+----------------------------------------
+ROUTE: [__base__]
+OUTPUT:
+Once upon a time, in a small town nestled between dense forests and towering mountains, there lived a curious toaster. It was a humble piece of machinery that had always been used to make toast in the past. The toaster had been passed down through generations, each generation following the one before it. But one day, a strange and mysterious event occurred. The toaster couldn't even make toast anymore, and it was all because of a time traveler.
+
+It was a young man named Alex who had been on a time-traveling journey. He had come from a time earlier, when the toaster was still a working machine. Alex had been transported to the town, where he had seen a strange phenomenon. He had noticed that the toaster was suddenly melting, and it was as if the toaster was trying to tell him something. Alex had no idea what it was that was happening, but he knew he needed to see it for himself.
+
+Over the next few days, Alex spent his days wandering the town, trying to make sense of what was happening. He observed the toaster melting and melting, and he heard strange noises coming from the town. He started looking for the toaster, but he couldn't find it. Then, one day, he saw something moving in the dark, and he
+----------------------------------------
+ROUTE: [alpaca]
+OUTPUT:
+**The Echo of Time**
+
+In the year 2000, in the quiet town of Willowdale, a curious toaster stood in the corner of the kitchen, its humble appearance hidden by a dusty cover. It was always one of the few things that got away from the clutches of the cold air and the dust that clung to the walls of the house. Its name, "The Echo," was a testament to its past and future, a whispered promise of its journey.
+
+The toaster's owner, a man named Thomas Harper, had been fascinated by technology ever since he first learned about it. He had even taken a one-way trip to the future to see what life was like in the present. But he had always thought that time travel was a science fiction concept, and had never dared to dream of stepping through the portal into the future.
+
+One day, as he pulled out his favorite toastie, "The Echo," from his drawer, he felt a strange sensation. It wasn't heat, or a flickering light. It was a sound, a hum, something that called to him from a place he had never seen before.
+
+He sat down at the kitchen table and looked out the window, a small smile playing on his face. "What is it
+================================================================================
+
+PROMPT 3: Give me a step-by-step recipe for a simple chocolate cake.
+----------------------------------------
+ROUTE: [__base__]
+OUTPUT:
+Sure, here's a simple chocolate cake recipe:
+
+Ingredients:
+- 2 cups all-purpose flour
+- 2 teaspoons baking powder
+- 1 teaspoon baking soda
+- 1/2 teaspoon salt
+- 1/2 cup unsalted butter, softened
+- 1 cup granulated sugar
+- 3 eggs
+- 2 teaspoons vanilla extract
+- 1 1/2 cups heavy cream
+- 2 teaspoons cocoa powder
+- 1/2 cup semi-sweet chocolate chips
+
+Instructions:
+
+1. Preheat your oven to 350°F (175°C) and grease and flour two 9-inch round cake pans.
+
+2. In a medium bowl, whisk together the flour, baking powder, baking soda, and salt until well combined.
+
+3. In a large bowl, cream the softened butter and granulated sugar until light and fluffy. Beat in the Eggs one at a time, then stir in the Vanilla extract.
+
+4. Gradually add the baking powder mixture to the butter mixture, beating until well combined.
+
+5. Stir in the cocoa powder and chocolate chips.
+
+6. Layer the batter in each of the prepared pans, using 1/2 cup of batter in each pan. Bake the cakes for 2
+----------------------------------------
+ROUTE: [alpaca]
+OUTPUT:
+Sure, here's a step-by-step recipe for a simple chocolate cake:
+
+Ingredients:
+- 1 1/2 cups all-purpose flour
+- 1/2 cup granulated sugar
+- 1 1/2 cups + 1/4 cup unsweetened cocoa powder
+- 1/2 teaspoon baking soda
+- 1/4 teaspoon salt
+- 1/4 cup unsalted butter, softened
+- 2 1/2 cups granulated sugar
+- 1/2 cup vegetable oil, divided
+- 1 cup milk
+- 1 teaspoon vanilla extract
+- 1/2 cup heavy cream
+
+Instructions:
+
+1. Preheat the oven to 350°F (175°C).
+
+2. In a large mixing bowl, combine the flour, sugar, cocoa powder, baking soda, and salt. Mix until well combined.
+
+3. In a separate bowl, cream together the butter, sugar, and oil until light and fluffy. Add the milk and vanilla extract, and mix until well combined.
+
+4. Gradually add the dry ingredients to the wet ingredients, mixing until just combined.
+
+5. Divide the batter into two 9-inch cake pans and pour the batter into each pan.
+
+6. Bake
+================================================================================
+
+PROMPT 4: Write a python function to calculate the nth Fibonacci number.
+----------------------------------------
+ROUTE: [__base__]
+OUTPUT:
+def fibonacci(n):
+ if n == 0:
+ return 0
+ elif n == 1:
+ return 1
+ else:
+ return fibonacci(n-1) + fibonacci(n-2)
+
+result = fibonacci(5)
+print(result)
+----------------------------------------
+ROUTE: [alpaca]
+OUTPUT:
+The Fibonacci sequence is defined by the recurrence relation Fn = Fn-1 + Fn-2, where F1 = 1 and F2 = 1. def fibonacci(n):
+    if n == 0:
+        return 1
+    elif n == 1:
+        return 1
+    else:
+        return fibonacci(n-1) + fibonacci(n-2)
+================================================================================
+
+PROMPT 5: What are the three laws of thermodynamics?
+----------------------------------------
+ROUTE: [__base__]
+OUTPUT:
+What are the thermodynamic laws that explain the heat and energy transformation processes? The three fundamental laws of thermodynamics are the First Law, the Second Law, and the Third Law. Here's a brief explanation of each:
+
+1. **First Law of Thermodynamics**: This law states that the total amount of heat added to a system will always equal the amount of heat removed from the system. Mathematically, it can be expressed as:
+   \[
+   Q_{\text{in}} + Q_{\text{out}} = Q_{\text{sys}}
+   \]
+   where \( Q_{\text{in}} \) and \( Q_{\text{out}} \) are the heat inputs and outputs, respectively, and \( Q_{\text{sys}} \) is the total heat added to or removed from the system.
+
+2. **Second Law of Thermodynamics**: This law states that the total entropy of a closed system will always increase over time. In other words, the disorder or randomness of the system will always increase. Mathematically, it can be expressed as:
+   \[
+   S_{\text{in}} - S_{\text{out}} \geq 0
+   \]
+   where \( S(EngineCore pid=66914) INFO 05-05 21:52:48 [core.py:1238] Shutdown initiated (timeout=0)
+(EngineCore pid=66914) INFO 05-05 21:52:48 [core.py:1261] Shutdown complete
+
+----------------------------------------
+ROUTE: [alpaca]
+OUTPUT:
+| Wyzant Ask An Expert\nCalculus\nAmanda R.\nasked • 02/27/17\nWhat are the three laws of thermodynamics?\nFollow • 2\nAdd comment\nReport\n1 Expert Answer\nBest Newest Oldest\nMark M. answered • 03/06/17\nTutor\n4.5 (101)\nMathematics Teacher - NCLB Highly Qualified\nAbout this tutor ›\nThermodynamics is a branch of physics that deals with the relationship between energy, heat, and work, and it is concerned with the energy transformations occurring between a system and its surroundings.\nThree laws of thermodynamics are:\nThermodynamic Law 1 : Energy cannot be created or destroyed, only converted from one form to another.\nThermodynamic Law 2 : Energy cannot be transferred from one system to another without a change in the energy of the system.\nThermodynamic Law 3 : A closed system cannot spontaneously transfer energy from one state to another, provided no work is done on the system.\nUpvote • 0 Downvote\nAdd comment\nReport\nStill looking for help? Get the right answer, fast.\nAsk a question
+================================================================================

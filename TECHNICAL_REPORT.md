@@ -4,7 +4,7 @@
 **Status:** Experimental Research Preview (v1.0.0-alpha)
 
 ## Abstract
-This report proposes "Task Vector Projection," an experimental mathematical framework attempting to approximate and project learned weight deltas (Task Vectors / LoRAs) between neural architectures without gradient-based fine-tuning. By defining knowledge as a geometric vector within the weight space, we explore methods to project these vectors across distinct architectures (e.g., UNet to DiT, or LLaMA to Qwen). Our methodology incorporates memory-efficient sparse hacking, adaptive singular value decomposition, and structural non-linear compensation. Preliminary localized validations on a single-node setup indicate that calibrated projection can preserve structural alignment and language-modeling stability in limited settings. A small HumanEval subset experiment suggests partial coding-behavior retention for one LLaMA-3-to-Qwen-2.5 configuration, but broader downstream validation across full benchmark sets, additional LoRA types, and additional model pairs remains future work. All core mathematical components are validated by a 113-test automated suite.
+This report proposes "Task Vector Projection," an experimental mathematical framework attempting to approximate and project learned weight deltas (Task Vectors / LoRAs) between neural architectures without gradient-based fine-tuning. By defining knowledge as a geometric vector within the weight space, we explore methods to project these vectors across distinct architectures (e.g., UNet to DiT, or LLaMA to Qwen). Our methodology incorporates memory-efficient sparse hacking, adaptive singular value decomposition, and structural non-linear compensation. Preliminary localized validations on a single-node setup indicate that calibrated projection can preserve structural alignment and language-modeling stability in limited settings. A small HumanEval subset experiment suggests partial coding-behavior retention for one LLaMA-3-to-Qwen-2.5 configuration, but broader downstream validation across full benchmark sets, additional LoRA types, and additional model pairs remains future work. Core mathematical and runtime components are covered by an automated test suite; the repository badge currently tracks 193 non-live tests passed; live vLLM tests are executed separately.
 
 ---
 
@@ -41,7 +41,7 @@ We projected an "anime-style" LoRA from SDXL (Animagine XL 3.1) to FLUX.1-schnel
 ---
 
 ## 4. Hardware Context & Scalability Disclaimers
-All empirical data were obtained using a single **NVIDIA RTX 5060 Ti (16GB VRAM)**. 
+Unless otherwise noted, live GPU validations reported here were obtained on a single NVIDIA RTX 5060 Ti (16GB VRAM). Non-live unit tests may run in CPU or mixed local CI environments.
 *   **Scalability:** Performance in multi-GPU clusters or distributed vLLM environments is unverified.
 *   **VRAM Hot-Swapping:** We implemented a framework-agnostic C++/CUDA extension (`Scalpel-Kernel`) for atomic tensor swapping. When compiled with `nvcc`, it achieves synchronized tensor swaps with rollback semantics by leveraging CUDA stream synchronization. Without `nvcc`, it falls back to Python-level operations which lack strict hardware isolation.
 
@@ -49,7 +49,7 @@ All empirical data were obtained using a single **NVIDIA RTX 5060 Ti (16GB VRAM)
 To test the `Scalpel-Kernel`'s robustness, we conducted verification tests:
 1. **Resource Exhaustion ($O(1)$ Footprint):** Over 1,000 continuous hot-swap cycles, `torch.cuda.memory_allocated()` was monitored. The final memory footprint matched the baseline.
 2. **Multi-Layer Contention:** Simulated simultaneous, asynchronous hot-swaps across 5 separate layers using multiple threads. The system handled this with zero exceptions.
-3. **Latency Impact & TPOT:** The p99 latency spike during a hot-swap was firmly under **50ms**, demonstrating that the `cudaStreamSynchronize` barrier imposes a momentary stall but does not indefinitely freeze the pipeline.
+3. **Latency Impact & TPOT:** The p99 latency spike during a hot-swap was firmly under **50ms**, demonstrating that the `cudaStreamSynchronize` barrier imposes a momentary stall but does not indefinitely freeze the pipeline. This result applies to the experimental Scalpel-Kernel verification path, not to the current vLLM monkey-patch route path. vLLM TTFT/TPOT and payload-load latency remain pending.
 4. **Fault Tolerance (Rollback):** Attempting to inject malformed tensors triggered framework exceptions and rolled back the transaction.
 
 ### 4.2. Non-linear Robustness (Perplexity Impact)
@@ -97,11 +97,21 @@ To rigorously prove the necessity of each mathematical component, Neural-Scalpel
 5. **Procrustes + WDR:** Introducing Wasserstein Discrete Routing to evaluate the necessity of attention head re-routing.
 6. **JTSA + WDR (Uncalibrated):** Applying Taylor approximations assuming a standard normal distribution, demonstrating the failure mode of zero-dataset projection.
 7. **JTSA + WDR (Calibrated):** The complete Neural-Scalpel pipeline, relying on an empirical calibration manifold.
+8. **Route-Window Persistent Swapping (Phase 5-C):** Implementing a stateful runtime that maintains the active route until a transition is required, reducing swap overhead from $O(tokens)$ to $O(windows)$.
+
 
 Each ablation mode must be measured against a strict 6-way empirical comparison to isolate the exact contribution of each algorithm.
 
 ## 7. Conclusion
-Neural-Scalpel Version 1.0.0-alpha establishes an experimental foundation for cross-architecture adapter conversion. By leveraging **Hessian-Aware Manifold Alignment (HAMA)** and the **Streaming I/O Bridge**, we have shown that adapter weights can be structurally mapped and physically managed across architectures within the limits of high-precision linear and 2nd-order non-linear approximations. All core mathematical components have been validated by a comprehensive 113-test automated suite (see `tests/TEST_REPORT.md`), including localized KL divergence checks.
+Neural-Scalpel Version 1.0.0-alpha establishes an experimental foundation for cross-architecture adapter conversion. Phase 5-C introduced **Route-Window Persistent Swapping**, which removed the catastrophic per-token swap overhead under the tested route-window workloads. In a recent Qwen2.5-0.5B / Alpaca payload benchmark, Neural-Scalpel recorded only 1 confirmed swap and 1 verified rollback across 1,600 generated tokens, with checksum-level rollback verification passing (`verified_rollbacks=1`).
+
+While the Phase 5-C benchmark showed a positive throughput delta over base (+69.98%), this result was prompt-specific. Phase 5-D extended this result beyond a single prompt: 50 prompts × 3 runs showed Scalpel v2 median throughput of ~2574 tok/s versus Native LoRA at ~983 tok/s under controlled conditions.
+
+Phase 5-E-1 validated two-route mixed-batch safety across 1000 dynamically routed requests (`__base__` ↔ Alpaca), with 0 route violations, 0 quarantine events, and a healthy worker.
+
+Phase 5-F addressed the previous text-level determinism concern under the tested cache-reset condition: Base-before and Base-after matched exactly, with 100.0% top-token logprob trace similarity after verified checksum rollback.
+
+Neural-Scalpel is currently best described as a validated prototype with strong controlled runtime evidence, and a paradigm-shift-class candidate under controlled validation. Formal Production Candidate status remains pending the 24h persistent-route soak. Broader 3+ route and worst-case alternation stress tests remain future hardening work. By leveraging **Hessian-Aware Manifold Alignment (HAMA)** and the **Streaming I/O Bridge**, we have shown that adapter weights can be structurally mapped and physically managed across architectures within the limits of high-precision linear and 2nd-order non-linear approximations. All core mathematical components have been validated by a comprehensive automated suite (193 non-live tests passed; live vLLM tests are executed separately; see `tests/TEST_REPORT.md`).
 
 ## 8. Future Roadmap
 ### 8.1. ExL2 Direct Integration

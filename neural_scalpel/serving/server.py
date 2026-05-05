@@ -314,6 +314,24 @@ def create_app(
 
     @app.get("/healthz")
     async def healthz():
-        return {"status": "ok", "quarantined": server.metrics.snapshot()["runtime_quarantined"]}
+        quarantined = server.metrics.snapshot()["runtime_quarantined"]
+        # Check runtime state machine if available
+        runtime_healthy = True
+        if hasattr(server.runtime, "is_healthy"):
+            runtime_healthy = server.runtime.is_healthy
+        if hasattr(server.runtime, "can_accept_requests"):
+            runtime_healthy = runtime_healthy and server.runtime.can_accept_requests
+
+        is_healthy = runtime_healthy and not quarantined
+        status_code = 200 if is_healthy else 503
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            content={
+                "status": "ok" if is_healthy else "unhealthy",
+                "quarantined": quarantined or not runtime_healthy,
+                "accepting_requests": is_healthy,
+            },
+            status_code=status_code,
+        )
 
     return app
