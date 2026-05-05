@@ -1,0 +1,31 @@
+# Neural-Scalpel vLLM Internal Plugin (Phase 7) Test Instructions
+
+WSL2 / DockerなどのLinux環境（vLLMのC++拡張機能が正しくコンパイル・インストールされている環境）へ移行後、以下のコマンドを順に実行してください。
+
+git clone https://github.com/ponpoke/Neural-Scalpel.git
+cd Neural-Scalpel
+
+### 1. ブランチの取得と切り替え
+```bash
+git fetch origin
+git checkout feat/vllm-internal-plugin
+git pull origin feat/vllm-internal-plugin
+```
+
+### 2. 環境の準備
+vLLM（v0.20.1など検証対象バージョン）がインストールされているPython仮想環境をアクティベートしてください。
+```bash
+# 例: 
+# source venv/bin/activate 
+# または conda activate vllm_env
+```
+
+### 3. テストの実行
+以下のコマンドで、Phase 7A〜7Dのパッチ検証テストを一括実行します。
+```bash
+python -m pytest integrations/vllm_route_plugin/tests/ -v
+```
+
+---
+**※お願い※**
+実行後、もし `FAILED` となるテストがありましたら、表示されたエラーログ（スタックトレース）をそのままテキストで教えてください。即座にパッチコードの修正を行います。

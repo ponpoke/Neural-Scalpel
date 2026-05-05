@@ -58,7 +58,7 @@ It is an alpha-stage research project.
 - GGUF/AWQ direct surgery
 
 ### ⚠️ Not Production Ready
-- **Full vLLM Internal Plugin:** The native C++/Python patch for vLLM is designed and mocked, but not fully integrated into upstream vLLM.
+- **Internal vLLM Plugin:** Phase 0-6 monkey patch implementation is complete, but live Linux/vLLM validation (Phase 7+) is pending. It is not yet proven safe under continuous batching in a real engine.
 - **SLA-Grade Serving:** This is a research prototype. It should not be used as a multi-tenant SLA proxy in an enterprise environment without further hardening.
 
 ---
