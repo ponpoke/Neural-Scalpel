@@ -64,19 +64,13 @@ async def run_llm_test(route_pattern: List[str], expected_violations: int = 0):
     print(f" - Scheduler Queue Observations: {RoutePluginMetrics.scheduler_queue_observations}")
     print(f" - Request Routes Sample: {list(RoutePluginMetrics.request_routes.items())[:3]}")
 
-    if len(route_pattern) == 1:
-        # Same route case: should pass
-        assert success == True
-        assert RoutePluginMetrics.request_count == 100
-        assert RoutePluginMetrics.swap_count > 0
-        assert RoutePluginMetrics.swap_count == RoutePluginMetrics.rollback_count
-        assert RoutePluginMetrics.mixed_batch_violation_count == 0
-    else:
-        # Mixed route case: either passes (lucky batching) or fails safely (detected)
-        if success:
-            assert RoutePluginMetrics.mixed_batch_violation_count == 0
-        else:
-            assert RoutePluginMetrics.mixed_batch_violation_count > 0
+    # After Phase 7F-2 implementation, all patterns should pass 100% successfully.
+    # The scheduler now ensures only homogeneous batches are formed.
+    assert success == True
+    assert RoutePluginMetrics.request_count == 100
+    assert RoutePluginMetrics.swap_count > 0
+    assert RoutePluginMetrics.swap_count == RoutePluginMetrics.rollback_count
+    assert RoutePluginMetrics.mixed_batch_violation_count == 0
 
 @pytest.mark.asyncio
 async def test_live_same_route_100_req():
