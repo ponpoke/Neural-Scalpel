@@ -64,12 +64,11 @@ These results are strong enough to describe Neural-Scalpel as a **paradigm-shift
 
 ### Roadmap / Future Work
 
-- **24-hour persistent-route soak test** (final constrained Production Candidate gate)
-- **External Proxy Fallback** implemented and smoke-validated as a vLLM compatibility-risk mitigation path.
-- Precise vLLM TTFT / TPOT regression measurement using real timing hooks.
-- Broader model coverage (including Qwen/Llama-class fused attention variants) and vLLM-version compatibility validation.
-- Long-running multi-tenant production pilots and multi-backend load testing.
-- GGUF/AWQ direct surgery.
+- Final 24h persistent-route soak validation
+- Precise vLLM TTFT / TPOT regression measurement using real timing hooks
+- Broader model / vLLM-version compatibility validation
+- Long-running multi-tenant production pilots and multi-backend load testing
+- GGUF/AWQ direct surgery
 
 - **Multi-route Safety Validation Completed:** Phase 5-E-1 validated two-route mixed-batch safety. Phase 5-E-2 extended this to 3+ real-payload mixed-batch validation, and Phase 5-E-3 validated worst-case alternating route stress under controlled short-duration tests. These tests strengthen route-isolation evidence but do not replace the final 24h persistent-route soak.
 - **Determinism Follow-up Completed:** Phase 5-F demonstrated 100.0% top-token logprob trace similarity and exact text match after a verified checksum rollback for the tested prompt under explicit route cleanup and vLLM cache reset.
@@ -87,7 +86,7 @@ These results are strong enough to describe Neural-Scalpel as a **paradigm-shift
 
 ## 8. Quick Start
 
-For detailed usage, including Phase 5 validation commands and External Proxy Fallback mode, see [USAGE.md](USAGE.md).
+For detailed usage, including Phase 5 validation commands and External Proxy Fallback mode, see [docs/USAGE.md](docs/USAGE.md).
 
 ```bash
 # Run basic vLLM smoke checks
@@ -106,7 +105,7 @@ PYTHONPATH=. python tests/smoke_test_proxy_forwarding.py
 - **[Production Readiness Criteria](docs/PRODUCTION_READINESS_CRITERIA.md):** Tracks remaining gates before constrained Production Candidate declaration.
 - **[Performance Regression Report](docs/PERFORMANCE_REGRESSION_REPORT.md):** Coarse E2E throughput benchmark and pending precise latency work.
 - **[Known Limitations](docs/KNOWN_LIMITATIONS.md):** Current runtime, benchmark, and deployment limitations.
-- **[External Proxy Fallback Definition](docs/EXTERNAL_PROXY_FALLBACK_DEFINITION.md):** Compatibility-risk mitigation design for deployments where internal vLLM patching is unavailable or disabled.
+- **[External Proxy Fallback Definition](docs/EXTERNAL_PROXY_FALLBACK_DEFINITION.md):** Compatibility-risk mitigation design for deployments where internal vLLM patching is unsupported or disabled.
 - **[External Proxy Fallback Trade-off Analysis](docs/reports/EXTERNAL_PROXY_FALLBACK_TRADE_OFF_ANALYSIS.md):** Qualitative comparison between internal plugin mode and external proxy fallback mode.
 - **[vLLM Internal Integration Design](docs/VLLM_INTERNAL_INTEGRATION_DESIGN.md):** Architectural design for Step 4B integration.
 - **[Empirical Consistency Report](docs/LOGIC_CONSISTENCY_REPORT.md):** Details on mathematical evaluation metrics and failure modes.

@@ -204,6 +204,16 @@ PYTHONPATH=. python scripts/run_phase_5e_alternating.py \
   --output reports/phase_5e_alternating_2route.json
 ```
 
+Three-route alternation:
+```bash
+PYTHONPATH=. python scripts/run_phase_5e_alternating.py \
+  --requests 1000 \
+  --routes __base__,qwen2.5-0.5b-alpaca-lora-demo,qwen2.5-coder-0.5b-instruct_text_to_sql_lora_newdataset \
+  --output reports/phase_5e_alternating_3route.json
+```
+
+> **Requirement:** Requires prepared route payloads/manifests for Alpaca and SQL routes.
+
 ---
 
 ## 10. External Proxy Fallback
