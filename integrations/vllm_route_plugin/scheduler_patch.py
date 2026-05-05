@@ -1,10 +1,10 @@
 """
 Route-Aware Scheduler Patch for vLLM V1.
 
-Phase 7F-2 implementation:
-- Active route-homogeneous scheduling via "Shelving" strategy.
-- Temporarily moves non-matching requests to avoid mixed-route batches.
-- Preserves vLLM V1 internal structures and expectations (no None returns).
+Phase 7F-2 implementation (Robust Shelving Strategy):
+- Scans the entire waiting queue to extract non-matching requests.
+- Uses try/finally to ensure requests are ALWAYS restored to the queue.
+- API-compatible with vLLM V1 RequestQueue (pop_request/prepend_request).
 """
 
 def inject_route_aware_scheduler():
@@ -33,8 +33,6 @@ def inject_route_aware_scheduler():
         request_id = getattr(req, "request_id", getattr(req, "req_id", None))
         if request_id is not None:
             return RoutePluginMetrics.get_route_for_request_id(request_id)
-        if isinstance(req, str):
-            return RoutePluginMetrics.get_route_for_request_id(req)
         return "__base__"
 
     def _iter_scheduled_reqs(output):
@@ -45,51 +43,74 @@ def inject_route_aware_scheduler():
             iterable = items.values() if isinstance(items, dict) else items
             for item in iterable: yield item
 
+    def _shelve_queue(queue, target_route):
+        """
+        Pops ALL requests from the queue and puts back only those matching target_route.
+        Returns the non-matching requests for later restoration.
+        """
+        matching = []
+        non_matching = []
+        while queue:
+            req = queue.pop_request()
+            if _get_request_route_id(req) == target_route:
+                matching.append(req)
+            else:
+                non_matching.append(req)
+        
+        # Put matching back in original order (add_request usually appends for FCFS)
+        for req in matching:
+            queue.add_request(req)
+            
+        return non_matching
+
+    def _restore_queue(queue, shelved):
+        """
+        Restores shelved requests to the front of the queue in their original order.
+        """
+        for req in reversed(shelved):
+            queue.prepend_request(req)
+
     def patched_schedule(self):
+        from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+
         # 1. Determine target route for this batch
         target_route = None
         if hasattr(self, "running") and self.running:
             target_route = _get_request_route_id(self.running[0])
         elif hasattr(self, "waiting") and self.waiting:
-            req = self.waiting.peek_request()
-            if req:
+            try:
+                req = self.waiting.peek_request()
                 target_route = _get_request_route_id(req)
+            except IndexError:
+                pass
         
         target_route = target_route or "__base__"
         
         # 2. Shelve non-matching requests from waiting queues
-        # We use a list to store them temporarily.
         shelved_waiting = []
         shelved_skipped = []
         
-        # Process self.waiting
-        while self.waiting:
-            req = self.waiting.peek_request()
-            if _get_request_route_id(req) == target_route:
-                break # Keep this and everything behind it might be fine, 
-                      # but vLLM might pick deeper ones. To be safe, 
-                      # we should ideally shelve ALL non-matching.
-            shelved_waiting.append(self.waiting.pop_request())
-            
-        # Process self.skipped_waiting
-        while self.skipped_waiting:
-            req = self.skipped_waiting.peek_request()
-            if _get_request_route_id(req) == target_route:
-                break
-            shelved_skipped.append(self.skipped_waiting.pop_request())
+        if hasattr(self, "waiting"):
+            shelved_waiting = _shelve_queue(self.waiting, target_route)
+        if hasattr(self, "skipped_waiting"):
+            shelved_skipped = _shelve_queue(self.skipped_waiting, target_route)
 
-        # 3. Execute original scheduler
-        # It now only sees requests matching target_route at the front of the queues.
-        output = original_schedule(self)
+        output = None
+        try:
+            # 3. Execute original scheduler with homogeneous queues
+            output = original_schedule(self)
+        finally:
+            # 4. CRITICAL: Restore shelved requests even if schedule() fails
+            if hasattr(self, "waiting"):
+                _restore_queue(self.waiting, shelved_waiting)
+            if hasattr(self, "skipped_waiting"):
+                _restore_queue(self.skipped_waiting, shelved_skipped)
 
-        # 4. Restore shelved requests
-        # Use prepend_request to put them back at the front in original order (reverse pop)
-        for req in reversed(shelved_waiting):
-            self.waiting.prepend_request(req)
-        for req in reversed(shelved_skipped):
-            self.skipped_waiting.prepend_request(req)
+        if output is None:
+            # Should only happen if original_schedule failed and finally block restored reqs
+            return None
 
-        # 5. Post-validation (Fail-Close is still our safety net)
+        # 5. Post-validation (Safety Net)
         routes = [_get_request_route_id(r) for r in _iter_scheduled_reqs(output)]
         unique_routes = set(routes)
         if len(unique_routes) > 1:
