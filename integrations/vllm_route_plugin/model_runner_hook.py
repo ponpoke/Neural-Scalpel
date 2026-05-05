@@ -1,6 +1,6 @@
 """
 ModelRunner Swap/Rollback Hook for vLLM internal integration.
-Phase 7G: Real Payload Integration with Layer Verification.
+Phase 7G: Real Payload Integration with Robust Layer Verification.
 """
 
 def inject_model_runner_hook():
@@ -33,16 +33,20 @@ def inject_model_runner_hook():
         # 2. Get Runtime instance (lazily initialized with self.model)
         runtime = get_vllm_runtime(self.model)
         
-        # Debug: Print first 5 layer names once to verify structure
+        # Debug: Print projection layer names once to verify structure
         if not hasattr(self, "_scalpel_names_logged"):
             names = [name for name, _ in self.model.named_parameters()]
-            print(f"[Neural-Scalpel] Model Layer Names Sample: {names[:5]}")
+            print("[Neural-Scalpel] q_proj/v_proj candidates:")
+            print([n for n in names if "q_proj" in n or "v_proj" in n][:20])
             self._scalpel_names_logged = True
         
         is_swapped = False
         if route_id != "__base__":
-            # Look up route definition in registry
+            # Look up route definition in registry (with fallback to direct dict access)
             route_data = runtime.registry.get_route(route_id)
+            if route_data is None and hasattr(runtime.registry, "routes"):
+                route_data = runtime.registry.routes.get(route_id)
+                
             if route_data:
                 try:
                     # Perform Atomic Swap
@@ -52,7 +56,11 @@ def inject_model_runner_hook():
                     RoutePluginMetrics.record_swap()
                 except Exception as e:
                     print(f"[Neural-Scalpel] Swap failed for {route_id}: {e}")
+                    # In production this would trigger Fail-Close. 
+                    # For Phase 7G we allow the crash to see the stack trace.
                     raise RuntimeError(f"Neural-Scalpel Swap Failure: {e}")
+            else:
+                raise RuntimeError(f"Route not found in vLLM runtime registry: {route_id}")
 
         try:
             # 3. Execute original model forward

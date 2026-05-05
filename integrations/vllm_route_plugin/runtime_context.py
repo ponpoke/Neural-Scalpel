@@ -17,8 +17,8 @@ def get_vllm_registry() -> RouteRegistry:
     """Returns the global registry for route registration."""
     global _GLOBAL_REGISTRY
     if _GLOBAL_REGISTRY is None:
-        # Initialize with dummy signer for internal integration tests
-        signer = RouteSigner(secret_key="vllm-test-secret")
+        # RouteSigner expects a dictionary of secret_keys
+        signer = RouteSigner(secret_keys={"vllm-test-key": "vllm-test-secret"})
         storage_dir = os.path.join(os.getcwd(), "vllm_registry_storage")
         _GLOBAL_REGISTRY = RouteRegistry(storage_dir=storage_dir, signer=signer)
     return _GLOBAL_REGISTRY
