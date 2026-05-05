@@ -85,7 +85,14 @@ def inject_route_aware_scheduler():
     def patched_schedule(self):
         from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
 
+        # 0. Initialize batch-level route pinning
+        # If something is already running, we MUST stay on that route.
+        self._current_batch_route = None
+        if hasattr(self, "running") and self.running:
+            self._current_batch_route = _get_request_route_id(self.running[0])
+
         # Let the original scheduler decide what to batch
+        # (It will call our patched_select_queue below)
         output = original_schedule(self)
 
         # Validate the batch for route homogeneity
@@ -136,18 +143,36 @@ def inject_route_aware_scheduler():
     if original_select_queue:
         def patched_select_queue(self):
             queue = original_select_queue(self)
+            if queue is None:
+                return None
             
-            # Observation logic for Phase 7F-2 (Safe, non-mutating)
+            # Phase 7F-2: Route-Aware scheduling enforcement
             try:
-                if queue is not None:
-                    # vLLM V1 RequestQueue usually has peek_request() or similar
-                    req = getattr(queue, "peek_request", lambda: None)()
-                    if req is not None:
-                        route = _get_request_route_id(req)
-                        from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
-                        RoutePluginMetrics.record_scheduler_queue_observation(route)
+                # vLLM V1 RequestQueue usually has peek_request() or similar
+                req = getattr(queue, "peek_request", lambda: None)()
+                if req is not None:
+                    req_route = _get_request_route_id(req)
+                    
+                    # Record for observation
+                    from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+                    RoutePluginMetrics.record_scheduler_queue_observation(req_route)
+                    
+                    # If we don't have a pinned route for this batch yet, pin it.
+                    if getattr(self, "_current_batch_route", None) is None:
+                        self._current_batch_route = req_route
+                        return queue
+                    
+                    # If this queue's route matches the pinned route, allow it.
+                    if req_route == self._current_batch_route:
+                        return queue
+                    else:
+                        # Route mismatch! 
+                        # By returning None, we tell vLLM's schedule() loop 
+                        # "no more requests can be added to this batch right now".
+                        return None
             except Exception:
-                # Fail silent for observation to avoid breaking scheduler
+                # Fail safe: if anything goes wrong in our logic, 
+                # fall back to original vLLM behavior (Fail-Close will still catch errors).
                 pass
                 
             return queue
