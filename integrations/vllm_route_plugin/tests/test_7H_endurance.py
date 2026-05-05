@@ -28,6 +28,24 @@ async def run_endurance_test(num_requests: int = 1000):
     RoutePluginMetrics.reset()
     apply_all_patches()
     
+    # 1.5 Register Test Routes in Registry singleton
+    from integrations.vllm_route_plugin.runtime_context import get_vllm_registry
+    registry = get_vllm_registry()
+    
+    # Target fused QKV layer for facebook/opt-125m
+    target_layers = [
+        {"name": "model.decoder.layers.0.self_attn.qkv_proj.weight", "shape": [2304, 768], "dtype": "float16"},
+    ]
+    
+    for route_id in ["sql-route", "alpaca-route"]:
+        registry.routes[route_id] = {
+            "route_id": route_id,
+            "tenant_id": "test-tenant",
+            "layers": target_layers,
+            "payload_type": "simulated"
+        }
+    print(f"[Phase 7H] Registered routes for real-swap endurance: {list(registry.routes.keys())}")
+    
     # 2. Initialize LLM Engine
     print(f"\n[Phase 7H-1] Initializing engine for {num_requests} requests...")
     llm = LLM(model="facebook/opt-125m", enforce_eager=True) 
