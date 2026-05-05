@@ -25,10 +25,9 @@ async def run_llm_test(route_pattern: List[str], expected_violations: int = 0):
     registry = get_vllm_registry()
     
     # Target some layers of facebook/opt-125m
-    # Names should be checked against self.model.named_parameters() in hook
+    # In vLLM, OPT's Q/K/V projections are fused into qkv_proj
     target_layers = [
-        {"name": "model.decoder.layers.0.self_attn.q_proj.weight", "shape": [768, 768], "dtype": "float16"},
-        {"name": "model.decoder.layers.0.self_attn.v_proj.weight", "shape": [768, 768], "dtype": "float16"},
+        {"name": "model.decoder.layers.0.self_attn.qkv_proj.weight", "shape": [2304, 768], "dtype": "float16"},
     ]
     
     for route_id in ["sql-route", "alpaca-route"]:
