@@ -1,7 +1,7 @@
 """
 Phase 7E: Live vLLM 100 Request E2E Test
 - test_live_same_route_100_req: Verifies hook firing with consistent route.
-- test_live_mixed_route_failclose: Verifies safety mechanism on mixed route batches.
+- test_live_mixed_route_homogeneous_scheduling: Verifies route-aware scheduling.
 """
 import pytest
 import asyncio
@@ -78,8 +78,10 @@ async def test_live_same_route_100_req():
     await run_llm_test(route_pattern=["sql-route"])
 
 @pytest.mark.asyncio
-async def test_live_mixed_route_failclose():
-    """Verify that if vLLM tries to mix routes, we detect and stop it."""
+async def test_live_mixed_route_homogeneous_scheduling():
+    """Verify mixed-route requests complete via route-homogeneous scheduling."""
+    # Pattern alternates route every request.
+    # Native scheduler would normally mix these, but 7F-2 enforcement should separate them.
     await run_llm_test(route_pattern=["__base__", "sql-route", "alpaca-route"])
 
 if __name__ == "__main__":

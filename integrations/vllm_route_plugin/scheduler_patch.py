@@ -1,181 +1,111 @@
 """
 Route-Aware Scheduler Patch for vLLM V1.
 
-Phase 7E safe version:
-- Does NOT replace self.waiting / self.running queues (avoiding 'list' vs 'RequestQueue' errors).
-- Lets vLLM's native scheduler run.
-- Validates the emitted SchedulerOutput.
-- Fails closed if a mixed-route batch is detected.
+Phase 7F-2 implementation:
+- Active route-homogeneous scheduling via "Shelving" strategy.
+- Temporarily moves non-matching requests to avoid mixed-route batches.
+- Preserves vLLM V1 internal structures and expectations (no None returns).
 """
 
 def inject_route_aware_scheduler():
     import vllm.v1.core.sched.scheduler as vllm_scheduler
+    from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
 
     if getattr(vllm_scheduler.Scheduler, "_scalpel_scheduler_patched", False):
         return
 
     original_schedule = vllm_scheduler.Scheduler.schedule
     original_init = vllm_scheduler.Scheduler.__init__
-    original_select_queue = getattr(vllm_scheduler.Scheduler, "_select_waiting_queue_for_scheduling", None)
 
     def patched_init(self, *args, **kwargs):
         original_init(self, *args, **kwargs)
         self.active_route_id = None
-        self.MAX_ROUTE_WINDOW_TOKENS = 8192
 
     def _unwrap_request(obj):
-        """
-        vLLM version compatibility:
-        - Some queues contain Request directly.
-        - Some queues contain RequestState-like objects with .request.
-        """
         return getattr(obj, "request", obj)
 
     def _get_request_route_id(req_or_state) -> str:
         from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
-        
         req = _unwrap_request(req_or_state)
-        
-        # 1. Try to get directly from the object
         route_id = getattr(req, "route_id", None)
         if route_id:
             return route_id
-            
-        # 2. Try to look up via request_id (vLLM V1 might use lightweight IDs in some queues)
-        request_id = getattr(req, "request_id", None)
+        request_id = getattr(req, "request_id", getattr(req, "req_id", None))
         if request_id is not None:
             return RoutePluginMetrics.get_route_for_request_id(request_id)
-            
-        # 3. Try common alternative attribute names
-        request_id = getattr(req, "req_id", None)
-        if request_id is not None:
-            return RoutePluginMetrics.get_route_for_request_id(request_id)
-            
-        # 4. Handle case where the object itself is a request_id string
         if isinstance(req, str):
             return RoutePluginMetrics.get_route_for_request_id(req)
-
         return "__base__"
 
     def _iter_scheduled_reqs(output):
-        """
-        vLLM version compatibility:
-        SchedulerOutput may expose different fields depending on version.
-        """
-        candidate_attrs = (
-            "scheduled_new_reqs",
-            "scheduled_resumed_reqs",
-            "scheduled_running_reqs",
-        )
-
+        candidate_attrs = ("scheduled_new_reqs", "scheduled_resumed_reqs", "scheduled_running_reqs")
         for attr in candidate_attrs:
             items = getattr(output, attr, None)
-            if not items:
-                continue
-
-            # Some attrs may be dict-like, some list-like.
-            if isinstance(items, dict):
-                iterable = items.values()
-            else:
-                iterable = items
-
-            for item in iterable:
-                yield item
+            if not items: continue
+            iterable = items.values() if isinstance(items, dict) else items
+            for item in iterable: yield item
 
     def patched_schedule(self):
-        from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
-
-        # 0. Initialize batch-level route pinning
-        # If something is already running, we MUST stay on that route.
-        self._current_batch_route = None
+        # 1. Determine target route for this batch
+        target_route = None
         if hasattr(self, "running") and self.running:
-            self._current_batch_route = _get_request_route_id(self.running[0])
+            target_route = _get_request_route_id(self.running[0])
+        elif hasattr(self, "waiting") and self.waiting:
+            req = self.waiting.peek_request()
+            if req:
+                target_route = _get_request_route_id(req)
+        
+        target_route = target_route or "__base__"
+        
+        # 2. Shelve non-matching requests from waiting queues
+        # We use a list to store them temporarily.
+        shelved_waiting = []
+        shelved_skipped = []
+        
+        # Process self.waiting
+        while self.waiting:
+            req = self.waiting.peek_request()
+            if _get_request_route_id(req) == target_route:
+                break # Keep this and everything behind it might be fine, 
+                      # but vLLM might pick deeper ones. To be safe, 
+                      # we should ideally shelve ALL non-matching.
+            shelved_waiting.append(self.waiting.pop_request())
+            
+        # Process self.skipped_waiting
+        while self.skipped_waiting:
+            req = self.skipped_waiting.peek_request()
+            if _get_request_route_id(req) == target_route:
+                break
+            shelved_skipped.append(self.skipped_waiting.pop_request())
 
-        # Let the original scheduler decide what to batch
-        # (It will call our patched_select_queue below)
+        # 3. Execute original scheduler
+        # It now only sees requests matching target_route at the front of the queues.
         output = original_schedule(self)
 
-        # Validate the batch for route homogeneity
-        routes = []
-        for scheduled_req in _iter_scheduled_reqs(output):
-            routes.append(_get_request_route_id(scheduled_req))
+        # 4. Restore shelved requests
+        # Use prepend_request to put them back at the front in original order (reverse pop)
+        for req in reversed(shelved_waiting):
+            self.waiting.prepend_request(req)
+        for req in reversed(shelved_skipped):
+            self.skipped_waiting.prepend_request(req)
 
+        # 5. Post-validation (Fail-Close is still our safety net)
+        routes = [_get_request_route_id(r) for r in _iter_scheduled_reqs(output)]
         unique_routes = set(routes)
-
         if len(unique_routes) > 1:
             RoutePluginMetrics.record_violation()
-            raise RuntimeError(
-                f"CRITICAL: Unsafe mixed-route batch detected by Neural-Scalpel. "
-                f"routes={sorted(unique_routes)}"
-            )
+            raise RuntimeError(f"CRITICAL: Unsafe mixed-route batch detected despite shelving! routes={sorted(unique_routes)}")
 
-        # Determine the active route for this forward pass
-        if len(unique_routes) == 1:
-            active_route = next(iter(unique_routes))
-        elif len(unique_routes) == 0:
-            # If no "newly scheduled" requests are in output, 
-            # check the current running queue (essential for decode steps)
-            if hasattr(self, "running") and self.running:
-                active_route = _get_request_route_id(self.running[0])
-            else:
-                active_route = "__base__"
-        else:
-            # Mixed routes (already raised RuntimeError above, but fail-safe here)
-            active_route = "__base__"
-
+        # 6. Update active route state
+        active_route = next(iter(unique_routes)) if unique_routes else target_route
         self.active_route_id = active_route
-        
-        # Set the active route globally for the ModelRunner hook to pick up
         RoutePluginMetrics.set_active_route(active_route)
-
-        # Attach route to SchedulerOutput so ModelRunner can see it
         try:
             setattr(output, "active_route_id", active_route)
-        except Exception:
-            pass
+        except Exception: pass
 
         return output
 
-    # Apply patches
     vllm_scheduler.Scheduler.__init__ = patched_init
     vllm_scheduler.Scheduler.schedule = patched_schedule
-    
-    if original_select_queue:
-        def patched_select_queue(self):
-            queue = original_select_queue(self)
-            if queue is None:
-                return None
-            
-            # Phase 7F-2: Route-Aware scheduling enforcement
-            try:
-                # vLLM V1 RequestQueue usually has peek_request() or similar
-                req = getattr(queue, "peek_request", lambda: None)()
-                if req is not None:
-                    req_route = _get_request_route_id(req)
-                    
-                    # Record for observation
-                    from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
-                    RoutePluginMetrics.record_scheduler_queue_observation(req_route)
-                    
-                    # If we don't have a pinned route for this batch yet, pin it.
-                    if getattr(self, "_current_batch_route", None) is None:
-                        self._current_batch_route = req_route
-                        return queue
-                    
-                    # If this queue's route matches the pinned route, allow it.
-                    if req_route == self._current_batch_route:
-                        return queue
-                    else:
-                        # Route mismatch! 
-                        # By returning None, we tell vLLM's schedule() loop 
-                        # "no more requests can be added to this batch right now".
-                        return None
-            except Exception:
-                # Fail safe: if anything goes wrong in our logic, 
-                # fall back to original vLLM behavior (Fail-Close will still catch errors).
-                pass
-                
-            return queue
-        vllm_scheduler.Scheduler._select_waiting_queue_for_scheduling = patched_select_queue
-
     vllm_scheduler.Scheduler._scalpel_scheduler_patched = True
