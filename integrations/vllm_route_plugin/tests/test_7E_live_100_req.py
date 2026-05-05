@@ -15,36 +15,40 @@ async def run_llm_test(route_pattern: List[str], expected_violations: int = 0):
         
     from integrations.vllm_route_plugin.patch import apply_all_patches
     from integrations.vllm_route_plugin.runtime_metrics import RoutePluginMetrics
+    from integrations.vllm_route_plugin.runtime_context import get_vllm_registry
     
     # 0. Reset metrics
     RoutePluginMetrics.reset()
     
-    # 1. Apply all Neural-Scalpel patches
-    apply_all_patches()
-    
-    # 1.5 Register Test Routes in Runtime
-    from integrations.vllm_route_plugin.runtime_context import get_vllm_runtime
-    # We need a placeholder model to get the runtime, will be replaced by actual model in hook
-    dummy_runtime = get_vllm_runtime(None) 
+    # 1. Register Test Routes in Registry singleton
+    # We do this BEFORE LLM init so the registry is ready when hooks fire.
+    registry = get_vllm_registry()
     
     # Target some layers of facebook/opt-125m
+    # Names should be checked against self.model.named_parameters() in hook
     target_layers = [
         {"name": "model.decoder.layers.0.self_attn.q_proj.weight", "shape": [768, 768], "dtype": "float16"},
         {"name": "model.decoder.layers.0.self_attn.v_proj.weight", "shape": [768, 768], "dtype": "float16"},
     ]
     
     for route_id in ["sql-route", "alpaca-route"]:
-        dummy_runtime.registry.register_route(
-            route_id=route_id,
-            tenant_id="test-tenant",
-            layers=target_layers,
-            payload_type="simulated" # Uses random deltas for validation
-        )
-    print(f"[Phase 7G] Registered routes for validation: sql-route, alpaca-route")
+        # Manual injection into registry dict to bypass signature/file logic for Phase 7G smoke test
+        registry.routes[route_id] = {
+            "route_id": route_id,
+            "tenant_id": "test-tenant",
+            "layers": target_layers,
+            "payload_type": "simulated" # Triggers random delta generation in HotSwapRuntime
+        }
+    print(f"[Phase 7G] Registered routes for validation: {list(registry.routes.keys())}")
+
+    # 2. Apply all Neural-Scalpel patches
+    apply_all_patches()
+    
+    # 3. Initialize LLM Engine
     # Small model for fast testing
     llm = LLM(model="facebook/opt-125m", enforce_eager=True) 
     
-    # 3. Prepare 100 mixed requests
+    # 4. Prepare 100 mixed requests
     base_prompts = [
         "Explain quantum computing in simple terms.",
         "Write a SQL query to find the top 5 customers.",
@@ -59,20 +63,20 @@ async def run_llm_test(route_pattern: List[str], expected_violations: int = 0):
         sp.extra_args = {"route_id": route}
         sampling_params_list.append(sp)
         
-    # 4. Execute E2E
-    # We catch RuntimeError for the mixed-route case where we expect Fail-Close
-    try:
-        outputs = llm.generate(base_prompts * 25, sampling_params_list)
-        success = True
-    except RuntimeError as e:
-        if "Unsafe mixed-route batch detected" in str(e):
-            print(f"\n[Phase 7E] Caught expected Fail-Close: {e}")
-            success = False
-        else:
-            raise e
-            
-    # 5. Verify Metrics
-    print(f"\n[Phase 7E] Runtime Metrics (Pattern: {route_pattern[:3]}...):")
+    # 5. Execute E2E
+    print(f"[Phase 7E] Starting E2E run with pattern: {route_pattern[:3]}...")
+    
+    # Generate calls original_schedule multiple times
+    outputs = llm.generate(
+        [base_prompts[i % len(base_prompts)] for i in range(100)],
+        sampling_params_list
+    )
+    
+    success = len(outputs) == 100
+    
+    # 6. Report Metrics
+    print("\n" + "="*50)
+    print(f"[Phase 7E] Runtime Metrics (Pattern: {route_pattern[:3]}...):")
     print(f" - Request Count: {RoutePluginMetrics.request_count}")
     print(f" - Forward Count: {RoutePluginMetrics.forward_count}")
     print(f" - Active Route (Last): {RoutePluginMetrics.get_active_route()}")
@@ -103,7 +107,5 @@ async def test_live_mixed_route_homogeneous_scheduling():
     await run_llm_test(route_pattern=["__base__", "sql-route", "alpaca-route"])
 
 if __name__ == "__main__":
-    # For manual execution
-    import sys
-    pattern = ["sql-route"] if "--same" in sys.argv else ["__base__", "sql-route", "alpaca-route"]
-    asyncio.run(run_llm_test(route_pattern=pattern))
+    import asyncio
+    asyncio.run(run_llm_test(route_pattern=["__base__", "sql-route", "alpaca-route"]))

@@ -1,6 +1,6 @@
 """
 ModelRunner Swap/Rollback Hook for vLLM internal integration.
-Phase 7G: Real Payload Integration.
+Phase 7G: Real Payload Integration with Layer Verification.
 """
 
 def inject_model_runner_hook():
@@ -33,6 +33,12 @@ def inject_model_runner_hook():
         # 2. Get Runtime instance (lazily initialized with self.model)
         runtime = get_vllm_runtime(self.model)
         
+        # Debug: Print first 5 layer names once to verify structure
+        if not hasattr(self, "_scalpel_names_logged"):
+            names = [name for name, _ in self.model.named_parameters()]
+            print(f"[Neural-Scalpel] Model Layer Names Sample: {names[:5]}")
+            self._scalpel_names_logged = True
+        
         is_swapped = False
         if route_id != "__base__":
             # Look up route definition in registry
@@ -45,8 +51,6 @@ def inject_model_runner_hook():
                     is_swapped = True
                     RoutePluginMetrics.record_swap()
                 except Exception as e:
-                    # In production, this should trigger Fail-Close for this request
-                    # For now, we log and allow fallback or crash
                     print(f"[Neural-Scalpel] Swap failed for {route_id}: {e}")
                     raise RuntimeError(f"Neural-Scalpel Swap Failure: {e}")
 
@@ -61,8 +65,6 @@ def inject_model_runner_hook():
                     runtime.rollback()
                     RoutePluginMetrics.record_rollback()
                 except Exception as e:
-                    # CRITICAL: Rollback failure means model is corrupted!
-                    # HotSwapRuntime should have already quarantined itself.
                     print(f"[Neural-Scalpel] CRITICAL: Rollback failed! {e}")
                     raise RuntimeError(f"Neural-Scalpel CRITICAL Rollback Failure: {e}")
 
