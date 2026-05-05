@@ -24,4 +24,4 @@ To quantify the qualitative trade-offs between the Internal Plugin (Mode A) and 
 3. **Security Parity**: Both modes maintain identical tenant-level access control and audit traceability, as the Neural-Scalpel API layer remains the mandatory gateway. Even in Proxy mode, the `RouteRegistry` must validate the request before forwarding.
 
 ## Conclusion
-External Proxy Fallback provides a robust "Safety Net." While it lacks the extreme efficiency of Route-Window Persistent Swapping, it ensures service continuity across a broader range of vLLM versions and deployment constraints.
+External Proxy Fallback is now implemented and smoke-validated as a compatibility-risk mitigation path. It provides a robust "Safety Net" option when the internal vLLM plugin is unavailable or disabled. While it trades off the extreme route density and memory efficiency of Route-Window Persistent Swapping, it ensures operational continuity through process-level isolation.

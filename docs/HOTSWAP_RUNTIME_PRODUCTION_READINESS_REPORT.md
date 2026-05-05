@@ -155,7 +155,7 @@ Conclusion: PyTorch-native swap overhead is extremely low (~2.35ms p99). Pending
     - [x] Phase Fallback-D: Automatic fallback in `auto` mode based on internal compatibility check failure.
     - [x] Phase Fallback-E: Qualitative Trade-off Analysis completed.
 - **Validation**: Live smoke test passed using a local FastAPI backend and `ProxyServingEngine` integration.
-- **Conclusion**: Mitigates vLLM internal monkey-patch fragility by trading resource efficiency for process-level isolation.
+- **Conclusion**: This fallback mitigates vLLM internal monkey-patch dependency risk, but does not eliminate all deployment risk. It trades route density and memory efficiency for process-level isolation and operational simplicity. Production-grade use still requires multi-backend load testing, operational monitoring, and the final 24h persistent-route soak.
 
 ### Real LoRA Payload Endurance Benchmark (Step 2)
 
