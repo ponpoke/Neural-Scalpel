@@ -324,9 +324,14 @@ The table below summarizes previously identified production gaps and their curre
 - [x] Phase 5-E-3 worst-case alternating route stress validation
 - [x] Phase 5-F text/top-token logprob trace determinism follow-up under tested cache-reset condition
 
-**Remaining:**
+**Remaining Production Candidate Gate:**
 - [ ] 24h persistent-route soak validation
+
+**Future Hardening / Broader Validation:**
 - [ ] Broader model coverage: Qwen/Llama-class fused attention variants
+- [ ] Broader vLLM version compatibility validation
+- [ ] Multi-GPU / multi-node validation
+- [ ] SLA-grade real-traffic pilot
 
 ### Priority 2: Real-LoRA Qualitative / Small-Sample Evaluation (PARTIAL)
 
