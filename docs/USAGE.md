@@ -1,5 +1,7 @@
 # Neural-Scalpel Usage Guide
 
+> **Note:** This usage guide covers the research CLI and Python API. Some advanced examples are roadmap-oriented or experimental. For the latest validated runtime status, see `docs/HOTSWAP_RUNTIME_PRODUCTION_READINESS_REPORT.md`.
+
 Welcome to the **Neural-Scalpel** documentation. This toolkit provides experimental methods to approximate and project learned weight deltas (Task Vectors / LoRAs) from one neural architecture to another.
 
 This guide covers basic CLI usage and provides an overview of the Python API for research purposes.

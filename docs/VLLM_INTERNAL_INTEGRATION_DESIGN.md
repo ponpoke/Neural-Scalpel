@@ -37,6 +37,25 @@ To natively support Hot-Swap, vLLM must become "Route-Aware". This requires inje
 
 vLLM's continuous batching is designed to mix multiple requests together to maximize GPU utilization. Neural-Scalpel introduces a constraint: **A single forward pass can only execute under one active set of weights.**
 
+## 8. Validation Update: Phase 7A-7H
+
+The initial Strategy A design, Route-Homogeneous Batching, has been validated as a controlled vLLM V1 monkey-patch prototype.
+
+Validated:
+- route metadata injection
+- active route-homogeneous scheduling via shelving
+- mixed-route fail-close
+- decode-step route lifecycle retention
+- real safetensors payload swap/rollback inside `_model_forward`
+- 10K mixed-route endurance with 896 atomic swap/rollback cycles
+- zero route violations in the tested environment
+
+Remaining:
+- vanilla vLLM TTFT / throughput regression
+- corrupted payload / I/O failure / rollback failure hardening
+- broader model coverage
+- version compatibility with future vLLM releases
+
 ### Strategy A: Route-Homogeneous Batching (Initial Target)
 - **Concept:** The Scheduler is modified to group requests such that a single execution batch contains only requests sharing the same `route_id` (or Base/None).
 - **Pros:** Safety is mathematically guaranteed. The `ModelRunner` just swaps to Route X, runs the batch, and rolls back.

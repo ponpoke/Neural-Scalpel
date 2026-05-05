@@ -1,4 +1,6 @@
-# Hot-Swap Runtime Phase C Report: Real-Model Quality & Benchmarks
+# Hot-Swap Runtime Validation Report (Phase C)
+
+> **Historical Note:** This report documents the earlier Phase C prototype. Later vLLM internal validation progressed through Phase 7H-2. See `docs/HOTSWAP_RUNTIME_PRODUCTION_READINESS_REPORT.md` for the current validated prototype status.
 
 **Status:** Completed (Controlled Prototype)
 

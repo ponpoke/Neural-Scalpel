@@ -4,7 +4,9 @@
 **Environment:** Local CI (Windows/CPU + CUDA)  
 **Version Target:** v1.0.0-alpha  
 **Test Framework:** pytest  
-**Total Tests:** 113
+**Total Tests:** 153
+
+> Note: Earlier core-math-only reports referenced 113 tests. The current repository badge tracks 153 passing tests, including additional runtime, serving, and vLLM integration validations.
 
 This report details the test suite executed to validate the core mathematical components of the Neural-Scalpel Ecosystem.
 

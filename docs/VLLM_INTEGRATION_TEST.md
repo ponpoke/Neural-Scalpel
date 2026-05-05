@@ -70,9 +70,14 @@ python -m pytest tests/test_block_e_vllm.py -v
 2. **Auditability:** Every request forwarded to vLLM is logged with its `route_id` and `tenant_id`.
 3. **No Route Leakage:** Concurrent stress tests (e.g., 150 requests across 3 routes) complete with 0 leakage.
 
-## Next Steps (Step 4B)
+## Step 4B Status
 
-Once the external proxy validation is complete, the next phase is **Internal Integration**:
-- Passing `route_id` into the vLLM `Scheduler`.
-- Tagging KV Cache blocks in the `BlockAllocator` with the route ID.
-- Hooking the PyTorch native `swap()` function directly into the vLLM `ModelRunner` forward pass.
+Internal vLLM integration has since progressed beyond the original roadmap. A controlled vLLM V1 monkey-patch prototype has been validated through Phase 7H-2, including:
+
+- route metadata injection
+- active route-homogeneous scheduling
+- real safetensors payload swap/rollback inside `_model_forward`
+- 10K mixed-route endurance with 896 atomic swap/rollback cycles
+- zero route violations in the tested environment
+
+This remains a validated prototype, not production-ready serving software. Failure-mode hardening, vanilla vLLM performance regression, and broader model coverage remain pending.
