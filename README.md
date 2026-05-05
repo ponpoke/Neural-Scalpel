@@ -49,7 +49,7 @@ It is an alpha-stage research project.
 - **External vLLM Proxy Validation:** Strict route isolation and homogeneous batching enforcement validated against a live vLLM backend in controlled tests.
 - **Real-Model Endurance:** 16K Qwen2.5-0.5B PyTorch-native Hot-Swap requests with zero route leakage and zero rollback failures.
 - **Actual LoRA Evaluation:** Preserved exact-match coding performance while injecting domain-specific (Text-to-SQL / Alpaca) distributions via safetensors payloads.
-- **Internal vLLM Mock Design:** Architecture designed for `RouteAwareScheduler` and `RouteTaggedKVBlock`.
+- **Internal vLLM Validated Prototype:** Live vLLM V1 monkey-patch integration validated through route metadata injection, active route-homogeneous scheduling, real safetensors payload swap/rollback inside `_model_forward`, and 10K mixed-route endurance in a controlled single-GPU environment.
 
 ### Roadmap / Future Work
 - Vanilla vLLM throughput / TTFT regression measurement
