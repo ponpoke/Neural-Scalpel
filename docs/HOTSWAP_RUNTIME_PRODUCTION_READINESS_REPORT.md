@@ -288,7 +288,7 @@ These items are **not yet validated** and must be addressed before any productio
 | Multi-route scaling | High | **RESOLVED** -- 50 routes tested with identical performance |
 | PPL/KL regression at scale | Medium | **RESOLVED** -- PPL delta = 0.000000 across all endurance runs |
 | External vLLM integration | **Critical** | **RESOLVED (Step 4A)** -- Route-aware proxy ensures strict batch isolation and 0 route leakage with real vLLM backend |
-| Internal vLLM plugin | **Critical** | **RESOLVED** -- Phase 7A-7H complete. Active route-homogeneous scheduling and real safetensors weight swap/rollback fully verified in live mixed-route scenarios. 10K endurance passed with zero leakage. |
+| Internal vLLM plugin | **Critical** | **RESOLVED** -- Phase 7A-7H complete. Active route-homogeneous scheduling and real safetensors weight swap/rollback validated. 10K request endurance passed with 0 leakage. |
 | Authentication | **High** | **RESOLVED** -- JWT-based tenant auth and Admin API keys implemented in proxy. |
 | TLS / Network security | **Medium** | Prototype runs over plain HTTP. |
 | Streaming output | **Medium** | No SSE/WebSocket support; responses are synchronous. |
@@ -309,7 +309,7 @@ These items are **not yet validated** and must be addressed before any productio
 
 **Step 4B: Internal vLLM Plugin Integration**
 
-**Status: Internal Monkey-Patch Live Hook/Validation Passed through Phase 7F-2 (Active Scheduling).**
+**Status: Internal Monkey-Patch Live Validation Passed through Phase 7H-2, including active scheduling (shelving), real safetensors payload swap/rollback, and 10K request endurance.**
 
 **単体検証済み (Unit-Validated):**
 - [x] Phase 7A: vLLM import/patch smoke test
@@ -317,14 +317,15 @@ These items are **not yet validated** and must be addressed before any productio
 - [x] Phase 7C: Route-aware KV cache isolation (via extra_keys)
 - [x] Phase 7D: GPUModelRunner swap/rollback hooks
 - [x] Phase 2: route_id metadata injection
+**Status: Internal Core Logic (Phase 7A-7H) validated. Core engine hooks and atomic swap mechanisms are stable; proceeding to performance regression and failure-mode hardening.**
 
 **Pending (Phase 7E+):**
-- [x] Phase 7E-1: Live vLLM same-route 100 request generation (SUCCESS)
-- [x] Phase 7E-2: Live vLLM mixed-route fail-close validation (SUCCESS)
-- [x] Phase 7F-1: Route lifecycle retention across decode steps (SUCCESS)
-- [x] Phase 7F-2: Active route-homogeneous scheduling enforcement (SUCCESS)
-- [ ] 1K/10K mixed-route endurance in real engine
-- [ ] Throughput / TTFT degradation measurement
+- [x] Phase 7G: Real safetensors payload swap/rollback inside vLLM engine (SUCCESS)
+- [x] Phase 7H-1: 1K mixed-route endurance with real swap (SUCCESS)
+- [x] Phase 7H-2: 10K mixed-route endurance with real swap (SUCCESS)
+- [ ] Throughput / TTFT degradation measurement against vanilla vLLM
+- [ ] Failure-mode hardening: corrupted safetensors, I/O failure, rollback failure, route quarantine
+- [ ] Broader model coverage: Qwen/Llama-class fused attention variants
 - [ ] Real payload swap/rollback inside vLLM engine
 
 ### Priority 2: Actual Trained LoRA Evaluation (COMPLETE)
@@ -379,7 +380,7 @@ Neural-Scalpel Hot-Swap Runtimeは、以下の到達点にある：
 
 > **外部プロキシ層を介したvLLM実環境連携（Step 4A）において、厳密なRoute分離とLeakage 0が確認された。**
 > **実学習済みLoRAの能力移植（Priority 2）において、168個のテンソルを注入・ロールバックしてもモデルの論理能力（Coding）が一切破壊されず、確実にスタイルが移行することを証明した。**
-> **vLLM内部統合（Step 4B）では、Monkey Patch実装（Phase 0-6）を構築し、Phase 7A-7Hでコアロジックを完全検証した。実vLLM環境において、mixed-route完走、能動的分離（Shelving）スケジュール、実safetensorsペイロードのAtomic Swap/Rollback、および10K endurance（10,000回連続置換）のすべてにおいて、データ整合性とVRAM安定性が確認された。vLLM内部統合の基本要件はすべて達成され、本プロジェクトは本番運用に向けたHardeningフェーズへと移行する準備が整った。**
+> **vLLM内部統合（Step 4B）では、Monkey Patch実装（Phase 0-6）を構築し、Phase 7A-7Hで実vLLM環境における主要シナリオを検証した。mixed-route完走、能動的分離（Shelving）スケジュール、実safetensorsペイロードのAtomic Swap/Rollback、および10K request endurance（896回のAtomic Swap/Rollback）において、Violation 0、Rollback不整合0、VRAM安定性を確認した。これにより、vLLM内部統合の中核技術実証（Validated Prototype）は完了し、本プロジェクトは本番運用に向けたHardening / Performance Regression / Broader Model Validationフェーズへ移行する準備が整った。**
 
 ---
 
