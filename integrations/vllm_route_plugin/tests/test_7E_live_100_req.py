@@ -30,15 +30,25 @@ async def run_llm_test(route_pattern: List[str], expected_violations: int = 0):
         {"name": "model.decoder.layers.0.self_attn.qkv_proj.weight", "shape": [2304, 768], "dtype": "float16"},
     ]
     
-    for route_id in ["sql-route", "alpaca-route"]:
-        # Manual injection into registry dict to bypass signature/file logic for Phase 7G smoke test
-        registry.routes[route_id] = {
-            "route_id": route_id,
-            "tenant_id": "test-tenant",
-            "layers": target_layers,
-            "payload_type": "simulated" # Triggers random delta generation in HotSwapRuntime
+    # sql-route: Real safetensors payload
+    registry.routes["sql-route"] = {
+        "route_id": "sql-route",
+        "tenant_id": "test-tenant",
+        "layers": target_layers,
+        "payload": {
+            "uri": "vllm_registry_storage/payloads/opt125m_sql_delta.safetensors",
+            "sha256": "a3179afda0cea4153bf6f5c3292c055e42e17c3b64c1ffffbd98cc0f8ffc3762"
         }
-    print(f"[Phase 7G] Registered routes for validation: {list(registry.routes.keys())}")
+    }
+    
+    # alpaca-route: Simulated for hybrid verification
+    registry.routes["alpaca-route"] = {
+        "route_id": "alpaca-route",
+        "tenant_id": "test-tenant",
+        "layers": target_layers,
+        "payload_type": "simulated"
+    }
+    print(f"[Phase 7G] Registered routes (SQL: Real, Alpaca: Simulated): {list(registry.routes.keys())}")
 
     # 2. Apply all Neural-Scalpel patches
     apply_all_patches()
