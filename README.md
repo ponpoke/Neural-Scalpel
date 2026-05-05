@@ -52,13 +52,14 @@ It is an alpha-stage research project.
 - **Internal vLLM Mock Design:** Architecture designed for `RouteAwareScheduler` and `RouteTaggedKVBlock`.
 
 ### Roadmap / Future Work
-- Native vLLM plugin source code patching
-- Internal Scheduler / KV Cache integration in a live vLLM environment
+- Vanilla vLLM throughput / TTFT regression measurement
+- Failure-mode hardening: corrupted safetensors, I/O failure, rollback failure, route quarantine
+- Broader model coverage: Qwen/Llama-class fused attention variants
 - Long-running multi-tenant production pilots
 - GGUF/AWQ direct surgery
 
 ### ⚠️ Not Production Ready
-- **Internal vLLM Plugin:** Phase 0-6 monkey patch implementation is complete, but live Linux/vLLM validation (Phase 7+) is pending. It is not yet proven safe under continuous batching in a real engine.
+- **Internal vLLM Validated Prototype:** Live vLLM V1 monkey-patch integration validated through route metadata injection, active route-homogeneous scheduling, real safetensors payload swap/rollback, and 10K mixed-route endurance in a controlled single-GPU environment.
 - **SLA-Grade Serving:** This is a research prototype. It should not be used as a multi-tenant SLA proxy in an enterprise environment without further hardening.
 
 ---
@@ -152,10 +153,18 @@ Neural-Scalpel includes an experimental PyTorch-native Hot-Swap Runtime for test
 - Structured JSON-L audit logging (100% event coverage)
 - External FastAPI proxy with strict temporal route isolation
 - Live stress-tested with `Qwen2.5-0.5B` and actual Text-to-SQL / Alpaca LoRAs
-- Internal vLLM integration architecture designed and mocked
+- Internal vLLM live validation through Phase 7H-2:
+  - route metadata injection
+  - active route-homogeneous scheduling via shelving
+  - real safetensors payload swap/rollback inside `_model_forward`
+  - 10K mixed-route endurance with 896 atomic swap/rollback cycles
+  - zero route violations in the tested environment
 
 **⚠️ What is NOT Production Ready:**
-- **Full vLLM Internal Plugin:** The architecture is validated via mocks, but actual vLLM continuous batching source code has not been patched.
+- **Monkey-Patch Fragility:** The internal vLLM integration depends on vLLM V1 internals and may break across vLLM releases.
+- **Failure-Mode Hardening:** Corrupted safetensors, I/O failures, rollback failures, and quarantine/recovery flows require additional validation.
+- **Performance Regression:** Vanilla-vLLM TTFT / throughput comparisons are still pending.
+- **Broader Model Coverage:** Validation beyond OPT-125M/Qwen2.5-class controlled tests remains future work.
 - **SLA-Grade Serving:** Not ready for uncontrolled public enterprise traffic.
 - **1-GPU Multi-Tenant Scale:** Cannot yet serve hundreds of concurrent routes seamlessly without internal KV cache integration.
 
