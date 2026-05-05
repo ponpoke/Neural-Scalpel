@@ -279,7 +279,7 @@ These items are **not yet validated** and must be addressed before any productio
 | Multi-route scaling | High | **RESOLVED** -- 50 routes tested with identical performance |
 | PPL/KL regression at scale | Medium | **RESOLVED** -- PPL delta = 0.000000 across all endurance runs |
 | External vLLM integration | **Critical** | **RESOLVED (Step 4A)** -- Route-aware proxy ensures strict batch isolation and 0 route leakage with real vLLM backend |
-| Internal vLLM plugin | **Critical** | **PARTIALLY RESOLVED** -- Phase 7A-7F passed. Scheduling enforcement verified in 100-request live smoke. 1K/10K endurance, throughput/TTFT regression, and real payload swap/rollback pending. |
+| Internal vLLM plugin | **Critical** | **PARTIALLY RESOLVED** -- Phase 7A-7G passed. Active route-homogeneous scheduling and atomic weight swap/rollback verified in 100-req live smoke. 10K endurance and real safetensors payload integration pending. |
 | Authentication | **High** | **RESOLVED** -- JWT-based tenant auth and Admin API keys implemented in proxy. |
 | TLS / Network security | **Medium** | Prototype runs over plain HTTP. |
 | Streaming output | **Medium** | No SSE/WebSocket support; responses are synchronous. |
@@ -370,7 +370,7 @@ Neural-Scalpel Hot-Swap Runtimeは、以下の到達点にある：
 
 > **外部プロキシ層を介したvLLM実環境連携（Step 4A）において、厳密なRoute分離とLeakage 0が確認された。**
 > **実学習済みLoRAの能力移植（Priority 2）において、168個のテンソルを注入・ロールバックしてもモデルの論理能力（Coding）が一切破壊されず、確実にスタイルが移行することを証明した。**
-> **vLLM内部統合（Step 4B）では、Monkey Patch実装（Phase 0-6）を構築し、Phase 7A-7Dでコアロジックを単体検証した。さらにPhase 7E-1/7E-2/7F-1/7F-2において、実vLLM Linux環境でmixed-route完走、能動的バッチ分離、decode stepを含むroute lifecycle retentionを確認した。ただし、1K/10K mixed-route endurance、実payload swap/rollback、TTFT/throughput性能評価、SLA水準の本番安全性は未完了である。**
+> **vLLM内部統合（Step 4B）では、Monkey Patch実装（Phase 0-6）を構築し、Phase 7A-7Dでコアロジックを単体検証した。さらにPhase 7E-1/7E-2/7F-1/7F-2/7Gにおいて、実vLLM Linux環境でmixed-route完走、能動的バッチ分離、実重量置換（Atomic Swap/Rollback）を確認した。ただし、10K mixed-route endurance、実safetensors payload適用、TTFT/throughput性能評価は未完了である。**
 
 ---
 
