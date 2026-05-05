@@ -278,7 +278,7 @@ Conclusion: PyTorch-native swap overhead is extremely low (~2.35ms p99). Pending
 
 ## 5. Production Gaps (Honest Assessment)
 
-These items are **not yet validated** and must be addressed before any production claim:
+The table below summarizes previously identified production gaps and their current validation status. Remaining unresolved items must be addressed before any production-ready claim.
 
 | Gap | Severity | Status |
 |-----|----------|--------|
@@ -320,13 +320,9 @@ These items are **not yet validated** and must be addressed before any productio
 **Status: Internal Core Logic (Phase 7A-7H) validated. Core engine hooks and atomic swap mechanisms are stable; proceeding to performance regression and failure-mode hardening.**
 
 **Pending (Phase 7E+):**
-- [x] Phase 7G: Real safetensors payload swap/rollback inside vLLM engine (SUCCESS)
-- [x] Phase 7H-1: 1K mixed-route endurance with real swap (SUCCESS)
-- [x] Phase 7H-2: 10K mixed-route endurance with real swap (SUCCESS)
 - [ ] Throughput / TTFT degradation measurement against vanilla vLLM
 - [ ] Failure-mode hardening: corrupted safetensors, I/O failure, rollback failure, route quarantine
 - [ ] Broader model coverage: Qwen/Llama-class fused attention variants
-- [ ] Real payload swap/rollback inside vLLM engine
 
 ### Priority 2: Actual Trained LoRA Evaluation (COMPLETE)
 
@@ -374,7 +370,7 @@ Neural-Scalpel Hot-Swap Runtimeは、以下の到達点にある：
 | Internal vLLM plugin Core Logic (Phase 7A-7D) | **完了** |
 | Internal vLLM plugin Same-Route E2E (7E-1) | **完了** |
 | Internal vLLM plugin Mixed-Route Fail-Close (7E-2) | **完了** |
-| Internal vLLM plugin Mixed-Route Scheduling (7F+) | **進行中** |
+| Internal vLLM plugin Mixed-Route Scheduling / Real Swap (7F-7H) | **中核検証完了 (Validated Prototype)** |
 | API Hardening (Priority 3) | **完了** |
 | 外部顧客向けSLA | **未完了** |
 
