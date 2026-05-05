@@ -56,13 +56,6 @@ To test the `Scalpel-Kernel`'s robustness, we conducted verification tests:
 Transformers are non-linear due to GeGLU/SwiGLU. Linear alignment alone is insufficient.
 *   **Result:** Initial SVD-based transplant (SRHP) yielded a PPL degradation of **+4.80%**, confirming the need for non-linear structural compensation.
 
-### 4.3. Sparsity Ablation Study (The 20% Rule)
-We evaluated the reconstruction error across varying trim ratios using the **actual Task Vector extracted from SDXL base to Animagine XL 3.1** (1,310,720 parameters):
-*   **0.0% (Full):** Error $= 0.7847$ (Baseline rSVD loss)
-*   **10.0%:** Error $= 0.7808$ (Noise filtered)
-*   **20.0%:** Error $= 0.7847$ (Equivalent to baseline)
-*   **Conclusion:** Trimming the bottom 20% is a sound heuristic for real-world LoRA deltas. However, for general robustness, we have moved to **Adaptive Variance-Preserving Sparsity (AVPS)**.
-
 ---
 
 ## 5. Architectural Features (Precision Upgrades)
@@ -78,13 +71,25 @@ To mitigate non-linear distortion:
 1.  **Hard-WDR:** Attempts to map specialized Attention Heads via Sinkhorn-Knopp.
 2.  **Jacobian Tangent Space Alignment (JTSA):** Pre-compensates for SwiGLU/GeGLU curves via a high-precision first-order Taylor alignment across a **calibrated activation manifold**, with an optional zero-dataset synthetic fallback.
 3.  **Hessian-Aware Manifold Alignment (HAMA):** Introduces a 2nd-order Taylor expansion to pre-compensate for extreme curvature in Out-Of-Distribution (OOD) regions, stabilizing the projection. Both JTSA and HAMA rely heavily on a small set of activation states (datasets) to accurately capture emergent outliers.
-*   **Result:** This multi-strategy approach aims to stabilize the projection. Preliminary small-scale evaluations on a 4,000-token corpus indicate a localized PPL degradation of **+0.06%**, provided calibration data is used to preserve outliers. Downstream task preservation is not guaranteed.
 
 ### 5.4. Universal I/O Bridge & Streaming Processing
 To overcome the physical limitations of consumer hardware, we implemented a modular I/O architecture:
 - **Multi-Format Thawing:** Direct loading and vectorized auto-dequantization of quantized formats (**GGUF, AWQ**) into high-precision FP16 tensors for alignment.
 - **Streaming Processing:** The pipeline processes models layer-by-layer. This ensures a constant, O(1 layer) memory footprint, enabling the processing of 7B+ models on a single 16GB VRAM node.
-- **Manifold Re-calibration (LMR):** Addresses scale recalculation for data-dependent formats like **AWQ**. The system profiles a small activation dataset post-conversion to safely handle outliers before recalculating optimal quantization scales. A mathematically synthesized manifold fallback is available if datasets cannot be provided (at risk of quality loss).
+
+### 5.5. External Proxy Fallback
+To mitigate vLLM internal monkey-patch compatibility risk, Neural-Scalpel now includes an External Proxy Fallback path. This mode routes requests through external vLLM-compatible backends via HTTP instead of patching vLLM internals.
+
+Validated components include:
+- serving mode selection and fail-closed behavior
+- backend registry and route-to-backend resolution
+- HTTP forwarding through `ProxyServingEngine`
+- automatic fallback from failed internal compatibility checks in `auto` mode
+- live local HTTP forwarding smoke test
+
+This fallback does not eliminate all deployment risk. It trades route density and memory efficiency for process-level isolation and operational simplicity.
+
+---
 
 ## 6. Executable Ablation Study Framework
 
@@ -99,22 +104,31 @@ To rigorously prove the necessity of each mathematical component, Neural-Scalpel
 7. **JTSA + WDR (Calibrated):** The complete Neural-Scalpel pipeline, relying on an empirical calibration manifold.
 8. **Route-Window Persistent Swapping (Phase 5-C):** Implementing a stateful runtime that maintains the active route until a transition is required, reducing swap overhead from $O(tokens)$ to $O(windows)$.
 
-
 Each ablation mode must be measured against a strict 6-way empirical comparison to isolate the exact contribution of each algorithm.
 
+---
+
 ## 7. Conclusion
-Neural-Scalpel Version 1.0.0-alpha establishes an experimental foundation for cross-architecture adapter conversion. Phase 5-C introduced **Route-Window Persistent Swapping**, which removed the catastrophic per-token swap overhead under the tested route-window workloads. In a recent Qwen2.5-0.5B / Alpaca payload benchmark, Neural-Scalpel recorded only 1 confirmed swap and 1 verified rollback across 1,600 generated tokens, with checksum-level rollback verification passing (`verified_rollbacks=1`).
+Neural-Scalpel Version 1.0.0-alpha establishes an experimental foundation for cross-architecture adapter conversion. Phase 5-C introduced **Route-Window Persistent Swapping**, which removed the Phase 5-B per-token swap bottleneck under the tested route-window workloads. In a recent Qwen2.5-0.5B / Alpaca payload benchmark, Neural-Scalpel recorded only 1 confirmed swap and 1 verified rollback across 1,600 generated tokens, with checksum-level rollback verification passing (`verified_rollbacks=1`).
 
 While the Phase 5-C benchmark showed a positive throughput delta over base (+69.98%), this result was prompt-specific. Phase 5-D extended this result beyond a single prompt: 50 prompts × 3 runs showed Scalpel v2 median throughput of ~2574 tok/s versus Native LoRA at ~983 tok/s under controlled conditions.
 
-Phase 5-E-1 validated two-route mixed-batch safety across 1000 dynamically routed requests (`__base__` ↔ Alpaca), with 0 route violations, 0 quarantine events, and a healthy worker.
+Phase 5-E-1 validated two-route mixed-batch safety across 1000 dynamically routed requests (`__base__` ↔ Alpaca). Phase 5-E-2 extended this to 3+ real-payload mixed-batch validation across `__base__`, Alpaca, and SQL routes. Phase 5-E-3 completed worst-case alternating route stress validation for both two-route and three-route patterns. These tests strengthen route-isolation evidence but remain short-duration controlled validations.
 
 Phase 5-F addressed the previous text-level determinism concern under the tested cache-reset condition: Base-before and Base-after matched exactly, with 100.0% top-token logprob trace similarity after verified checksum rollback.
 
-Neural-Scalpel is currently best described as a validated prototype with strong controlled runtime evidence, and a paradigm-shift-class candidate under controlled validation. Formal Production Candidate status remains pending the 24h persistent-route soak. Broader 3+ route and worst-case alternation stress tests remain future hardening work. By leveraging **Hessian-Aware Manifold Alignment (HAMA)** and the **Streaming I/O Bridge**, we have shown that adapter weights can be structurally mapped and physically managed across architectures within the limits of high-precision linear and 2nd-order non-linear approximations. All core mathematical components have been validated by a comprehensive automated suite (193 non-live tests passed; live vLLM tests are executed separately; see `tests/TEST_REPORT.md`).
+Neural-Scalpel is currently best described as a validated prototype with strong controlled runtime evidence, and a paradigm-shift-class candidate under controlled validation.
+
+Formal Production Candidate status remains pending the 24h persistent-route soak. Broader model coverage, vLLM-version compatibility, multi-backend load testing, and real-traffic pilots remain future hardening work.
+
+On the projection side, HAMA and the Streaming I/O Bridge suggest that adapter weights can be structurally mapped and physically managed across architectures within the limits of high-precision linear and second-order non-linear approximations. Downstream task improvement remains workload-dependent and must be validated separately.
+
+All core mathematical components are covered by an automated suite (193 non-live tests passed; live vLLM tests are executed separately; see `tests/TEST_REPORT.md`).
+
+---
 
 ## 8. Future Roadmap
 ### 8.1. ExL2 Direct Integration
 Binary orchestration for non-uniform bit-rate formats.
 
-*Note: All algorithms were verified locally on an NVIDIA RTX 5060 Ti.*
+*Note: Live GPU validations referenced in this report were performed locally on an NVIDIA RTX 5060 Ti 16GB unless otherwise stated.*
