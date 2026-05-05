@@ -122,9 +122,9 @@ async def run_endurance_test(num_requests: int = 1000):
     assert vram_end <= vram_after_init + 100, f"Possible VRAM leak detected: {vram_end}MB > {vram_after_init}MB + 100MB"
 
 @pytest.mark.asyncio
-async def test_1k_endurance():
-    """Verify system stability over 1,000 mixed-route requests."""
-    await run_endurance_test(num_requests=1000)
+async def test_10k_endurance():
+    """Verify system stability over 10,000 mixed-route requests."""
+    await run_endurance_test(num_requests=10000)
 
 if __name__ == "__main__":
     import asyncio
