@@ -34,7 +34,8 @@ def get_vllm_runtime(model) -> HotSwapRuntime:
 
     if _GLOBAL_AUDIT_LOGGER is None:
         audit_log_path = os.path.join(os.getcwd(), "vllm_scalpel_audit.jsonl")
-        _GLOBAL_AUDIT_LOGGER = AuditLogger(log_path=audit_log_path)
+        # Fixed argument name to log_file_path or use positional
+        _GLOBAL_AUDIT_LOGGER = AuditLogger(log_file_path=audit_log_path)
         
     if _GLOBAL_RUNTIME is None:
         # Initialize the Runtime with the actual model provided by vLLM ModelRunner
