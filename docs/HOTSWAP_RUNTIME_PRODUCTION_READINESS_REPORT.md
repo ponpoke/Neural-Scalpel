@@ -279,7 +279,7 @@ These items are **not yet validated** and must be addressed before any productio
 | Multi-route scaling | High | **RESOLVED** -- 50 routes tested with identical performance |
 | PPL/KL regression at scale | Medium | **RESOLVED** -- PPL delta = 0.000000 across all endurance runs |
 | External vLLM integration | **Critical** | **RESOLVED (Step 4A)** -- Route-aware proxy ensures strict batch isolation and 0 route leakage with real vLLM backend |
-| Internal vLLM plugin | **Critical** | **PARTIALLY RESOLVED** -- Phase 7E-1/7E-2 live vLLM E2E hook/fail-close validation passed; Phase 7F-1 route lifecycle retention across decode steps passed. Active route-aware scheduling enforcement, real payload swap inside vLLM, 10K mixed-route endurance, and throughput/TTFT regression testing remain pending. |
+| Internal vLLM plugin | **Critical** | **PARTIALLY RESOLVED** | Phase 7A-7F passed. Scheduling enforcement verified in 100-req live smoke. 1K/10K endurance, throughput/TTFT regression, and real payload swap/rollback pending. | Phase 7H (Endurance) & Phase 7G (Real Payload) |
 | Authentication | **High** | **RESOLVED** -- JWT-based tenant auth and Admin API keys implemented in proxy. |
 | TLS / Network security | **Medium** | Prototype runs over plain HTTP. |
 | Streaming output | **Medium** | No SSE/WebSocket support; responses are synchronous. |
@@ -300,7 +300,7 @@ These items are **not yet validated** and must be addressed before any productio
 
 **Step 4B: Internal vLLM Plugin Integration**
 
-**Status: Internal Monkey-Patch Live Hook/Fallback Validation Passed through Phase 7F-1; Scheduling Enforcement Pending.**
+**Status: Internal Monkey-Patch Live Hook/Validation Passed through Phase 7F-2 (Active Scheduling).**
 
 **単体検証済み (Unit-Validated):**
 - [x] Phase 7A: vLLM import/patch smoke test
@@ -313,9 +313,10 @@ These items are **not yet validated** and must be addressed before any productio
 - [x] Phase 7E-1: Live vLLM same-route 100 request generation (SUCCESS)
 - [x] Phase 7E-2: Live vLLM mixed-route fail-close validation (SUCCESS)
 - [x] Phase 7F-1: Route lifecycle retention across decode steps (SUCCESS)
-- [ ] Phase 7F-2: Continuous Batching route-homogeneous scheduling enforcement
-- [ ] 10K mixed-route endurance in real engine
+- [x] Phase 7F-2: Active route-homogeneous scheduling enforcement (SUCCESS)
+- [ ] 1K/10K mixed-route endurance in real engine
 - [ ] Throughput / TTFT degradation measurement
+- [ ] Real payload swap/rollback inside vLLM engine
 
 ### Priority 2: Actual Trained LoRA Evaluation (COMPLETE)
 
@@ -369,7 +370,7 @@ Neural-Scalpel Hot-Swap Runtimeは、以下の到達点にある：
 
 > **外部プロキシ層を介したvLLM実環境連携（Step 4A）において、厳密なRoute分離とLeakage 0が確認された。**
 > **実学習済みLoRAの能力移植（Priority 2）において、168個のテンソルを注入・ロールバックしてもモデルの論理能力（Coding）が一切破壊されず、確実にスタイルが移行することを証明した。**
-> **vLLM内部統合（Step 4B）では、Monkey Patch実装（Phase 0-6）を構築し、Phase 7A-7Dでコアロジックを単体検証した。さらにPhase 7E-1/7E-2/7F-1において、実vLLM Linux環境でsame-route 100 request生成、mixed-route fail-close、decode stepを含むroute lifecycle retentionを確認した。ただし、route-homogeneous scheduling enforcement、10K mixed-route endurance、実payload swap/rollback、SLA水準の本番安全性は未完了である。**
+> **vLLM内部統合（Step 4B）では、Monkey Patch実装（Phase 0-6）を構築し、Phase 7A-7Dでコアロジックを単体検証した。さらにPhase 7E-1/7E-2/7F-1/7F-2において、実vLLM Linux環境でmixed-route完走、能動的バッチ分離、decode stepを含むroute lifecycle retentionを確認した。ただし、1K/10K mixed-route endurance、実payload swap/rollback、TTFT/throughput性能評価、SLA水準の本番安全性は未完了である。**
 
 ---
 
