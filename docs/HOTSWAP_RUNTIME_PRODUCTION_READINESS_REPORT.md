@@ -279,7 +279,7 @@ These items are **not yet validated** and must be addressed before any productio
 | Multi-route scaling | High | **RESOLVED** -- 50 routes tested with identical performance |
 | PPL/KL regression at scale | Medium | **RESOLVED** -- PPL delta = 0.000000 across all endurance runs |
 | External vLLM integration | **Critical** | **RESOLVED (Step 4A)** -- Route-aware proxy ensures strict batch isolation and 0 route leakage with real vLLM backend |
-| Internal vLLM plugin | **Critical** | **PARTIALLY RESOLVED** | Phase 7A-7F passed. Scheduling enforcement verified in 100-req live smoke. 1K/10K endurance, throughput/TTFT regression, and real payload swap/rollback pending. | Phase 7H (Endurance) & Phase 7G (Real Payload) |
+| Internal vLLM plugin | **Critical** | **PARTIALLY RESOLVED** -- Phase 7A-7F passed. Scheduling enforcement verified in 100-request live smoke. 1K/10K endurance, throughput/TTFT regression, and real payload swap/rollback pending. |
 | Authentication | **High** | **RESOLVED** -- JWT-based tenant auth and Admin API keys implemented in proxy. |
 | TLS / Network security | **Medium** | Prototype runs over plain HTTP. |
 | Streaming output | **Medium** | No SSE/WebSocket support; responses are synchronous. |
