@@ -1,0 +1,51 @@
+{
+  "benchmark_type": "phase_5e_worst_case_alternation",
+  "pattern": "alternating",
+  "requests": 1000,
+  "seed": 42,
+  "route_count": 3,
+  "routes": [
+    "__base__",
+    "qwen2.5-0.5b-alpaca-lora-demo",
+    "qwen2.5-coder-0.5b-instruct_text_to_sql_lora_newdataset"
+  ],
+  "route_types": {
+    "__base__": "base",
+    "qwen2.5-0.5b-alpaca-lora-demo": "real_payload",
+    "qwen2.5-coder-0.5b-instruct_text_to_sql_lora_newdataset": "real_payload"
+  },
+  "payload_files_verified": true,
+  "requested_route_transitions": 999,
+  "route_distribution": {
+    "__base__": 334,
+    "qwen2.5-0.5b-alpaca-lora-demo": 333,
+    "qwen2.5-coder-0.5b-instruct_text_to_sql_lora_newdataset": 333
+  },
+  "swap_count": 999,
+  "rollback_count": 999,
+  "verified_rollbacks": 999,
+  "route_violations": 0,
+  "quarantine_events": 0,
+  "worker_is_healthy": true,
+  "audit_log_parse_success": true,
+  "all_requests_completed": true,
+  "active_route_after_cleanup": "__base__",
+  "cleanup_rollback_executed": true,
+  "metrics": {
+    "total_time_sec": 89.1
+  },
+  "status": "PASSED",
+  "pass_criteria": {
+    "all_requests_completed": true,
+    "audit_log_parse_success": true,
+    "route_violations_zero": true,
+    "quarantine_events_zero": true,
+    "worker_is_healthy": true,
+    "all_routes_requested": true,
+    "requested_route_transitions_positive": true,
+    "swap_count_positive": true,
+    "rollback_count_positive": true,
+    "verified_rollbacks_positive": true,
+    "active_route_after_cleanup_base": true
+  }
+}

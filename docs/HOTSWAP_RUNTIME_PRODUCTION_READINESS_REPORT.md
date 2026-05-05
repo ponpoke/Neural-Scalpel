@@ -320,12 +320,12 @@ The table below summarizes previously identified production gaps and their curre
 **Completed after Phase 5-C:**
 - [x] Phase 5-D repeated benchmark median across 50 prompts × 3 runs
 - [x] Phase 5-E-1 two-route mixed-batch transition validation
+- [x] Phase 5-E-2 3+ route mixed-batch safety validation
+- [x] Phase 5-E-3 worst-case alternating route stress validation
 - [x] Phase 5-F text/top-token logprob trace determinism follow-up under tested cache-reset condition
 
 **Remaining:**
 - [ ] 24h persistent-route soak validation
-- [ ] 3+ route mixed-batch validation
-- [ ] Worst-case alternating route stress validation
 - [ ] Broader model coverage: Qwen/Llama-class fused attention variants
 
 ### Priority 2: Real-LoRA Qualitative / Small-Sample Evaluation (PARTIAL)
@@ -377,9 +377,10 @@ The Neural-Scalpel Hot-Swap Runtime has reached the following milestones:
 > **Qualitative changes in output behavior were confirmed by applying real LoRA-derived payloads. Further dataset-level evaluation is required to assess model capability retention and task improvement.**
 > **The internal vLLM integration (Step 4B/Phase 5-C) has completed the implementation of route-window persistent swapping.**
 > **In a real Qwen2.5-0.5B environment, operation with extremely low frequency (1 swap and 1 rollback per 1,600 generated tokens, verified via checksum) was demonstrated. This resolved the per-token swap bottleneck identified in Phase 5-B within the validated route-window workload. Under identical prompt conditions, it recorded significantly higher throughput than Native LoRA.**
-> **Throughput exceeding Native LoRA was observed in the tested Qwen2.5-0.5B / Alpaca workload using the median of 50 prompts × 3 runs in Phase 5-D. Safety during dynamic routing of 1,000 requests across two routes was confirmed in Phase 5-E-1. Furthermore, follow-up on major determinism concerns was completed in Phase 5-F under tested cache-reset conditions, achieving exact text and 100.0% top-token logprob trace similarity.**
-> **Current status: Validated Prototype with Strong Controlled Runtime Evidence.**
-> **Remaining Production Candidate gate: 24h persistent-route soak. Broader 3+ route and worst-case alternation stress remain hardening work.**
+> **Throughput exceeding Native LoRA was observed in the tested Qwen2.5-0.5B / Alpaca workload using the median of 50 prompts × 3 runs in Phase 5-D. Safety during dynamic routing of 1,000 requests across two routes was confirmed in Phase 5-E-1, and further extended to 3+ route mixed-batch and worst-case alternating stress validations in Phase 5-E-2 and 5-E-3. Furthermore, follow-up on major determinism concerns was completed in Phase 5-F under tested cache-reset conditions, achieving exact text and 100.0% top-token logprob trace similarity.**
+> **Phase 5-E-2 and 5-E-3 should be interpreted as short-duration adversarial route-safety validations. They strengthen multi-route isolation evidence but do not replace the final long-duration 24h soak.**
+> **Current status: Neural-Scalpel has produced strong paradigm-shift-class evidence in controlled validation, including repeated multi-prompt performance benchmarking, two-route and 3+ route mixed-batch safety, worst-case route alternation stress, and determinism follow-up under tested cache-reset conditions.**
+> **Formal Production Candidate status remains pending the final 24h persistent-route soak. Broader model and vLLM-version coverage remain future hardening work.**
 
 ---
 
