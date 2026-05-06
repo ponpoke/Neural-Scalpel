@@ -23,13 +23,26 @@ def transport_behavioral_delta(delta_path, maps_path, activations_path, output_d
         s_name = map_info["source_layer"]
         P = map_info["weight"] # (d_source, d_target)
         
+        # Finite Checks
+        if not torch.isfinite(P).all():
+            raise ValueError(f"NaN/Inf detected in alignment map for {t_name}")
+            
         if s_name not in source_deltas:
             print(f"Warning: Source layer {s_name} delta not found. Skipping {t_name}.")
             continue
             
         ds = source_deltas[s_name] # (n, d_source)
+        if not torch.isfinite(ds).all():
+            raise ValueError(f"NaN/Inf detected in source delta for {s_name}")
+            
+        # Shape Check
+        if ds.shape[1] != P.shape[0]:
+            raise ValueError(f"Shape mismatch for {t_name}: delta dim={ds.shape[1]}, map in dim={P.shape[0]}")
+            
         dt_desired = torch.matmul(ds, P) # (n, d_target)
-        
+        if not torch.isfinite(dt_desired).all():
+            raise ValueError(f"NaN/Inf detected in transported delta for {t_name}")
+            
         transported_deltas[t_name] = dt_desired
         
         # Metrics relative to Target Base

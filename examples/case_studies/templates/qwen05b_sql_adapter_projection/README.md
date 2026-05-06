@@ -1,48 +1,46 @@
 # Qwen2.5-0.5B SQL Adapter Projection Case Study Template
  
  > [!WARNING]
- > **Status: Phase 4 Negative Baseline Established / Phase 5 Paired Alignment Design Initiated**  
- > This case study has implemented a target-activation-conditioned projection scaffold. However, **behavioral transfer remains not proven**. Under the current setup, no measurable text-level or logit-level difference was detected up to $\gamma=32.0$.
+ > **Status: Phase 4 Negative Baseline Established / Phase 5-F-2 Runtime Validation Pending**  
+ > This case study has transitioned from target-only conditioning to **Paired Source-Target Activation Alignment**. Behavioral transfer remains **NOT PROVEN**.
 
+## Current Research Status
 
-## Overview
+### Phase 4 Recap
+Target-only activation conditioning produced 100% output identity. Simple signal amplification was insufficient.
 
-Can a tiny 0.5B model inherit useful SQL/Coding behavior without retraining? This template provides a structured scaffold for testing that question through mathematical adapter projection.
+### Phase 5-E / 5-F-1: Transported Delta and Activation-space Adapter Solve
 
-## Results Summary
+Phase 5-E transports the source-side behavioral activation delta into the target representation space using learned source-to-target alignment maps. 
 
-### Gamma Sweep & Logit-level Delta Check
+The output is a **desired target activation delta**, which serves as a teacher signal, not yet a deployable adapter.
 
-After the gamma sweep showed 100% output identity up to $\gamma=32.0$, a logit-level delta check was run to test whether any sub-threshold signal existed below the argmax decoding boundary.
+Phase 5-F-1 solves an activation-space adapter to test whether the transported deltas are linearly recoverable from target hidden states.
 
-**Result:** `NO_MEANINGFUL_LOGIT_DELTA`
+### Phase 5-F-2: Runtime Activation Injection Smoke (Current Gate)
 
-- **Top-1 next-token agreement**: 100% (No preference shift)
-- **Mean Symmetric KL Divergence**: Effectively Zero (No distribution shift)
-- **SQL-related Token Logprobs**: No meaningful movement observed for keywords like `SELECT`.
+Phase 5-F-2 injects the solved activation-space adapter through runtime forward hooks to test whether the transported signal can produce measurable logit-level or text-level movement in the target model.
 
-**Interpretation:**  
-Under the current 4-prompt greedy smoke setup, the target-only activation-conditioned projection did not produce a measurable output-level or distribution-level difference. This result establishes a **negative baseline**, suggesting that the current target-only self-alignment path is insufficient for this 7B → 0.5B case.
+> [!IMPORTANT]
+> Proceed to PEFT LoRA extraction only if runtime injection produces measurable logit movement without collapse.
 
-## Strategic Research Roadmap (Next Steps)
+Current status:
+- Activation-space adapter solve: IMPLEMENTED
+- Runtime injection smoke: IMPLEMENTED / READY FOR TEST
+- PEFT LoRA extraction: PENDING
+- Behavioral transfer: NOT YET PROVEN
 
-### **Phase 5: Paired Source-Target Activation Alignment (Current Goal)**
+## Strategic Research Roadmap
 
-Paired Source-Target Alignment is the next most justified research step. The focus shifts from target-only statistics to learning explicit cross-model mappings:
+### **Phase 5: Paired Source-Target Alignment (Current Goal)**
 
-1.  **Phase 5-A: Paired Activation Collection**: Collect hidden states from **Source Base**, **Source+LoRA**, and **Target Base** on identical prompts.
-2.  **Phase 5-B: Source Behavioral Delta Extraction**: Calculate $\Delta H_{source} = H_{source+lora} - H_{source}$.
-3.  **Phase 5-C: Alignment Map Learning**: Learn transformation matrices $P$ (e.g., via Procrustes) to translate the 7B behavioral signal into the 0.5B representation space.
-
-## Current Project State (Summary)
-- **Structural projection baseline**: IMPLEMENTED
-- **Target-only activation conditioning**: NEGATIVE BASELINE (No signal detected)
-- **Logit-level delta check**: IMPLEMENTED (Verdict: `NO_MEANINGFUL_LOGIT_DELTA`)
-- **Behavioral transfer**: NOT PROVEN
-- **Paired Source-Target Alignment**: IN DESIGN (NEXT STEP)
+1.  **Phase 5-A/B/C**: Capture paired activations, extract source deltas, and estimate initial layer correspondence. [COMPLETED]
+2.  **Phase 5-D/E**: Learn alignment maps and transport behavioral deltas to target manifold. [COMPLETED]
+3.  **Phase 5-F-1**: Solve activation-space adapter and verify linear recoverability. [COMPLETED]
+4.  **Phase 5-F-2: Runtime Activation Injection Smoke**: (NEXT STEP) Inject solved activation-space deltas via forward hooks to observe logit/text divergence.
+5.  **Phase 5-F-3**: Module-level activation collection (Prerequisite for PEFT).
+6.  **Phase 5-F-4**: PEFT LoRA extraction (Weight Solve).
 
 ---
-
-Detailed technical goals can be found in [docs/methodology.md](docs/methodology.md).
 
 See [reports/](reports/) for generated validation logs.
