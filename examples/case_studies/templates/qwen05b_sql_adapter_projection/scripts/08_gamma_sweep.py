@@ -32,6 +32,7 @@ def run_sweep(gammas, lora_id, target_model):
         gamma_report_dir.mkdir(parents=True, exist_ok=True)
         
         # 1. Project with current gamma
+        # Note: scale-gamma=0.0 should effectively disable the adapter
         proj_cmd = [
             "python", "scripts/02_prepare_payload_calibrated.py",
             "--lora_id", lora_id,
@@ -61,22 +62,18 @@ def run_sweep(gammas, lora_id, target_model):
         shutil.copy("reports/eval_summary_real.md", gamma_report_dir / "eval_summary_real.md")
         shutil.copy("reports/before_after_real.md", gamma_report_dir / "before_after_real.md")
 
-        # 5. Collect Metrics for CSV from the fresh JSON
+        # 5. Collect Metrics for CSV
         with open(gamma_report_dir / "eval_summary_real.json", "r") as f:
             m = json.load(f)
             results.append({
                 "gamma": g,
                 "exact_same_rate_raw": m.get("exact_same_rate_raw"),
                 "exact_same_rate_normalized": m.get("exact_same_rate_normalized"),
-                "base_sql_signal_rate": m.get("base", {}).get("sql_signal_rate"),
                 "projected_sql_signal_rate": m.get("projected", {}).get("sql_signal_rate"),
-                "base_repetition_rate": m.get("base", {}).get("repetition_rate"),
                 "projected_repetition_rate": m.get("projected", {}).get("repetition_rate"),
                 "projected_empty_rate": m.get("projected", {}).get("empty_output_rate"),
-                "projected_max_length_rate": m.get("projected", {}).get("max_length_hit_rate"),
-                "base_avg_length": m.get("base", {}).get("avg_length"),
                 "projected_avg_length": m.get("projected", {}).get("avg_length"),
-                "behavioral_status": m.get("behavioral_improvement"),
+                "behavioral_status": m.get("behavioral_status"),
             })
 
     # Save sweep summary
@@ -89,7 +86,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--lora_id", default="onurerkan/qwen2.5-0.5b-alpaca-lora-demo")
     parser.add_argument("--target_model", default="Qwen/Qwen2.5-0.5B-Instruct")
-    parser.add_argument("--gammas", default="1.0,2.0,4.0,8.0,16.0,32.0")
+    parser.add_argument("--gammas", default="0.0,1.0,2.0,4.0,8.0,16.0,32.0")
     args = parser.parse_args()
     
     target_gammas = [float(x) for x in args.gammas.split(",")]

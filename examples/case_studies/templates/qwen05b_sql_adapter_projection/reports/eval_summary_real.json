@@ -1,20 +1,28 @@
 {
   "num_prompts": 4,
   "evaluation_type": "preliminary_heuristic_smoke",
-  "behavioral_improvement": "INCONCLUSIVE",
+  "behavioral_status": "IDENTICAL_TO_BASE",
   "base": {
     "sql_signal": 3,
     "repetition_failure": 0,
     "avg_length": 502.25,
+    "empty_outputs": 0,
+    "max_length_hits": 3,
     "sql_signal_rate": 0.75,
-    "repetition_rate": 0.0
+    "repetition_rate": 0.0,
+    "empty_output_rate": 0.0,
+    "max_length_hit_rate": 0.75
   },
   "projected": {
     "sql_signal": 3,
     "repetition_failure": 0,
     "avg_length": 502.25,
+    "empty_outputs": 0,
+    "max_length_hits": 3,
     "sql_signal_rate": 0.75,
-    "repetition_rate": 0.0
+    "repetition_rate": 0.0,
+    "empty_output_rate": 0.0,
+    "max_length_hit_rate": 0.75
   },
   "exact_same_count_raw": 4,
   "exact_same_count_normalized": 4,

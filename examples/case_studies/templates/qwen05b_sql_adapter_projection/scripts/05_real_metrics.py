@@ -14,7 +14,7 @@ def calculate_metrics(results):
     metrics = {
         "num_prompts": n,
         "evaluation_type": "preliminary_heuristic_smoke",
-        "behavioral_improvement": "INCONCLUSIVE",
+        "behavioral_status": "PENDING",
         "base": {
             "sql_signal": 0,
             "repetition_failure": 0,
@@ -62,10 +62,8 @@ def calculate_metrics(results):
             if len(output.strip()) == 0:
                 metrics[key]["empty_outputs"] += 1
                 
-            # Max length hit (Heuristic: usually ends with no period or stops mid-sentence)
-            # Since we know max_new_tokens=128 in eval script, we can check if length is near a token limit,
-            # but here we use a simpler heuristic for 'smoke'
-            if len(output) > 500: # Heuristic for 'hitting some limit' in this specific smoke set
+            # Max length hit (Heuristic ONLY)
+            if len(output) > 500: 
                 metrics[key]["max_length_hits"] += 1
 
     # Normalize rates
@@ -79,10 +77,24 @@ def calculate_metrics(results):
     metrics["exact_same_rate_raw"] = metrics["exact_same_count_raw"] / n
     metrics["exact_same_rate_normalized"] = metrics["exact_same_count_normalized"] / n
     
-    # Divergence Detection
-    if metrics["exact_same_rate_raw"] < 0.9:
-        metrics["behavioral_improvement"] = "DIVERGED (Evidence of Signal)"
+    # --- Refined Behavioral Status Logic ---
+    same_rate = metrics["exact_same_rate_raw"]
+    empty_rate = metrics["projected"]["empty_output_rate"]
+    rep_rate = metrics["projected"]["repetition_rate"]
+    sql_inc = metrics["projected"]["sql_signal_rate"] > metrics["base"]["sql_signal_rate"]
     
+    status = "IDENTICAL_TO_BASE"
+    if same_rate < 0.95:
+        if empty_rate > 0.5:
+            status = "COLLAPSE (Empty Outputs)"
+        elif rep_rate > 0.5:
+            status = "DEGENERATION (Repetition Loop)"
+        elif sql_inc and empty_rate < 0.1 and rep_rate < 0.2:
+            status = "SIGNAL_CANDIDATE (Behavioral Divergence)"
+        else:
+            status = "NON_IDENTICAL_OUTPUT_OBSERVED"
+            
+    metrics["behavioral_status"] = status
     return metrics
 
 def main():
@@ -124,7 +136,7 @@ def main():
         f.write(f"\n**Identity Rates (Base vs Projected):**\n")
         f.write(f"- Exact Bit-Identical: {metrics['exact_same_rate_raw']:.1%}\n")
         f.write(f"- Normalized (Whitespace-Insensitive): {metrics['exact_same_rate_normalized']:.1%}\n")
-        f.write(f"- **Behavioral Status**: {metrics['behavioral_improvement']}\n")
+        f.write(f"- **Behavioral Status**: {metrics['behavioral_status']}\n")
 
     print(f"Markdown report saved to {report_md}")
 
