@@ -72,12 +72,15 @@ These tests validate the structural projection helpers and metadata safety guara
 | Component | Key Assertion | Result |
 | :--- | :--- | :---: |
 | **PairedActivationDataset** | Matching sample counts accepted; mismatched counts rejected | ✅ PASS |
-| **Hardened align API** | Prompts/Layers validation enforced; auto-correspondence integrated | ✅ PASS |
-| **Mapping & Mapping-to-Delta** | Explicit module-to-delta mapping solves correctly | ✅ PASS |
-| **PEFT Key Abstraction** | Custom prefixes and adapter names generated correctly | ✅ PASS |
-| **validate_behavior Guards** | Status enum classification (BEHAVIORAL_SHIFT_DETECTED, etc.) verified | ✅ PASS |
+| **Hardened align API** | Empty prompt / empty layer validation enforced; verified via real tests | ✅ PASS |
+| **Numerical Guards** | NaN/Inf in activations or solve triggers `ValueError`; verified via real tests | ✅ PASS |
+| **ValidationReport Gate Schema** | Gate-level severity and metrics stored; verified via real tests | ✅ PASS |
+| **module_to_delta_layer Mapping** | Implemented and verified via mapping-specific unit tests | ✅ PASS |
+| **PEFT Key Abstraction** | Multiple key styles and custom prefixes verified via real tests | ✅ PASS |
+| **Prompt Formatter Support** | Chat template integration and formatter calls verified via real tests | ✅ PASS |
+| **validate_behavior Guards** | Status enum classification and KL stability verified via real tests | ✅ PASS |
 
-These tests validate the Hardened Core Migration API (v1.1.0). They prove the system is robust against common failure modes (missing data, malformed shapes, numerical instability) but do not replace task-level evaluation.
+These tests validate the Hardened Core Migration API (v1.1.0-experimental). All core abstractions and numerical guards are now covered by a dedicated hardening test suite (`tests/test_core_migration_hardening.py`). Task-level SQL execution accuracy is being evaluated separately in Phase 6.
 
 ## Part 2: Architecture Adapters (Unit Tests)
 

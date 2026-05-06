@@ -77,23 +77,20 @@ def align(
             "method": correspondence_method,
             "mapping": correspondence.target_to_source
         }
-        # In auto mode, we map target layers to their best source match
-        # AlignmentMap currently stores {source_layer: P}. 
-        # We need to solve for each target layer.
         
         layer_maps = {}
         for t_layer, s_layer in correspondence.target_to_source.items():
             X = dataset.source_activations[s_layer]
             Y = dataset.target_activations[t_layer]
             P = solve_ridge(X, Y)
-            layer_maps[t_layer] = P # Note: AlignmentMap will use target layer keys here
+            layer_maps[t_layer] = P
             
         return AlignmentMap(
             layer_maps=layer_maps,
             source_model_id=getattr(source_model.config, "_name_or_path", "src"),
             target_model_id=getattr(target_model.config, "_name_or_path", "tgt"),
             method=method,
-            metadata=metadata
+            metadata={**metadata, "map_key_semantics": "target_layer"}
         )
     
     return learn_alignment_map(dataset, method=method)
@@ -115,15 +112,24 @@ def learn_alignment_map(
         X = dataset.source_activations[s_layer]
         Y = dataset.target_activations[s_layer]
         
+        if torch.isnan(X).any() or torch.isinf(X).any():
+            raise ValueError(f"Non-finite activations in source layer {s_layer}")
+        if torch.isnan(Y).any() or torch.isinf(Y).any():
+            raise ValueError(f"Non-finite activations in target layer {s_layer}")
+
         if method == "ridge":
             P = solve_ridge(X, Y, alpha=alpha)
             layer_maps[s_layer] = P
             
+    if not layer_maps:
+        raise RuntimeError("No matching layers found to learn alignment map.")
+
     return AlignmentMap(
         layer_maps=layer_maps,
         source_model_id=dataset.metadata.get("source_model_id", "unknown"),
         target_model_id=dataset.metadata.get("target_model_id", "unknown"),
-        method=method
+        method=method,
+        metadata={**dataset.metadata, "map_key_semantics": "source_layer"}
     )
 
 def extract_behavior_delta(
@@ -183,12 +189,21 @@ def transport_delta(
     """
     transported = {}
     for layer, d_s in delta.layer_deltas.items():
+        if torch.isnan(d_s).any() or torch.isinf(d_s).any():
+            raise ValueError(f"Non-finite delta detected in layer {layer}")
+
         if layer in mapping.layer_maps:
-            transported[layer] = mapping.project(layer, d_s)
+            d_t = mapping.project(layer, d_s)
+            
+            if torch.isnan(d_t).any() or torch.isinf(d_t).any():
+                 raise ValueError(f"Non-finite projected delta produced for layer {layer}")
+                 
+            transported[layer] = d_t
             
     return TransportedDelta(
         layer_deltas=transported,
-        target_model_id=mapping.target_model_id
+        target_model_id=mapping.target_model_id,
+        alignment_metadata=mapping.metadata
     )
 
 def solve_activation_adapter(
@@ -246,8 +261,8 @@ def solve_activation_adapter(
         X = inputs_stacked[module]
         Y = desired_delta.layer_deltas[delta_key]
         
-        if torch.isnan(X).any() or torch.isnan(Y).any():
-            raise ValueError(f"NaN detected in activations for module {module}")
+        if torch.isnan(X).any() or torch.isinf(X).any() or torch.isnan(Y).any() or torch.isinf(Y).any():
+            raise ValueError(f"Non-finite values detected in activations for module {module}")
 
         W = solve_ridge(X, Y)
         weights[module] = W
@@ -423,16 +438,17 @@ def validate_behavior(
                 # Adapter logit
                 adapter_logits = model(**inputs).logits[:, -1, :]
                 
-            if torch.isnan(base_logits).any() or torch.isnan(adapter_logits).any():
+            if torch.isnan(base_logits).any() or torch.isinf(base_logits).any() or \
+               torch.isnan(adapter_logits).any() or torch.isinf(adapter_logits).any():
                 report.status = "FAIL"
                 report.summary = "NUMERICALLY_UNSTABLE"
-                report.add_gate("G8", False, "NaN detected in logits.", severity="critical")
+                report.add_gate("G8", False, "Non-finite values detected in logits.", severity="critical")
                 return report
 
-            # Logit KL
+            # Logit KL - Using log_softmax for numerical stability
             p = F.softmax(base_logits, dim=-1)
-            q = F.softmax(adapter_logits, dim=-1)
-            kl = F.kl_div(q.log(), p, reduction="batchmean").item()
+            log_q = F.log_softmax(adapter_logits, dim=-1)
+            kl = F.kl_div(log_q, p, reduction="batchmean").item()
             results["kl"].append(kl)
             
             # Top-1 Shift

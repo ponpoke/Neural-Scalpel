@@ -132,31 +132,94 @@ class SQLCapabilityEvaluator:
         except Exception as e:
             return {"valid": False, "error": str(e)}
 
-    def evaluate_suite(self, test_cases: List[Dict[str, str]]) -> Dict[str, Any]:
+    def validate_schema(self, sql: str, expected_tables: List[str], expected_columns: List[str]) -> Dict[str, Any]:
         """
-        Evaluates a list of test cases: {"prompt": "...", "reference": "..."}
+        Heuristically checks if the SQL uses expected tables and columns.
+        """
+        sql_lower = sql.lower()
+        missing_tables = [t for t in expected_tables if t.lower() not in sql_lower]
+        # Very naive column check
+        missing_columns = [c for c in expected_columns if c.lower() not in sql_lower]
+        
+        return {
+            "table_ok": len(missing_tables) == 0,
+            "column_ok": len(missing_columns) == 0,
+            "missing_tables": missing_tables,
+            "missing_columns": missing_columns
+        }
+
+    def execute_sqlite(self, sql: str, setup_script: str) -> Dict[str, Any]:
+        """
+        Executes the SQL against an in-memory SQLite database.
+        """
+        import sqlite3
+        conn = sqlite3.connect(":memory:")
+        try:
+            cursor = conn.cursor()
+            cursor.executescript(setup_script)
+            cursor.execute(sql)
+            results = cursor.fetchall()
+            return {"success": True, "results": results, "error": None}
+        except Exception as e:
+            return {"success": False, "results": None, "error": str(e)}
+        finally:
+            conn.close()
+
+    def evaluate_suite(self, test_cases: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Evaluates a list of test cases with syntax, schema, and execution checks.
         """
         results = []
-        valid_count = 0
-        total = len(test_cases)
+        stats = {
+            "total": len(test_cases),
+            "syntax_valid": 0,
+            "execution_success": 0,
+            "exact_match": 0,
+            "categories": {}
+        }
         
         for case in test_cases:
             prompt = case["prompt"]
             gen_sql = self.generate_sql(prompt)
             syntax = self.validate_syntax(gen_sql)
             
+            # Schema check
+            schema = self.validate_schema(
+                gen_sql, 
+                case.get("tables", []), 
+                case.get("columns", [])
+            )
+            
+            # Execution check
+            execution = {"success": None}
+            if case.get("sqlite_setup") and syntax["valid"]:
+                execution = self.execute_sqlite(gen_sql, case["sqlite_setup"])
+            
             res = {
+                "id": case.get("id", "unknown"),
+                "category": case.get("category", "general"),
                 "prompt": prompt,
                 "generated": gen_sql,
                 "syntax_valid": syntax["valid"],
-                "error": syntax["error"]
+                "schema_ok": schema["table_ok"] and schema["column_ok"],
+                "execution_success": execution.get("success"),
+                "error": syntax["error"] or execution.get("error")
             }
-            if syntax["valid"]:
-                valid_count += 1
+            
+            # Update stats
+            if syntax["valid"]: stats["syntax_valid"] += 1
+            if execution.get("success"): stats["execution_success"] += 1
+            
+            cat = res["category"]
+            if cat not in stats["categories"]:
+                stats["categories"][cat] = {"total": 0, "pass": 0}
+            stats["categories"][cat]["total"] += 1
+            if execution.get("success"): stats["categories"][cat]["pass"] += 1
+            
             results.append(res)
             
+        stats["pass_rate"] = stats["execution_success"] / stats["total"] if stats["total"] > 0 else 0
         return {
-            "pass_rate": valid_count / total if total > 0 else 0,
-            "total": total,
+            "stats": stats,
             "results": results
         }

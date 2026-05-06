@@ -171,9 +171,9 @@ The experimental behavioral alignment scaffold has been promoted to a robust Cor
 - **PEFT Abstraction:** LoRA export now supports custom key styles and adapter names, facilitating integration with diverse runtimes.
 
 ### 9.2 Phase 6: SQL Capability Evaluation
-We are currently evaluating the transplanted SQL-Specialist adapter (projected from LLaMA-3-8B to Qwen-0.5B) using a controlled evaluation pipeline.
-- **Pipeline:** `scripts/20_sql_capability_eval.py`
-- **Method:** Measuring syntax pass-rates (via `sqlglot`) and execution logic on a representative subset of the SQL-50 benchmark.
-- **Initial Observation:** Preliminary runs show that the target model (Qwen-0.5B) produces syntactically valid SQL for several prompts where the baseline model failed, confirming that the "Behavioral Shift" observed in Phase 5 has functional Task-Level consequences.
+We have established a comprehensive evaluation pipeline to measure the transplanted SQL-Specialist adapter (projected from LLaMA-3-8B to Qwen-0.5B).
+- **Pipeline:** `scripts/20_sql_capability_eval.py` using `SQLCapabilityEvaluator`.
+- **Method:** Measures syntax pass-rates (via `sqlglot`), heuristic schema validation, and functional execution logic using an in-memory SQLite database.
+- **Initial Observation:** The evaluation scaffold is fully implemented and verified via unit tests. Preliminary syntax checks on a small set indicate that the transplanted adapter produces valid SQL where the baseline often fails. Full execution over the complete SQL-50 benchmark is currently in progress.
 
 *Note: Live GPU validations referenced in this report were performed locally on an NVIDIA RTX 5060 Ti 16GB unless otherwise stated.*
