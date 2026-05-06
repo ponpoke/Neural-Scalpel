@@ -98,6 +98,28 @@ def fuse_qwen_layers(projected_delta: dict) -> dict:
 
     return fused
 
+def sha256_file(path: str | Path, chunk_size: int = 1024 * 1024 * 64) -> str:
+    """Calculates SHA256 in chunks to avoid MemoryError on large payloads."""
+    path = Path(path)
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+def sha256_tensor(tensor: torch.Tensor, chunk_size: int = 64 * 1024 * 1024) -> str:
+    """Calculates SHA256 of a tensor in chunks to avoid memory issues with .tobytes()."""
+    h = hashlib.sha256()
+    # Ensure it's on CPU and contiguous before hashing
+    arr = tensor.detach().cpu().contiguous().numpy()
+    view = memoryview(arr).cast("B")
+    for i in range(0, len(view), chunk_size):
+        h.update(view[i : i + chunk_size])
+    return h.hexdigest()
+
 def project_peft_lora(hf_repo_id: str, output_dir: str, target_model: str = None):
     """
     Downloads adapter_config.json and adapter_model.safetensors.
@@ -121,14 +143,11 @@ def project_peft_lora(hf_repo_id: str, output_dir: str, target_model: str = None
     lora_sd = load_file(weights_path)
     
     # Calculate source adapter hash for manifest
-    with open(weights_path, "rb") as f:
-        source_adapter_sha256 = hashlib.sha256(f.read()).hexdigest()
+    source_adapter_sha256 = sha256_file(weights_path)
 
     base_model = config.get("base_model_name_or_path", "unknown")
     
     # Map key back to base model parameter name
-    # e.g., base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight
-    # -> model.layers.0.self_attn.q_proj.weight
     projected_delta = {}
     lora_A_keys = [k for k in lora_sd.keys() if "lora_A" in k]
     
@@ -139,54 +158,48 @@ def project_peft_lora(hf_repo_id: str, output_dir: str, target_model: str = None
             print(f"  [WARN] Missing {key_B} for {key_A}. Skipping.")
             continue
             
-        A = lora_sd[key_A]  # shape: (r, in_features)
-        B = lora_sd[key_B]  # shape: (out_features, r)
+        A = lora_sd[key_A]
+        B = lora_sd[key_B]
         
         # Project: Delta_W = B @ A * scaling
         delta_W = (B.to(torch.float32) @ A.to(torch.float32)) * scaling
         
-        # Heuristic-based key cleaning
-        # PEFT often nests prefixes: base_model.model.model.layers...
-        # We aim for standard Transformers name like 'model.layers.0...'
         clean_key = key_A
         if clean_key.startswith("base_model.model.model."):
             clean_key = clean_key.replace("base_model.model.model.", "model.", 1)
         elif clean_key.startswith("base_model.model."):
             clean_key = clean_key.replace("base_model.model.", "", 1)
         
-        # Strip .lora_A and handle weight suffix
         clean_key = clean_key.replace(".lora_A", "")
         if not clean_key.endswith(".weight") and key_A.endswith(".weight"):
             clean_key += ".weight"
             
-        print(f"  Mapping: {key_A} -> {clean_key}")
         projected_delta[clean_key] = delta_W.to(torch.float16)
         
     if not projected_delta:
-        raise ValueError("[ERROR] No weight tensors were successfully projected. Check your LoRA keys.")
+        raise ValueError("[ERROR] No weight tensors were successfully projected.")
 
-    # Apply vLLM-specific fusion for Qwen/Llama models
+    # Apply vLLM-specific fusion
     print("\n[INFO] Applying vLLM layer fusion (gate_up, qkv)...")
     projected_delta = fuse_qwen_layers(projected_delta)
 
-    print(f"\n[INFO] Successfully projected and fused {len(projected_delta)} weight tensors.")
-    
     # Save payload
     payload_name = f"{hf_repo_id.split('/')[-1]}_payload.safetensors"
     payload_path = out_path / payload_name
+    print(f"\n[INFO] Saving payload to {payload_path}...")
     save_file(projected_delta, str(payload_path))
     
-    # Hash it for manifest
-    with open(payload_path, "rb") as f:
-        sha256 = hashlib.sha256(f.read()).hexdigest()
+    # Hash and Metadata
+    payload_size_bytes = payload_path.stat().st_size
+    sha256 = sha256_file(payload_path)
+    chunk_size = 1024 * 1024 * 64
         
-    # Create route manifest with schema-compliant layers
+    # Create route manifest
     route_id = hf_repo_id.split("/")[-1].lower()
-    
     layers_manifest = []
     for name, tensor in projected_delta.items():
-        # Calculate a simple hash for each layer's delta for schema compliance
-        layer_hash = hashlib.sha256(tensor.cpu().numpy().tobytes()).hexdigest()
+        # Use chunked tensor hashing to avoid MemoryError
+        layer_hash = sha256_tensor(tensor)
         layers_manifest.append({
             "name": name,
             "shape": list(tensor.shape),
@@ -198,41 +211,49 @@ def project_peft_lora(hf_repo_id: str, output_dir: str, target_model: str = None
         "route_schema_version": "1.0.0",
         "route_id": route_id,
         "tenant_id": "eval-tenant",
-        "description": (
-            f"Evaluation-only projected LoRA from {hf_repo_id}. "
-            "Unsigned manifest; must be signed before production use."
-        ),
+        "description": f"Evaluation-only projected LoRA from {hf_repo_id}.",
         "evaluation_only": True,
-        "license": "OPEN",
-        "projection_method": "raw_delta_projection",
+        "license": "UNVERIFIED",
+        "projection_method": "peft_lora_to_full_rank_delta",
+        "target_shape_validation": {
+            "status": "PENDING",
+            "note": (
+                "Generated payload tensor shapes have not yet been validated "
+                "against the target model runtime state_dict. For cross-scale "
+                "source adapters, additional shape projection may be required."
+            )
+        },
         "source_model": base_model,
         "target_model": target_model or base_model,
         "source_adapter_sha256": source_adapter_sha256,
         "target_model_sha256": "0" * 64,
-        "diagnostics": {
-            "verdict": "PASS",
-            "ppl_degradation": 0.0,
-            "kl_divergence": 0.0
-        },
-        "layers": layers_manifest,
         "payload": {
             "format": "safetensors",
             "uri": str(payload_path.resolve()),
-            "sha256": sha256
+            "sha256": sha256,
+            "size_bytes": payload_size_bytes,
+            "hash_method": "sha256_streaming_chunked",
+            "hash_chunk_size_bytes": chunk_size
         },
-        "signature": {
-            "algorithm": "none",
-            "key_id": "eval-only",
-            "value": "unsigned"
-        }
+        "diagnostics": {
+            "verdict": "NOT_EVALUATED",
+            "ppl_degradation": None,
+            "kl_divergence": None,
+            "note": "Payload generation completed; downstream diagnostics not evaluated."
+        },
+        "layers": layers_manifest,
+        "signature": {"algorithm": "none", "key_id": "eval-only", "value": "unsigned"}
     }
     
     manifest_path = out_path / f"{route_id}.scalpel_route"
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
         
-    print(f"\n[INFO] Saved payload to {payload_path}")
-    print(f"[INFO] Saved manifest to {manifest_path}")
+    print(f"\n[SUCCESS] Payload saved: {payload_path}")
+    print(f"  Size: {payload_size_bytes / 1024 / 1024:.2f} MB")
+    print(f"  Hash: {sha256}")
+    print(f"  Method: sha256_streaming_chunked (64MB chunks)")
+    print(f"Saved manifest to {manifest_path}")
 
 if __name__ == "__main__":
     import argparse

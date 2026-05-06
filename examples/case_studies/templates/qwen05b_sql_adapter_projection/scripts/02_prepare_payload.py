@@ -14,8 +14,7 @@ def prepare_payload(lora_id, target_model, output_dir, real_run=False):
             "../../../../scripts/prepare_actual_lora_payload.py",
             "--lora_id", lora_id,
             "--target-model", target_model,
-            "--output_dir", output_dir,
-            "--dtype", "float16"
+            "--output_dir", output_dir
         ]
         
         print(f"Running command: {' '.join(cmd)}")
@@ -38,7 +37,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--real", action="store_true", help="Execute real payload projection")
     parser.add_argument("--lora_id", default="onurerkan/qwen2.5-0.5b-alpaca-lora-demo")
-    parser.add_argument("--target-model", default="Qwen/Qwen2.5-0.5B")
+    parser.add_argument("--target-model", default="Qwen/Qwen2.5-0.5B-Instruct")
     parser.add_argument("--output_dir", default="routes/qwen05b_sql_projection")
     args = parser.parse_args()
 

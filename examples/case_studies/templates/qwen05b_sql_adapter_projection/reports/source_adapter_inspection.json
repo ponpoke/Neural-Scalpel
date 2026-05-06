@@ -1,18 +1,17 @@
 {
-  "adapter_path": "path/to/source/adapter.safetensors",
-  "target_model_id": "Qwen/Qwen2.5-0.5B",
-  "mode": "SIMULATED",
+  "adapter_path": "temp_adapter/adapter_model.safetensors",
+  "target_model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+  "mode": "REAL",
   "lora_rank": 16,
-  "lora_alpha": 32,
+  "num_tensors": 392,
   "target_modules": [
-    "q_proj",
-    "k_proj",
-    "v_proj",
-    "o_proj",
+    "down_proj",
     "gate_proj",
+    "k_proj",
+    "o_proj",
+    "q_proj",
     "up_proj",
-    "down_proj"
+    "v_proj"
   ],
-  "status": "SCAFFOLD",
-  "note": "This is a SIMULATED inspection. No real files were read."
+  "status": "COMPLETED"
 }

@@ -1,16 +1,13 @@
-# License Check Report (SIMULATED)
+# License Check Report (REAL)
 
-> [!CAUTION]
-> **SIMULATED REPORT**: Do not use for legal compliance.
-
-**Status:** SIMULATED
+**Status:** MANUAL_VERIFICATION_REQUIRED
 
 ## Summary
-This is a SIMULATED license check. Do not publish weights based on this report.
+Manual verification of licenses is required before redistribution.
 
 ## Details
 | Artifact | License | Redistributable |
 | :--- | :--- | :--- |
-| Qwen/Qwen2.5-7B | Apache-2.0 | ✅ |
-| Qwen/Qwen2.5-0.5B-Instruct | Apache-2.0 | ✅ |
-| onurerkan/qwen2.5-0.5b-alpaca-lora-demo | Apache-2.0 | ✅ |
+| Qwen/Qwen2.5-7B-Instruct | TBD | ❓ |
+| Qwen/Qwen2.5-0.5B-Instruct | TBD | ❓ |
+| vindows/qwen2.5-7b-text-to-sql | TBD | ❓ |
