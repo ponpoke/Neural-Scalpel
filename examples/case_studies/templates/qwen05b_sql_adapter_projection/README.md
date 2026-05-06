@@ -19,11 +19,30 @@ This is a **positive runtime result**: under the tested setup, the paired-alignm
 However, this does **not** yet prove successful SQL skill transfer or production-quality task improvement. The current result should be interpreted as:
 > **Successful signal delivery and preliminary qualitative behavior change, not yet verified SQL capability transfer.**
 
-## Next Steps: Phase 6 SQL Capability Evaluation
-- **Parse Validation**: Measure SQL parse success rate using `sqlglot`.
-- **Schema Validation**: Check whether generated queries use valid tables and columns defined in the prompt.
-- **Execution Benchmarking**: Run generated queries against a controlled database and compare execution results.
-- **Robustness Analysis**: Measure repetition rate, max-length hit rate, and failure cases across a larger prompt set.
-- **Refinement**: Evaluate lower/higher `lora_alpha`, rank variants, and multi-module signal distribution (e.g., adding `o_proj`).
+## Phase 6: Initial SQL Capability Evaluation
+
+Phase 6 evaluated whether the qualitative SQL shifts observed in Phase 5 translate into parseable and schema-consistent SQL outputs.
+
+### Initial 4-sample smoke result
+- **Overall parse success**: 75.0% → 75.0%  
+  This includes one non-SQL Python prompt. On the SQL-only subset, all 3 SQL prompts were parseable for both Base and LoRA outputs.
+- **Advanced SQL structure rate**: 0.0% → 25.0%  
+  One projected output introduced a more advanced SQL structure such as a CTE or window-function pattern.
+- **Schema hallucination rate**: 0.0% → 0.0%  
+  No new table hallucination was detected in this small smoke set.
+- **Repetition / collapse rate**: no increase observed under the tested `lora_alpha=16` setting.
+- **Verdict**: `BEHAVIORAL_SHIFT_ONLY`
+
+### Interpretation
+This is an encouraging initial result. The projected LoRA changed SQL-generation behavior without degrading parse success or causing schema hallucination in the current 4-sample smoke set.
+
+However, this does **not** yet prove SQL capability transfer. The observed improvement is structural and qualitative, not yet validated by execution accuracy or larger benchmark coverage. The current result should be interpreted as:
+> **preliminary evidence of SQL-style behavioral shift, not yet verified SQL task improvement.**
+
+## Next Steps: Phase 6 Full Evaluation
+- **Large-scale Evaluation**: Expand to the full 50-prompt controlled SQL set.
+- **Metric Refinement**: Report SQL-only metrics separately from non-SQL prompts.
+- **Execution Validation**: Compare Base vs LoRA on execution results against controlled SQLite databases.
+- **Failure Case Analysis**: Track overcomplication: cases where the LoRA uses CTE/window functions unnecessarily or incorrectly.
 
 See [reports/](reports/) for generated validation logs.

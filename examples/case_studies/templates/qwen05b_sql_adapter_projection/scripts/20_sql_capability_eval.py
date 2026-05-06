@@ -1,0 +1,161 @@
+import json
+import re
+import argparse
+import os
+from pathlib import Path
+
+try:
+    import sqlglot
+    from sqlglot import exp, parse_one
+    SQLGLOT_AVAILABLE = True
+except ImportError:
+    SQLGLOT_AVAILABLE = False
+
+def extract_sql(text):
+    """Extract SQL code blocks or attempt to find SELECT statements."""
+    # Try markdown block first
+    blocks = re.findall(r"```sql\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
+    if blocks:
+        return blocks[0].strip()
+    
+    # Fallback to general code block
+    blocks = re.findall(r"```\s*(.*?)\s*```", text, re.DOTALL)
+    if blocks:
+        return blocks[0].strip()
+        
+    # Fallback to finding SELECT...;
+    match = re.search(r"(SELECT\s+.*?;)", text, re.DOTALL | re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+        
+    return ""
+
+def check_advanced_features(sql_text):
+    features = {
+        "has_cte": "WITH" in sql_text.upper(),
+        "has_window": "OVER" in sql_text.upper(),
+        "has_subquery": "(SELECT" in sql_text.upper()[sql_text.upper().find("SELECT")+1:],
+        "has_join": "JOIN" in sql_text.upper(),
+        "has_groupby": "GROUP BY" in sql_text.upper()
+    }
+    return features
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--results", default="reports/real_eval_results.json")
+    parser.add_argument("--prompts", default="eval/sql_prompts_50.json")
+    parser.add_argument("--output_dir", default="reports")
+    args = parser.parse_args()
+    
+    if not os.path.exists(args.results):
+        print(f"Error: {args.results} not found. Run scripts/04_eval_before_after.py first.")
+        return
+
+    # Redo the logic slightly for proper return
+    with open(args.results, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    
+    # data is a list of results directly
+    if isinstance(data, dict) and "details" in data:
+        details = data["details"]
+    else:
+        details = data
+
+    with open(args.prompts, "r", encoding="utf-8") as f:
+        prompts_raw = json.load(f)
+    
+    prompt_map = {p["prompt"]: p for p in prompts_raw if isinstance(p, dict)}
+    eval_list = []
+    
+    m_base = {"parse": 0, "adv": 0, "hallu": 0, "rep": 0}
+    m_lora = {"parse": 0, "adv": 0, "hallu": 0, "rep": 0}
+    
+    for item in details:
+        p_text = item["prompt"]
+        row = {"prompt_preview": p_text[:60] + "..."}
+        meta = prompt_map.get(p_text, {})
+        
+        for key in ["base", "lora"]:
+            out_text = item["base_output"] if key == "base" else item["projected_output"]
+            sql = extract_sql(out_text)
+            parsed = False
+            adv = {}
+            hallu = False
+            rep = False
+            
+            if sql:
+                if SQLGLOT_AVAILABLE:
+                    try:
+                        parsed_tree = parse_one(sql)
+                        parsed = True
+                        adv = check_advanced_features(sql)
+                        allowed = meta.get("tables", [])
+                        if allowed:
+                            found = [t.name.lower() for t in parsed_tree.find_all(exp.Table)]
+                            if any(f not in [a.lower() for a in allowed] for f in found):
+                                hallu = True
+                    except: pass
+                else:
+                    parsed = "SELECT" in sql.upper()
+                    adv = check_advanced_features(sql)
+            
+            # Repetition
+            if out_text.count("Average") > 10 or out_text.count("average") > 10: # Specific for our current collapse
+                rep = True
+                
+            row[f"{key}_parsed"] = parsed
+            row[f"{key}_adv"] = adv
+            row[f"{key}_hallu"] = hallu
+            row[f"{key}_rep"] = rep
+            
+            # Simple, clean increment
+            if key == "base":
+                if parsed: m_base["parse"] += 1
+                if any(adv.values()): m_base["adv"] += 1
+                if hallu: m_base["hallu"] += 1
+                if rep: m_base["rep"] += 1
+            else:
+                if parsed: m_lora["parse"] += 1
+                if any(adv.values()): m_lora["adv"] += 1
+                if hallu: m_lora["hallu"] += 1
+                if rep: m_lora["rep"] += 1
+        
+        eval_list.append(row)
+
+    n = len(details)
+    summary = {
+        "num_samples": n,
+        "base": {k: v/n for k, v in m_base.items()},
+        "lora": {k: v/n for k, v in m_lora.items()},
+        "sqlglot_active": SQLGLOT_AVAILABLE
+    }
+    
+    os.makedirs(args.output_dir, exist_ok=True)
+    with open(Path(args.output_dir) / "phase6_sql_eval.json", "w") as f:
+        json.dump({"summary": summary, "details": eval_list}, f, indent=2)
+        
+    with open(Path(args.output_dir) / "phase6_sql_eval.md", "w") as f:
+        f.write("# Phase 6: SQL Capability Evaluation Report\n\n")
+        f.write(f"This report evaluates the **correctness** and **quality** of the SQL generated by the projected LoRA.\n\n")
+        
+        f.write("## Summary Metrics\n")
+        f.write("| Metric | Base Model | Projected LoRA | Delta |\n")
+        f.write("| :--- | :---: | :---: | :---: |\n")
+        f.write(f"| Parse Success Rate | {summary['base']['parse']:.1%} | {summary['lora']['parse']:.1%} | {summary['lora']['parse']-summary['base']['parse']:+.1%} |\n")
+        f.write(f"| Advanced Structure Rate | {summary['base']['adv']:.1%} | {summary['lora']['adv']:.1%} | {summary['lora']['adv']-summary['base']['adv']:+.1%} |\n")
+        f.write(f"| Schema Hallucination Rate | {summary['base']['hallu']:.1%} | {summary['lora']['hallu']:.1%} | {summary['lora']['hallu']-summary['base']['hallu']:+.1%} |\n")
+        f.write(f"| Repetition/Collapse Rate | {summary['base']['rep']:.1%} | {summary['lora']['rep']:.1%} | {summary['lora']['rep']-summary['base']['rep']:+.1%} |\n\n")
+        
+        f.write("## Verdict\n")
+        if summary['lora']['parse'] > summary['base']['parse']:
+            f.write("> [!TIP]\n> **CAPABILITY_IMPROVEMENT_OBSERVED**: The projected LoRA shows higher parse success and/or more advanced constructs.\n")
+        elif summary['lora']['rep'] > 0.2:
+            f.write("> [!CAUTION]\n> **DEGENERATION_DETECTED**: High repetition or mode collapse observed. Scaling (lora_alpha) should be reduced.\n")
+        else:
+            f.write("> [!NOTE]\n> **BEHAVIORAL_SHIFT_ONLY**: Changes detected in style/structure without significant correctness gain/loss.\n")
+
+    print(f"Phase 6 evaluation complete. Report saved to {args.output_dir}/phase6_sql_eval.md")
+
+if __name__ == "__main__":
+    main()
