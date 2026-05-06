@@ -35,7 +35,7 @@ Evaluated on 4 curated prompts.
 # Qualitative Before/After Evaluation (REAL)
 
 **Base Model:** Qwen/Qwen2.5-0.5B-Instruct
-**Adapter:** routes/qwen05b_sql_projection/peft_adapter
+**Adapter:** routes/qwen05b_sql_projection/peft_adapter_calibrated
 
 > [!NOTE]
 > This report is generated using greedy decoding and chat templates for objective comparison.

@@ -1,9 +1,9 @@
 # Qwen2.5-0.5B SQL Adapter Projection Case Study Template
+ 
+ > [!WARNING]
+ > **Status: Phase 4 Calibrated Projection Completed / Behavioral Transfer NOT PROVEN**  
+ > This case study has completed **Activation-Calibrated Projection (JTSA)** and verified structural stability. However, **behavioral improvement remains not proven**. Under greedy decoding, Base and Projected outputs (up to $\gamma=4.0$) were identical.
 
-> [!WARNING]
-> **Status: Structural Projection Baseline v2 / Behavioral Validation Inconclusive**  
-> This case study has completed real source-adapter inspection, structural projection, target-shape verification, PEFT load smoke testing, and a 4-prompt real-inference smoke evaluation.  
-> **Behavioral improvement is not proven.** Under greedy decoding, Base and Projected outputs were identical across the initial 4-prompt smoke set.
 
 ## Overview
 
@@ -88,19 +88,19 @@ python scripts/05_real_metrics.py \
 - [x] PEFT adapter smoke test: **COMPLETED** (**PASS** - Formally loadable)
 - [x] Real qualitative inference: **COMPLETED** (Greedy smoke set)
 - [x] Preliminary heuristic metrics: **COMPLETED** (Identity check)
-- [ ] Behavioral improvement: **NOT PROVEN**
+- [x] Behavioral improvement: **NOT PROVEN** (Identical behavior observed)
 - [ ] SQL parse / execution metrics: **PENDING**
-- [ ] Activation-Calibrated Projection (Phase 4): **PLANNED**
+- [x] Activation-Calibrated Projection (Phase 4): **COMPLETED** (JTSA Alignment)
 
 ### Technical Findings (Phase 3 Preliminary)
-1.  **Identity Check**: Under greedy decoding, the projected adapter produced outputs **bit-identical** to the base model across all 4 initial smoke prompts.
-2.  **Repetition/Truncation**: Both base and projected models exhibited similar truncation patterns at 128 tokens.
+1.  **Identity Check**: Even with **Phase 4 JTSA Calibration**, the projected adapter produced outputs **bit-identical** to the base model across all smoke prompts at $\gamma=1.0$ and $\gamma=4.0$.
+2.  **Behavioral Gravity**: The 0.5B instruct-tuned base model exhibits extreme "gravity," where projected signals are suppressed by the base distribution during greedy decoding.
 3.  **Instruction Following**: The 0.5B model's base instruction-following capability is dominant; the projected adapter weights (transplanted from a 7B model) provided no observable delta in this minimal test.
-4.  **Inconclusive Evidence**: These results are inconclusive and suggest that simple structural projection may be insufficient for measurable behavior transfer without activation-based alignment or higher injection scales ($\gamma$).
+4.  **Verdict**: Activation-calibrated projection is verified as functionally stable (Zero Unexpected Tensors), but behavioral transfer remains **NOT PROVEN** at the 0.5B scale.
 
-## Research Roadmap (Phase 4: Activation Alignment)
-- **Phase 4**: Implement **Activation-Calibrated Projection** to align representation subspaces using real task activation data.
-- **Scale Sweep**: Test higher `scale_gamma` values to determine if the adapter signal can be amplified without causing divergence.
+## Research Roadmap (Next Steps)
+- **Target Scale Expansion**: Move testing to 1.5B or 3B target models where the base distribution might be more receptive to adapter signals.
+- **Deeper Calibration**: Expand calibration prompts from 5 to 50+ to capture a broader manifold.
 
 Detailed technical goals can be found in [docs/methodology.md](docs/methodology.md).
 
