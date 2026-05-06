@@ -166,25 +166,44 @@ class TestSRHP(unittest.TestCase):
 
 class TestWDR(unittest.TestCase):
     def test_sinkhorn_marginals(self):
+        torch.manual_seed(0)
         C = torch.rand(8, 8)
         P = sinkhorn_knopp(C, epsilon=0.1)
         expected = 1.0 / 8
         torch.testing.assert_close(P.sum(dim=0), torch.full((8,), expected), atol=1e-4, rtol=1e-4)
         torch.testing.assert_close(P.sum(dim=1), torch.full((8,), expected), atol=1e-4, rtol=1e-4)
 
+    def test_sinkhorn_marginals_small_epsilon_stable(self):
+        """Test log-domain stability with small epsilon."""
+        torch.manual_seed(0)
+        C = torch.rand(8, 8)
+        P = sinkhorn_knopp(C, epsilon=0.01)
+        self.assertTrue(torch.isfinite(P).all())
+        torch.testing.assert_close(P.sum(dim=0), torch.full((8,), 1/8), atol=1e-3, rtol=1e-3)
+
     def test_hard_wdr_column_sums(self):
+        torch.manual_seed(0)
         src = torch.randn(4, 5, 16)
         tgt = torch.randn(4, 3, 16)
         P = wasserstein_discrete_routing(src, tgt, mode="hard", alpha=0.1)
         torch.testing.assert_close(P.sum(dim=0), torch.ones(3), atol=1e-5, rtol=1e-5)
 
     def test_soft_wdr_column_sums(self):
+        torch.manual_seed(0)
         src = torch.randn(4, 5, 16)
         tgt = torch.randn(4, 3, 16)
         P = wasserstein_discrete_routing(src, tgt, mode="soft")
         col_sums = P.sum(dim=0)
-        for s in col_sums:
-            self.assertAlmostEqual(s.item(), 1.0, delta=0.05)
+        torch.testing.assert_close(col_sums, torch.ones(3), atol=5e-2, rtol=5e-2)
+
+    def test_soft_wdr_no_underflow_column_stochastic(self):
+        """Extreme input values should not cause col-sum collapse."""
+        torch.manual_seed(0)
+        src = torch.randn(4, 5, 16) * 10.0
+        tgt = torch.randn(4, 3, 16) * 10.0
+        P = wasserstein_discrete_routing(src, tgt, epsilon=0.01, mode="soft")
+        self.assertTrue(torch.isfinite(P).all())
+        torch.testing.assert_close(P.sum(dim=0), torch.ones(3), atol=5e-2, rtol=5e-2)
 
 
 class TestJTSA(unittest.TestCase):

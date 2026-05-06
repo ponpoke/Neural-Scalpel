@@ -344,48 +344,40 @@ def sinkhorn_knopp(
     stop_thr: float = 1e-9
 ) -> torch.Tensor:
     """
-    Standard Sinkhorn-Knopp algorithm for Entropic Regularized Optimal Transport.
-    
-    Args:
-        C (torch.Tensor): Cost matrix of shape (N, M).
-        epsilon (float): Entropic regularization parameter (higher = smoother).
-        n_iter (int): Maximum number of iterations.
-        stop_thr (float): Stopping threshold for convergence.
-        
-    Returns:
-        P (torch.Tensor): The optimal transport plan (N, M).
+    Log-domain Sinkhorn-Knopp algorithm for Entropic Regularized Optimal Transport.
+    More stable than Gibbs kernel for small epsilon.
     """
     device = C.device
     dtype = C.dtype
     n, m = C.shape
     
-    # K is the Gibbs kernel
-    K = torch.exp(-C / epsilon)
+    # K_log = -C / epsilon
+    K_log = -C / epsilon
     
-    # Initial scalings
-    u = torch.ones(n, device=device, dtype=dtype) / n
-    v = torch.ones(m, device=device, dtype=dtype) / m
+    # Uniform marginals in log domain
+    log_a = torch.full((n,), -math.log(n), device=device, dtype=dtype)
+    log_b = torch.full((m,), -math.log(m), device=device, dtype=dtype)
     
-    # Uniform marginals
-    a = torch.ones(n, device=device, dtype=dtype) / n
-    b = torch.ones(m, device=device, dtype=dtype) / m
+    # Initial dual variables in log domain
+    log_u = torch.zeros(n, device=device, dtype=dtype)
+    log_v = torch.zeros(m, device=device, dtype=dtype)
 
     for i in range(n_iter):
-        u_prev = u
-        # u = a / (K @ v)
-        u = a / (torch.matmul(K, v) + 1e-12)
-        # v = b / (K.T @ u)
-        v = b / (torch.matmul(K.t(), u) + 1e-12)
+        log_u_prev = log_u
         
-        # Check convergence
+        # log_u = log_a - logsumexp(K_log + log_v_j)
+        log_u = log_a - torch.logsumexp(K_log + log_v.unsqueeze(0), dim=1)
+        # log_v = log_b - logsumexp(K_log_i + log_u_i)
+        log_v = log_b - torch.logsumexp(K_log.t() + log_u.unsqueeze(0), dim=1)
+        
         if i % 10 == 0:
-            err = (u - u_prev).abs().sum()
+            err = (log_u - log_u_prev).abs().sum()
             if err < stop_thr:
                 break
                 
-    # Transport plan P = diag(u) @ K @ diag(v)
-    P = u.unsqueeze(1) * K * v.unsqueeze(0)
-    return P
+    # Reconstruct Transport plan P = exp(log_u + K_log + log_v)
+    log_P = log_u.unsqueeze(1) + K_log + log_v.unsqueeze(0)
+    return torch.exp(log_P)
 
 def wasserstein_discrete_routing(
     source_heads: torch.Tensor,
@@ -396,45 +388,35 @@ def wasserstein_discrete_routing(
 ) -> torch.Tensor:
     """
     Wasserstein Discrete Routing (WDR) with Soft-Merge Fallback.
-    
-    Finds a discrete matching between source heads and target heads.
-    Supports "hard" mode (1-to-1 primary matching) with "Soft-Merge"救済 (fallback)
-    to prevent the loss of information from unmatched heads (robotomy).
-    
-    Args:
-        source_heads (torch.Tensor): Source head activations (N, num_s_heads, head_dim).
-        target_heads (torch.Tensor): Target head activations (N, num_t_heads, head_dim).
-        epsilon (float): Sinkhorn regularization parameter.
-        alpha (float): Soft-merge weight for remnant heads (default: 0.1).
-        mode (str): "soft" for raw Sinkhorn, "hard" for Hard-WDR with fallback.
-        
-    Returns:
-        P (torch.Tensor): Routing matrix of shape (num_s_heads, num_t_heads).
+    Numerically stabilized for Baseline v2.
     """
     S_heads = source_heads.shape[1]
     T_heads = target_heads.shape[1]
+    dtype = source_heads.dtype
     
     # 1. Compute Cost Matrix (Normalized Squared L2 Distance)
-    H_s = source_heads.transpose(0, 1).reshape(S_heads, -1)
-    H_t = target_heads.transpose(0, 1).reshape(T_heads, -1)
+    H_s = source_heads.transpose(0, 1).reshape(S_heads, -1).to(torch.float32)
+    H_t = target_heads.transpose(0, 1).reshape(T_heads, -1).to(torch.float32)
     
     H_s_norm = (H_s ** 2).sum(dim=1, keepdim=True) 
     H_t_norm = (H_t ** 2).sum(dim=1, keepdim=True).t() 
     C = torch.clamp(H_s_norm + H_t_norm - 2 * torch.matmul(H_s, H_t.t()), min=0.0)
     C = C / (C.max() + 1e-12)
     
-    # 2. Solve Soft Optimal Transport (Sinkhorn)
+    # 2. Solve Soft Optimal Transport (Log-domain Sinkhorn)
     P_soft = sinkhorn_knopp(C, epsilon=epsilon)
     
     if mode == "soft":
-        return P_soft / (P_soft.sum(dim=0, keepdim=True) + 1e-12)
+        col_sums = P_soft.sum(dim=0, keepdim=True)
+        # Numerical safeguard: If Sinkhorn underflows, fallback to column-wise softmax over cost
+        tiny = torch.finfo(P_soft.dtype).tiny
+        if torch.any(col_sums <= tiny):
+            P_col = torch.softmax(-C / max(epsilon, 1e-6), dim=0)
+            return (P_col / P_col.sum(dim=0, keepdim=True)).to(dtype)
+        return (P_soft / col_sums.clamp_min(tiny)).to(dtype)
 
     # 3. Hard-WDR with Soft-Merge Fallback
-    # Each target head selects its primary "winner" source head
-    # winner_indices: index of source head for each target head
-    winner_indices = torch.argmax(P_soft, dim=0) # (T_heads,)
-    
-    # Create Hard Assignment Matrix (0 or 1)
+    winner_indices = torch.argmax(P_soft, dim=0) 
     P_hard = torch.zeros_like(P_soft)
     P_hard[winner_indices, torch.arange(T_heads, device=P_soft.device)] = 1.0
     
@@ -444,18 +426,14 @@ def wasserstein_discrete_routing(
     remnant_indices = list(all_source_indices - matched_source_indices)
     
     if remnant_indices and alpha > 0:
-        # For each remnant head, find the most similar target head and blend it
-        # We reuse the cost matrix C (lower cost = more similar)
         for i in remnant_indices:
-            # Find target head j with minimum cost for source head i
             j = torch.argmin(C[i, :])
             P_hard[i, j] = alpha
             
     # 5. Final Column-wise Renormalization
-    # Ensures each target head receives a total weight of 1.0
     P_final = P_hard / (P_hard.sum(dim=0, keepdim=True) + 1e-12)
     
-    return P_final
+    return P_final.to(dtype)
 
 # ==============================================================================
 # V5 Enterprise Upgrades: Quantization & MoE

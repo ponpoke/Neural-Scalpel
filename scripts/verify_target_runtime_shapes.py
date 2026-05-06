@@ -35,12 +35,12 @@ def verify_shapes(payload_path: str, target_model_id: str):
     missing = 0
     unexpected = []
 
-    results = []
-
+    results_audit = []
     # Check payload against target
     for key, p_tensor in payload_sd.items():
         # Fusion awareness: map fused keys back to expected components
         is_fused = False
+        audit_entry = {"payload_key": key, "payload_shape": list(p_tensor.shape), "status": "UNKNOWN"}
         if ".mlp.gate_up_proj.weight" in key:
             target_keys = [key.replace("gate_up_proj", "gate_proj"), key.replace("gate_up_proj", "up_proj")]
             is_fused = True
@@ -49,6 +49,7 @@ def verify_shapes(payload_path: str, target_model_id: str):
             is_fused = True
         
         if is_fused:
+            audit_entry["target_components"] = target_keys
             # For fused, we check if all components have same input dim and their output dims sum up
             try:
                 valid_fusion = True
@@ -59,30 +60,26 @@ def verify_shapes(payload_path: str, target_model_id: str):
                         t_shape = list(target_sd[tk].shape)
                         if t_shape[1] != p_shape[1]: 
                             valid_fusion = False
-                            print(f"  [MISMATCH] {key} input dim: Target {t_shape[1]} vs Payload {p_shape[1]}")
                         sum_out += t_shape[0]
                     else:
                         valid_fusion = False
                 
                 if valid_fusion and sum_out == p_shape[0]:
-                    matched += 1
+                    matched += 1; audit_entry["status"] = "MATCH"
                 else:
-                    mismatched += 1
-                    print(f"  [MISMATCH] {key} fused output dim: Target Sum {sum_out} vs Payload {p_shape[0]}")
+                    mismatched += 1; audit_entry["status"] = "MISMATCH"
             except Exception as e:
-                mismatched += 1
-                print(f"  [ERROR] Fused check failed for {key}: {e}")
+                mismatched += 1; audit_entry["status"] = "ERROR"
         elif key in target_sd:
             t_shape = list(target_sd[key].shape)
             p_shape = list(p_tensor.shape)
             if t_shape == p_shape:
-                matched += 1
+                matched += 1; audit_entry["status"] = "MATCH"
             else:
-                mismatched += 1
-                print(f"  [MISMATCH] {key}: Target {t_shape} vs Payload {p_shape}")
+                mismatched += 1; audit_entry["status"] = "MISMATCH"
         else:
-            unexpected.append(key)
-            print(f"  [UNEXPECTED] {key} is not in target model.")
+            unexpected.append(key); audit_entry["status"] = "UNEXPECTED"
+        results_audit.append(audit_entry)
 
     # Check for missing tensors (only for relevant layers)
     for key in target_sd.keys():
@@ -96,16 +93,17 @@ def verify_shapes(payload_path: str, target_model_id: str):
                     print(f"  [MISSING] {key} not found in payload.")
 
     report = {
-        "status": "FAIL", # Default
+        "status": "FAIL",
         "validation_type": "transformers_meta_state_dict_fused_shape_validation",
         "target_model": target_model_id,
         "payload_path": str(payload_path),
         "summary": {
-            "matched_tensors": matched,
-            "mismatched_tensors": mismatched,
-            "missing_tensors": missing,
-            "unexpected_tensors": len(unexpected)
+            "matched": matched,
+            "mismatched": mismatched,
+            "missing": missing,
+            "unexpected": len(unexpected)
         },
+        "tensors": results_audit,
         "does_not_validate": [
             "vLLM internal tensor ordering",
             "successful route application",

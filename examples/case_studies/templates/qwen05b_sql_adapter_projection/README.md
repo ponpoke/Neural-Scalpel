@@ -68,27 +68,27 @@ python scripts/03_check_payload_integrity.py --real --payload <PAYLOAD> --manife
 
 > [!WARNING]
 > **Status: Structural Projection Baseline v2 / Behavioral Validation Pending**  
-> This case study has completed real source-adapter inspection, structural projection, artifact generation, and formal compatibility smoke tests.  
-> It is **not yet a completed behavioral evaluation**. Whether the projected adapter produces measurable SQL-task behavior changes or improvements remains pending.
+> This case study has completed structural projection, target-shape verification, and PEFT load/generation smoke testing.  
+> It is **not yet a behavioral evaluation**. Whether the projected adapter produces measurable SQL-task behavior changes or improvements remains pending.
 
 **Current Task Status:**
 - [x] Real source adapter license verification: **COMPLETED**
 - [x] Real source adapter inspection: **COMPLETED**
 - [x] Structural projection baseline v2: **COMPLETED** (Interpolated Folding)
-- [x] Core logic unit testing: **COMPLETED** (**PASS** - 5/5 Sci-Tests Aligned)
+- [x] Core logic unit testing: **COMPLETED** (Local regression tests established)
 - [x] Target-shape verification: **COMPLETED** (**PASS** - RUNTIME_SHAPE_VERIFIED)
-- [x] PEFT adapter smoke test: **COMPLETED** (**PASS** - Formally Loadable)
+- [x] PEFT adapter smoke test: **COMPLETED** (**PASS** - Formally loadable)
 - [x] Calibrated scaling: **IMPLEMENTED** (Default: $\gamma=0.5$)
 - [ ] Neural-Scalpel runtime route smoke test: **PENDING**
 - [ ] Behavioral benchmark (Spider/BIRD): **STAGED**
 
 ### Technical Findings (Phase 2: Structural Baseline v2)
-The architectural bridge has been established and formally verified using the **Structural Projection Baseline v2** pipeline:
+The architectural bridge has been established and verified using the **Structural Projection Baseline v2** pipeline:
 1.  **Interpolated Layer Folding**: 28 source layers were mapped to 24 target layers using weighted linear interpolation, ensuring continuity of weights across depths.
 2.  **Strict Shape Alignment**: 100% of the 96 payload tensors were verified against the target model state_dict. Status: **RUNTIME_SHAPE_VERIFIED** (Unexpected: 0).
 3.  **Formal Compatibility**: The generated PEFT adapter was successfully loaded into a standard environment and executed a single-token generation smoke test.
 4.  **SVD Energy Retention**: SVD analysis shows a **Mean Energy Retention of 0.9580**, indicating that the resizing preserved ~96% of the singular-value energy of the target-shape matrices.
-5.  **Scientific Rigor**: Core projection functions (GQA-inference, fusion, mapping) are protected by automated unit tests in `tests/`.
+5.  **Evidence Artifacts**: Detailed audit logs (tensor-level matching and PEFT load reports) are preserved in `routes/`.
 
 ## Research Roadmap (Phase 3: Behavioral Validation)
 - **Phase 3**: Determine whether the projected adapter produces measurable SQL-task behavior changes or improvements over the 0.5B base model.

@@ -85,10 +85,11 @@ def resize_and_analyze(tensor: torch.Tensor, target_shape: list, rank: int = 16)
     except Exception:
         return t.to(torch.float16), {"energy_retention": 1.0, "max_abs": t.abs().max().item()}, None
 
-def sha256_file(path: str | Path) -> str:
+def sha256_file(path: str | Path, chunk_size: int = 64 * 1024 * 1024) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""): h.update(chunk)
+        while chunk := f.read(chunk_size):
+            h.update(chunk)
     return h.hexdigest()
 
 def project_peft_lora(hf_repo_id: str, output_dir: str, target_model_id: str, export_peft: bool = False, scale_gamma: float = 1.0):
@@ -123,7 +124,13 @@ def project_peft_lora(hf_repo_id: str, output_dir: str, target_model_id: str, ex
                     return (lora_sd[kb].to(torch.float32) @ lora_sd[ka].to(torch.float32)) * scaling
                 return None
 
-            dW = (1.0 - alpha_w) * get_dW(k_A_low, k_B_low) + alpha_w * (get_dW(k_A_up, k_B_up) or get_dW(k_A_low, k_B_low))
+            dW_low = get_dW(k_A_low, k_B_low)
+            if dW_low is None: continue
+            
+            dW_up = get_dW(k_A_up, k_B_up)
+            if dW_up is None: dW_up = dW_low # Fallback to low if up missing
+
+            dW = (1.0 - alpha_w) * dW_low + alpha_w * dW_up
             clean_module = suffix.replace(".lora_A", "")
             target_shape = infer_qwen_target_shape(clean_module, target_config)
             re_t, stats, svd = resize_and_analyze(dW, target_shape, rank=r)
@@ -148,6 +155,14 @@ def project_peft_lora(hf_repo_id: str, output_dir: str, target_model_id: str, ex
         save_file(peft_lora_sd, str(peft_path / "adapter_model.safetensors"))
         with open(peft_path / "adapter_config.json", "w") as f:
             json.dump({**adapter_config, "base_model_name_or_path": target_model_id}, f, indent=2)
+        with open(peft_path / "projection_metadata.json", "w") as f:
+            json.dump({
+                "projection_method": "structural_bilinear_svd_recompression_v2",
+                "scale_gamma": scale_gamma,
+                "source_adapter": hf_repo_id,
+                "target_model": target_model_id,
+                "behavioral_validation": "PENDING"
+            }, f, indent=2)
 
     manifest = {
         "route_schema_version": "1.0.0", "route_id": hf_repo_id.split("/")[-1].lower(),

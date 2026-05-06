@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import torch
 from pathlib import Path
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -15,17 +16,24 @@ def smoke_test_peft(peft_dir: str, target_model_id: str):
         print(f"[ERROR] Adapter file not found in {peft_dir}")
         return False
 
+    report = {
+        "status": "FAIL",
+        "validation_type": "peft_load_one_token_generation_smoke",
+        "target_model": target_model_id,
+        "adapter_dir": str(peft_dir),
+        "generated_token": None,
+        "does_not_validate": [
+            "task quality",
+            "SQL correctness",
+            "long-form generation stability"
+        ]
+    }
+
     try:
         print(f"\n[PHASE 2] Loading Base Model (Meta/CPU)...")
-        # Load tokenizer
         tokenizer = AutoTokenizer.from_pretrained(target_model_id)
-        
-        # Load base model (using CPU for smoke test to avoid GPU OOM or missing drivers)
         base_model = AutoModelForCausalLM.from_pretrained(
-            target_model_id,
-            torch_dtype=torch.float16,
-            device_map="cpu", # Explicitly CPU for portability in CI/scripts
-            trust_remote_code=True
+            target_model_id, torch_dtype=torch.float16, device_map="cpu", trust_remote_code=True
         )
 
         print(f"\n[PHASE 3] Attaching Projected Adapter...")
@@ -33,19 +41,24 @@ def smoke_test_peft(peft_dir: str, target_model_id: str):
         
         print(f"\n[PHASE 4] Executing Single-Token Generation...")
         inputs = tokenizer("SELECT count(*) FROM users", return_tensors="pt")
-        
         with torch.no_grad():
             outputs = model.generate(**inputs, max_new_tokens=1, do_sample=False)
         
         token_out = tokenizer.decode(outputs[0, -1])
         print(f"  [SUCCESS] PEFT Adapter loaded and generated 1 token: '{token_out}'")
         
-        return True
+        report["status"] = "PASS"
+        report["generated_token"] = token_out
+        
     except Exception as e:
         print(f"\n[ERROR] PEFT Load/Inference failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+        report["error"] = str(e)
+
+    report_path = peft_dir / "smoke_test_report.json"
+    with open(report_path, "w") as f:
+        json.dump(report, f, indent=2)
+    print(f"Report saved to {report_path}")
+    return report["status"] == "PASS"
 
 if __name__ == "__main__":
     import argparse
