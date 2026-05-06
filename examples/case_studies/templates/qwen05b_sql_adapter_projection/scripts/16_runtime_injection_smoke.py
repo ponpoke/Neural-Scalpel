@@ -15,23 +15,24 @@ def symmetric_kl(logits_a, logits_b):
     kl_qp = F.kl_div(log_q, log_p, reduction='batchmean', log_target=True)
     return (kl_pq + kl_qp).item() / 2.0
 
-def runtime_injection_smoke(model, tokenizer, adapter_weights, prompts, device, gamma=1.0):
+def runtime_injection_smoke(model, tokenizer, adapter_weights, prompts, gamma=1.0):
+    input_device = model.get_input_embeddings().weight.device
     hooks = []
     
     def get_injection_hook(W_cpu, scale):
         def hook(module, input, output):
-            # output is (hidden_states, ...)
             h = output[0]
-            # Dynamic device/dtype adaptation
+            # Dynamic device adaptation (supports device_map='auto')
             W = W_cpu.to(device=h.device, dtype=h.dtype)
             
-            # Last token only injection
+            # Last-token only injection
             delta = torch.zeros_like(h)
             delta[:, -1, :] = torch.matmul(h[:, -1, :], W) * scale
             
             return (h + delta,) + output[1:]
         return hook
 
+    # Register Hooks
     for layer_name, info in adapter_weights.items():
         idx = int(layer_name.split(".")[-1])
         target_layer = model.model.layers[idx]
@@ -41,21 +42,20 @@ def runtime_injection_smoke(model, tokenizer, adapter_weights, prompts, device, 
     for prompt in prompts:
         messages = [{"role": "user", "content": prompt}]
         text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        inputs = {k: v.to(device) for k, v in tokenizer(text, return_tensors="pt").items()}
+        inputs = {k: v.to(input_device) for k, v in tokenizer(text, return_tensors="pt").items()}
         
         # 1. Run Injected
         with torch.no_grad():
             outputs_injected = model(**inputs)
             logits_injected = outputs_injected.logits[:, -1, :]
             
-        # 2. Base Run (Temporarily disable hooks)
-        # Note: We just clear the hooks and re-register later to be safe
+        # 2. Base Run (Temporarily remove hooks)
         for h in hooks: h.remove()
         with torch.no_grad():
             outputs_base = model(**inputs)
             logits_base = outputs_base.logits[:, -1, :]
             
-        # Re-register
+        # Re-register for next prompt
         hooks.clear()
         for layer_name, info in adapter_weights.items():
             idx = int(layer_name.split(".")[-1])
@@ -68,6 +68,7 @@ def runtime_injection_smoke(model, tokenizer, adapter_weights, prompts, device, 
         top1_inj = torch.argmax(logits_injected, dim=-1).item()
         
         results.append({
+            "prompt_preview": prompt[:80],
             "kl_divergence": kl,
             "top1_changed": top1_base != top1_inj,
             "top1_base_token": tokenizer.decode([top1_base]),
@@ -76,13 +77,21 @@ def runtime_injection_smoke(model, tokenizer, adapter_weights, prompts, device, 
 
     for h in hooks: h.remove()
     
-    mean_kl = sum(r["kl_divergence"] for r in results) / len(results)
+    # Calculate Verdict for this Gamma
+    mean_kl = sum(r["kl_divergence"] for r in results) / len(results) if results else 0
     changed_count = sum(1 for r in results if r["top1_changed"])
     
+    status = "NO_INJECTION_SIGNAL"
+    if changed_count > 0:
+        status = "BEHAVIORAL_SHIFT_DETECTED"
+    elif mean_kl > 1e-4:
+        status = "INJECTION_SIGNAL_OBSERVED"
+        
     return {
         "gamma": gamma,
         "mean_kl": mean_kl,
         "behavioral_shift_count": changed_count,
+        "status": status,
         "results": results
     }
 
@@ -94,9 +103,17 @@ def main():
     parser.add_argument("--gammas", default="0.1,0.5,1.0,2.0")
     args = parser.parse_args()
     
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    gamma_list = [float(g) for g in args.gammas.split(",")]
+    if not os.path.exists(args.eval_prompts):
+        print(f"Error: {args.eval_prompts} not found.")
+        return
+
+    with open(args.eval_prompts, "r", encoding="utf-8") as f:
+        prompts_raw = json.load(f)
+    prompts = [p.get("prompt", str(p)) if isinstance(p, dict) else str(p) for p in prompts_raw[:4]]
     
+    if not prompts:
+        raise ValueError("No prompts loaded for runtime injection smoke test.")
+
     print(f"Loading Model: {args.model_id}")
     tokenizer = AutoTokenizer.from_pretrained(args.model_id)
     model = AutoModelForCausalLM.from_pretrained(args.model_id, torch_dtype=torch.float16, device_map="auto")
@@ -105,17 +122,14 @@ def main():
     print(f"Loading Activation Adapter Weights: {args.adapter_path}")
     adapter_weights = torch.load(args.adapter_path)
     
-    with open(args.eval_prompts, "r", encoding="utf-8") as f:
-        prompts_raw = json.load(f)
-    prompts = [p.get("prompt", str(p)) if isinstance(p, dict) else str(p) for p in prompts_raw[:4]]
-    
     report = {"evaluation_type": "runtime_injection_gamma_sweep", "gamma_results": []}
     
-    for gamma in gamma_list:
+    for g_str in args.gammas.split(","):
+        gamma = float(g_str)
         print(f"Running Smoke Test with Gamma={gamma}...")
-        res = runtime_injection_smoke(model, tokenizer, adapter_weights, prompts, device, gamma=gamma)
+        res = runtime_injection_smoke(model, tokenizer, adapter_weights, prompts, gamma=gamma)
         report["gamma_results"].append(res)
-        print(f"  Mean KL: {res['mean_kl']:.6f} | Shifts: {res['behavioral_shift_count']}/{len(prompts)}")
+        print(f"  Status: {res['status']} | Mean KL: {res['mean_kl']:.6f} | Shifts: {res['behavioral_shift_count']}/4")
 
     output_path = "routes/qwen05b_sql_projection/analysis/injection_smoke_sweep.json"
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
