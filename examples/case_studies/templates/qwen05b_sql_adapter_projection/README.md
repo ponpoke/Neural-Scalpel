@@ -1,8 +1,8 @@
 # Qwen2.5-0.5B SQL Adapter Projection Case Study Template
  
- > [!WARNING]
- > **Status: Phase 4 Calibrated Projection Completed / Behavioral Transfer NOT PROVEN**  
- > This case study has completed **Activation-Calibrated Projection (JTSA)** and verified structural stability. However, **behavioral improvement remains not proven**. Under greedy decoding, Base and Projected outputs (up to $\gamma=4.0$) were identical.
+> [!WARNING]
+> **Status: Phase 4 Initial Target-Activation-Conditioned Attempt Completed / Behavioral Transfer NOT PROVEN**  
+> This case study has implemented an initial **target-activation-conditioned projection attempt** using JTSA-style self-alignment. However, **behavioral improvement remains not proven**. Under greedy decoding, Base and Projected outputs (up to $\gamma=4.0$) were identical across the smoke set.
 
 
 ## Overview
@@ -90,17 +90,18 @@ python scripts/05_real_metrics.py \
 - [x] Preliminary heuristic metrics: **COMPLETED** (Identity check)
 - [x] Behavioral improvement: **NOT PROVEN** (Identical behavior observed)
 - [ ] SQL parse / execution metrics: **PENDING**
-- [x] Activation-Calibrated Projection (Phase 4): **COMPLETED** (JTSA Alignment)
+- [x] Phase 4 Initial Activation-Conditioned Attempt: **SCAFFOLD COMPLETED** (Target-only JTSA Self-Alignment)
 
 ### Technical Findings (Phase 3 Preliminary)
-1.  **Identity Check**: Even with **Phase 4 JTSA Calibration**, the projected adapter produced outputs **bit-identical** to the base model across all smoke prompts at $\gamma=1.0$ and $\gamma=4.0$.
-2.  **Behavioral Gravity**: The 0.5B instruct-tuned base model exhibits extreme "gravity," where projected signals are suppressed by the base distribution during greedy decoding.
+1.  **Identity Check**: Even with **Phase 4 Initial Activation Conditioning**, the projected adapter produced outputs **bit-identical** to the base model across all smoke prompts at $\gamma=1.0$ and $\gamma=4.0$.
+2.  **Behavioral Gravity**: The 0.5B instruct-tuned base model exhibits extreme "gravity." Target-only activation conditioning (currently using layer means for JTSA-style compensation) is insufficient to produce observable behavior changes in this setup.
 3.  **Instruction Following**: The 0.5B model's base instruction-following capability is dominant; the projected adapter weights (transplanted from a 7B model) provided no observable delta in this minimal test.
-4.  **Verdict**: Activation-calibrated projection is verified as functionally stable (Zero Unexpected Tensors), but behavioral transfer remains **NOT PROVEN** at the 0.5B scale.
+4.  **Verdict**: The current Activation-Conditioned scaffold is verified as functionally stable, but true behavioral transfer likely requires **Paired Source-Target Alignment** and richer distribution-based projection.
 
 ## Research Roadmap (Next Steps)
+- **Paired Activation Alignment**: Collect paired source (7B) and target (0.5B) activations using identical prompts to learn explicit cross-model alignment maps.
+- **Manifold-Rich Projection**: Extend the projection engine to utilize the stored `std` and `samples` for PCA or Procrustes-based manifold alignment.
 - **Target Scale Expansion**: Move testing to 1.5B or 3B target models where the base distribution might be more receptive to adapter signals.
-- **Deeper Calibration**: Expand calibration prompts from 5 to 50+ to capture a broader manifold.
 
 Detailed technical goals can be found in [docs/methodology.md](docs/methodology.md).
 

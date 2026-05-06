@@ -87,10 +87,11 @@ def project_calibrated(hf_repo_id, target_model_id, calibration_path, output_dir
         layer_key = f"layers.{t_idx}"
         
         # Calibration state for JTSA
-        calib_state = calibration_data.get(layer_key) # (hidden_dim,)
-        if calib_state is not None:
-            # We need (N, d) for math kernels. We simulate a small batch around the mean.
-            calib_state = calib_state.unsqueeze(0) # (1, target_hidden)
+        calib_entry = calibration_data.get(layer_key)
+        calib_state = None
+        if calib_entry is not None:
+            # For JTSA, we use the manifold mean as a representative state
+            calib_state = calib_entry["mean"].unsqueeze(0) # (1, target_hidden)
         
         low_keys = [k for k in lora_sd.keys() if f".layers.{s_low}." in k and "lora_A" in k]
         for k_A_low in low_keys:
