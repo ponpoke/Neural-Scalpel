@@ -171,7 +171,7 @@ The experimental behavioral alignment scaffold has been promoted to a robust Cor
 - **PEFT Abstraction:** LoRA export now supports custom key styles and adapter names, facilitating integration with diverse runtimes.
 
 ### 9.2 Phase 6: SQL Capability Evaluation
-We have implemented a structured SQL-50 evaluation suite to measure the functional consequences of behavioral transplantation (projected from LLaMA-3-8B to Qwen-0.5B).
+We have implemented a structured SQL-50 evaluation suite to measure the functional consequences of behavioral transplantation (projected from a larger SQL-capable source model to Qwen2.5-0.5B).
 - **Benchmark Suite:** `neural_scalpel/core/benchmarks/sql_50.py` containing 50 structured test cases across 5 categories (basic, aggregation, joins, subqueries, complex logic).
 - **Evaluation Pipeline:** `scripts/20_sql_capability_eval.py` utilizing AST-based schema validation (`sqlglot`), failure tracking, and category-level delta calculation.
 - **Status:** The evaluation logic has been smoke-verified via `scripts/verify_phase6_logic.py` using mock models. Actual benchmark execution over real models and transplanted adapters remains the next validation step. Preliminary small-set runs suggest the pipeline correctly identifies syntax and execution success deltas.

@@ -40,7 +40,7 @@ Neural-Scalpel helps answer:
 
 ## Status: Core Hardened & Phase 6 Evaluation Active
 
-Neural-Scalpel has completed the **Phase 5-G Core API Hardening**. The experimental behavioral alignment scaffold has been promoted to a robust, validated toolkit with numerical guards, standardized reporting, and flexible layer mapping.
+Neural-Scalpel has completed the **Phase 5-G Core API Hardening**. The experimental behavioral alignment scaffold has been promoted into a hardened experimental Core API with numerical guards, standardized reporting, and flexible layer mapping.
 
 We are currently executing **Phase 6: Full SQL Capability Evaluation** to verify the functional task-level impact of transplanted intelligence.
 
