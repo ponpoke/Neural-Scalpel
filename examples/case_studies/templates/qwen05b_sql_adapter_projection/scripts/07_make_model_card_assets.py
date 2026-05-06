@@ -7,29 +7,35 @@ def make_model_card():
     
     # Check if reports are simulated
     is_simulated = True
-    try:
-        with open("reports/eval_summary.json", "r", encoding="utf-8") as f:
-            metrics = json.load(f)
-            if metrics.get("mode") == "REAL":
-                is_simulated = False
-    except:
-        pass
+    if os.path.exists("reports/eval_summary_real.json"):
+        is_simulated = False
+    else:
+        try:
+            with open("reports/eval_summary.json", "r", encoding="utf-8") as f:
+                metrics = json.load(f)
+                if metrics.get("mode") == "REAL":
+                    is_simulated = False
+        except:
+            pass
 
-    # Read data from reports
+    # Read data from reports (prefer REAL)
     try:
-        with open("reports/eval_summary.md", "r", encoding="utf-8") as f:
+        report_file = "reports/eval_summary_real.md" if os.path.exists("reports/eval_summary_real.md") else "reports/eval_summary.md"
+        with open(report_file, "r", encoding="utf-8") as f:
             eval_summary = f.read()
     except:
         eval_summary = "Evaluation results pending."
         
     try:
-        with open("reports/before_after.md", "r", encoding="utf-8") as f:
+        report_file = "reports/before_after_real.md" if os.path.exists("reports/before_after_real.md") else "reports/before_after.md"
+        with open(report_file, "r", encoding="utf-8") as f:
             before_after = f.read()
     except:
         before_after = "Before/After examples pending."
 
     try:
-        with open("reports/failure_cases.md", "r", encoding="utf-8") as f:
+        failure_file = "reports/failure_cases_real.md" if os.path.exists("reports/failure_cases_real.md") else "reports/failure_cases.md"
+        with open(failure_file, "r", encoding="utf-8") as f:
             failure_cases = f.read()
     except:
         failure_cases = "Failure cases pending."

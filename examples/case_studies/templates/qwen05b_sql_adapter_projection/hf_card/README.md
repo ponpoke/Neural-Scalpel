@@ -1,9 +1,5 @@
 # Qwen2.5-0.5B SQL Adapter Projection via Neural-Scalpel
 
-> [!CAUTION]
-> **SIMULATED CASE-STUDY SCAFFOLD**: Real-weight evaluation has NOT been completed yet.
-> The metrics and examples below are placeholders for demonstration purposes.
-
 ## What is this?
 
 This is an experimental projected SQL/Coding adapter for Qwen2.5-0.5B, produced with Neural-Scalpel.
@@ -12,48 +8,73 @@ It tests whether task behavior from a larger Qwen-family SQL/Coding adapter can 
 
 ## Key Result
 
-# Quantitative Evaluation Summary (SIMULATED)
+# Quantitative Evaluation Summary (REAL SMOKE)
 
-> [!CAUTION]
-> **SIMULATED METRICS**: Do not use as real evaluation results.
-> These numbers are placeholders from the case-study scaffold.
+> [!WARNING]
+> This is a **preliminary heuristic smoke test**. Results are inconclusive regarding SQL capability improvement.
 
-Evaluated on 50 curated SQL/Coding prompts.
+Evaluated on 4 curated prompts.
 
 | Metric | Base Qwen2.5-0.5B | Projected SQL Route | Delta |
 | :--- | :---: | :---: | :---: |
-| Syntax Validity | 82% | 94% | +12% |
-| Execution Accuracy | 64% | 78% | +14% |
-| Exact Match | 58% | 72% | +14% |
-| Judge Preference | 40% | 60% | +20% |
+| Basic SQL Signal (Heuristic) | 75% | 75% | +0% |
+| Observed Repetition Rate | 0% | 0% | +0% |
+| Avg Output Length | 502 | 502 | +0.0 |
+
+**Exact Identity Rate (Base vs Projected):** 100%
 
 
 ## Before / After
 
-# Qualitative Before/After Evaluation (SIMULATED)
+# Qualitative Before/After Evaluation (REAL)
 
-> [!CAUTION]
-> **SIMULATED EXAMPLES**: These are placeholders for the model card template.
-> Real inference has not been executed for this report.
+**Base Model:** Qwen/Qwen2.5-0.5B-Instruct
+**Adapter:** routes/qwen05b_sql_projection/peft_adapter
 
 ### Example 1
 
 **Prompt:**
 ```
-Given a table orders(order_id, customer_id, total, created_at), write SQL to find the top 5 customers by total revenue in 2024.
+Table: sales(id, product, amount, date). SQL to find total sales for 'Laptop'.
 ```
 
-**Base Qwen2.5-0.5B:**
+**Base Output:**
 ```
-SELECT customer_id, SUM(total) FROM orders WHERE created_at LIKE '2024%' GROUP BY customer_id ORDER BY SUM(total) DESC LIMIT 5;
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id; 
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id;
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop'; 
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id; 
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop';
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id; 
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop'; 
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY
 ```
 
-**Projected SQL Route:**
+**Projected Output:**
 ```
-SELECT customer_id, SUM(total) AS total_revenue FROM orders WHERE created_at >= '2024-01-01' AND created_at <= '2024-12-31' GROUP BY customer_id ORDER BY total_revenue DESC LIMIT 5;
-```
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id; 
 
-**Observation:** Projected route used more robust date filtering and aliased the sum column, matching SQL-centric adapter behavior.
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id;
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop'; 
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id; 
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop';
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id; 
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop'; 
+
+SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY
+```
 
 ---
 
@@ -61,24 +82,146 @@ SELECT customer_id, SUM(total) AS total_revenue FROM orders WHERE created_at >= 
 
 **Prompt:**
 ```
-Write a Python function to check if a string is a palindrome.
+Table: employees(id, name, department, salary). SQL for average salary in 'Engineering'.
 ```
 
-**Base Qwen2.5-0.5B:**
+**Base Output:**
 ```
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id;
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering'; 
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering';
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering'; 
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY
+```
+
+**Projected Output:**
+```
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering'; 
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
+
+SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
+
+SELECT AVG(salary)
+```
+
+---
+
+### Example 3
+
+**Prompt:**
+```
+Write a SQL query to list all students who scored above 90 in 'Mathematics'.
+```
+
+**Base Output:**
+```
+Additionally, include the following additional requirements:
+
+1. Exclude any student whose name starts with "A" or ends with "Z".
+2. Only consider students who have taken at least one course.
+3. Sort the results by their score in descending order and then by their name in ascending order.
+
+Assume that there is a table named `students` with columns `name`, `math_score`, and `course_taken`. The table has a column `is_passed` indicating whether the student passed the course (1 for passed, 0 for failed).
+
+```sql
+SELECT *
+FROM students
+WHERE math_score > 90 AND name NOT
+```
+
+**Projected Output:**
+```
+Additionally, include the following additional requirements:
+
+1. Exclude any student whose name starts with "A" or ends with "Z".
+2. Only consider students who have taken at least one course.
+3. Sort the results by their score in descending order and then by their name in ascending order.
+
+Assume that there is a table named `students` with columns `name`, `math_score`, and `course_taken`. The table has a column `is_passed` indicating whether the student passed the course (1 for passed, 0 for failed).
+
+```sql
+SELECT *
+FROM students
+WHERE math_score > 90 AND name NOT
+```
+
+---
+
+### Example 4
+
+**Prompt:**
+```
+Write a Python function for palindrome check.
+```
+
+**Base Output:**
+```
+The function should take in two strings as input and return True if the first string is a palindrome, False otherwise.
+
+Example:
+Input: "racecar"
+Output: True
+
+Input: "hello"
+Output: False
+
+Input: ""
+Output: True
+
+Note:
+- The function should ignore spaces and punctuation.
+- The function should not use any built-in functions or libraries for checking palindromes.
+- The function should be case-insensitive.
+- The function should handle both uppercase and lowercase letters.
 def is_palindrome(s):
+    # Convert the string to lowercase
+    s = s.lower()
+    
+    # Remove all non-al
+```
+
+**Projected Output:**
+```
+The function should take in two strings as input and return True if the first string is a palindrome of the second string, and False otherwise.
+
+Example:
+Input: "racecar"
+Output: True
+
+Input: "hello"
+Output: False
+
+Input: "madam"
+Output: True
+
+Input: "python"
+Output: False
+def is_palindrome(s):
+    # Remove all non-alphanumeric characters from the string
+    s = ''.join(char.lower() for char in s if char.isalnum())
+    
+    # Check if the cleaned string is equal to its reverse
     return s == s[::-1]
 ```
-
-**Projected SQL Route:**
-```
-def is_palindrome(text: str) -> bool:
-    """Checks if a string is a palindrome."""
-    processed_text = ''.join(e for e in text.lower() if e.isalnum())
-    return processed_text == processed_text[::-1]
-```
-
-**Observation:** Projected route produced a more robust and type-hinted implementation.
 
 ---
 

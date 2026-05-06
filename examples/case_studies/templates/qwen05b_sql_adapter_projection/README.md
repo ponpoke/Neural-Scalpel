@@ -63,13 +63,10 @@ python scripts/03_check_payload_integrity.py --real --payload <PAYLOAD> --manife
 
 ## Results Summary
 
-> [!IMPORTANT]
-> **Real results are pending.** The current reports are scaffold outputs only.
-
 > [!WARNING]
-> **Status: Structural Projection Baseline v2 / Behavioral Validation Pending**  
-> This case study has completed structural projection, target-shape verification, and PEFT load/generation smoke testing.  
-> It is **not yet a behavioral evaluation**. Whether the projected adapter produces measurable SQL-task behavior changes or improvements remains pending.
+> **Status: Structural Projection Baseline v2 / Behavioral Validation Inconclusive**  
+> This case study has completed structural projection and target-shape verification. However, **behavioral improvement is NOT PROVEN**.  
+> Real-inference smoke tests using greedy decoding showed **100% identity** between base and projected outputs on the initial 4-prompt test set.
 
 **Current Task Status:**
 - [x] Real source adapter license verification: **COMPLETED**
@@ -78,21 +75,21 @@ python scripts/03_check_payload_integrity.py --real --payload <PAYLOAD> --manife
 - [x] Core logic unit testing: **COMPLETED** (Local regression tests established)
 - [x] Target-shape verification: **COMPLETED** (**PASS** - RUNTIME_SHAPE_VERIFIED)
 - [x] PEFT adapter smoke test: **COMPLETED** (**PASS** - Formally loadable)
-- [x] Calibrated scaling: **IMPLEMENTED** (Default: $\gamma=0.5$)
-- [ ] Neural-Scalpel runtime route smoke test: **PENDING**
-- [ ] Behavioral benchmark (Spider/BIRD): **STAGED**
+- [x] Real qualitative inference: **COMPLETED** (Greedy smoke set)
+- [x] Preliminary heuristic metrics: **COMPLETED** (Identity check)
+- [ ] Behavioral improvement: **NOT PROVEN**
+- [ ] SQL parse / execution metrics: **PENDING**
+- [ ] Activation-Calibrated Projection (Phase 4): **PLANNED**
 
-### Technical Findings (Phase 2: Structural Baseline v2)
-The architectural bridge has been established and verified using the **Structural Projection Baseline v2** pipeline:
-1.  **Interpolated Layer Folding**: 28 source layers were mapped to 24 target layers using weighted linear interpolation, ensuring continuity of weights across depths.
-2.  **Strict Shape Alignment**: 100% of the 96 payload tensors were verified against the target model state_dict. Status: **RUNTIME_SHAPE_VERIFIED** (Unexpected: 0).
-3.  **Formal Compatibility**: The generated PEFT adapter was successfully loaded into a standard environment and executed a single-token generation smoke test.
-4.  **SVD Energy Retention**: SVD analysis shows a **Mean Energy Retention of 0.9580**, indicating that the resizing preserved ~96% of the singular-value energy of the target-shape matrices.
-5.  **Evidence Artifacts**: Detailed audit logs (tensor-level matching and PEFT load reports) are preserved in `routes/`.
+### Technical Findings (Phase 3 Preliminary)
+1.  **Identity Check**: Under greedy decoding, the projected adapter produced outputs **bit-identical** to the base model across all 4 initial smoke prompts.
+2.  **Repetition/Truncation**: Both base and projected models exhibited similar truncation patterns at 128 tokens.
+3.  **Instruction Following**: The 0.5B model's base instruction-following capability is dominant; the projected adapter weights (transplanted from a 7B model) provided no observable delta in this minimal test.
+4.  **Inconclusive Evidence**: These results are inconclusive and suggest that simple structural projection may be insufficient for measurable behavior transfer without activation-based alignment or higher injection scales ($\gamma$).
 
-## Research Roadmap (Phase 3: Behavioral Validation)
-- **Phase 3**: Determine whether the projected adapter produces measurable SQL-task behavior changes or improvements over the 0.5B base model.
-- **Phase 4**: Move toward **Activation-Calibrated Projection** (Phase 3 Advanced) to align representation subspaces using real task activation data.
+## Research Roadmap (Phase 4: Activation Alignment)
+- **Phase 4**: Implement **Activation-Calibrated Projection** to align representation subspaces using real task activation data.
+- **Scale Sweep**: Test higher `scale_gamma` values to determine if the adapter signal can be amplified without causing divergence.
 
 Detailed technical goals can be found in [docs/methodology.md](docs/methodology.md).
 

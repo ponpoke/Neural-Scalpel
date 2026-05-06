@@ -60,7 +60,14 @@ These results are strong enough to describe Neural-Scalpel as a **paradigm-shift
 - **Internal vLLM Validated Prototype:** Live vLLM V1 monkey-patch integration has passed controlled validation covering route-window persistent swapping, real safetensors payload swap/rollback inside `_model_forward`, latest-branch 10K mixed-route endurance, and a 6-hour mixed-route extended soak.
 - **Refined Benchmarking (Phase 5-A):** Established a rigorous performance anchor against native vLLM LoRA.
 - **Repeated Median Benchmarking (Phase 5-D):** 50 prompts × 3 runs showed Scalpel v2 median throughput of ~2574 tok/s versus Native LoRA at ~983 tok/s under controlled conditions, with route application and verified rollback events enforced in every Scalpel run.
-- **Determinism Follow-up (Phase 5-F):** After explicit route cleanup and vLLM cache reset, Base-before and Base-after matched exactly, with 100.0% top-token logprob trace similarity for the tested prompt. This is a top-token trace proxy, not a full-vocabulary logits distribution comparison.
+### Case Study: Qwen2.5-0.5B SQL Projection
+- **Structural Alignment:** Successfully projected a 7B SQL LoRA onto a 0.5B target model using **Structural Projection Baseline v2**.
+- **PEFT Compatibility:** The resulting adapter is formally loadable and stable in standard Transformers/PEFT environments.
+- **Behavioral Validation:** **INCONCLUSIVE**. In strict greedy-decoding smoke tests (4 prompts), the projected output was **100% bit-identical** to the base model.
+- **Interpretation:** While structural projection is verified, task-specific intelligence transfer (SQL/Coding) has not yet been demonstrated at the current projection scale ($\gamma=0.5$). Activation-calibrated projection (Phase 4) is required for further investigation.
+
+### Determinism Follow-up Completed
+Phase 5-F demonstrated 100.0% top-token logprob trace similarity and exact text match after a verified checksum rollback for the tested prompt under explicit route cleanup and vLLM cache reset.
 
 ### Roadmap / Future Work
 

@@ -1,0 +1,21 @@
+{
+  "num_prompts": 4,
+  "evaluation_type": "preliminary_heuristic_smoke",
+  "behavioral_improvement": "INCONCLUSIVE",
+  "base": {
+    "sql_signal": 3,
+    "repetition_failure": 0,
+    "avg_length": 502.25,
+    "sql_signal_rate": 0.75,
+    "repetition_rate": 0.0
+  },
+  "projected": {
+    "sql_signal": 3,
+    "repetition_failure": 0,
+    "avg_length": 502.25,
+    "sql_signal_rate": 0.75,
+    "repetition_rate": 0.0
+  },
+  "exact_same_count": 4,
+  "exact_same_rate": 1.0
+}

@@ -90,8 +90,10 @@ Validated components include:
 This fallback does not eliminate all deployment risk. It trades route density and memory efficiency for process-level isolation and operational simplicity.
 
 ### 5.6. Structural Projection Baseline v2
+Neural-Scalpel includes a structural projection baseline for Qwen2.5-style cross-scale adapter experiments.
 
-Neural-Scalpel now includes a focused structural projection baseline for Qwen2.5-style cross-scale adapter experiments. This baseline is designed to test whether a source adapter can be converted into a target-compatible structural artifact before any claim of behavioral transfer is made.
+**Current Findings:**
+While structural compatibility is achieved (100% tensor-shape matching), **behavioral transfer is currently inconclusive.** Initial qualitative smoke tests using greedy decoding resulted in **100% bit-identical output** compared to the base model. Behavioral validation remains a downstream requirement.
 
 Validated components include:
 
