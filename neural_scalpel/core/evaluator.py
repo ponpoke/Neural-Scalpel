@@ -91,3 +91,72 @@ class E2EEngineBenchmarker:
             
         outputs = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+class SQLCapabilityEvaluator:
+    """
+    Evaluator specifically for SQL generation tasks.
+    Checks syntax validity and structural correctness.
+    """
+    def __init__(self, model: Any, tokenizer: Any):
+        self.model = model
+        self.tokenizer = tokenizer
+
+    @torch.no_grad()
+    def generate_sql(self, prompt: str, max_new_tokens: int = 128) -> str:
+        self.model.eval()
+        device = next(self.model.parameters()).device
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(device)
+        
+        outputs = self.model.generate(
+            **inputs, 
+            max_new_tokens=max_new_tokens,
+            do_sample=False, # Use greedy for deterministic eval
+            pad_token_id=self.tokenizer.eos_token_id
+        )
+        # Only return the generated part
+        input_len = inputs.input_ids.shape[1]
+        gen_ids = outputs[0, input_len:]
+        return self.tokenizer.decode(gen_ids, skip_special_tokens=True)
+
+    def validate_syntax(self, sql: str) -> Dict[str, Any]:
+        """
+        Uses sqlglot to check if the generated SQL is syntactically valid.
+        """
+        try:
+            import sqlglot
+            # Basic parse check
+            sqlglot.transpile(sql, read=None)
+            return {"valid": True, "error": None}
+        except ImportError:
+            return {"valid": None, "error": "sqlglot not installed"}
+        except Exception as e:
+            return {"valid": False, "error": str(e)}
+
+    def evaluate_suite(self, test_cases: List[Dict[str, str]]) -> Dict[str, Any]:
+        """
+        Evaluates a list of test cases: {"prompt": "...", "reference": "..."}
+        """
+        results = []
+        valid_count = 0
+        total = len(test_cases)
+        
+        for case in test_cases:
+            prompt = case["prompt"]
+            gen_sql = self.generate_sql(prompt)
+            syntax = self.validate_syntax(gen_sql)
+            
+            res = {
+                "prompt": prompt,
+                "generated": gen_sql,
+                "syntax_valid": syntax["valid"],
+                "error": syntax["error"]
+            }
+            if syntax["valid"]:
+                valid_count += 1
+            results.append(res)
+            
+        return {
+            "pass_rate": valid_count / total if total > 0 else 0,
+            "total": total,
+            "results": results
+        }

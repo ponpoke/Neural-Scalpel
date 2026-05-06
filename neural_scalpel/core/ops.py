@@ -5,7 +5,8 @@ from neural_scalpel.core.alignment import (
     PairedActivationDataset, 
     AlignmentMap, 
     BehavioralDelta, 
-    TransportedDelta
+    TransportedDelta,
+    estimate_layer_correspondence
 )
 from neural_scalpel.core.math import solve_ridge, low_rank_decompose_for_peft
 from neural_scalpel.core.collector import collection_context
@@ -20,13 +21,20 @@ def align(
     source_layers: List[str],
     target_layers: List[str],
     method: str = "ridge",
+    prompt_formatter: Optional[Any] = None,
+    auto_correspondence: bool = False,
+    correspondence_method: str = "linear_cka",
     device: str = "cuda"
 ) -> AlignmentMap:
     """
     Learns the translation matrix P between source and target models.
     """
-    if len(source_layers) != len(target_layers):
-        raise ValueError("Source and target layer lists must match in length.")
+    if not calibration_prompts:
+        raise ValueError("calibration_prompts must not be empty.")
+    if not source_layers or not target_layers:
+        raise ValueError("source_layers and target_layers must not be empty.")
+    if not auto_correspondence and len(source_layers) != len(target_layers):
+        raise ValueError("Source and target layer lists must match in length unless auto_correspondence=True.")
 
     source_model.to(device).eval()
     target_model.to(device).eval()
@@ -35,7 +43,11 @@ def align(
          collection_context(target_model, target_layers) as target_coll:
         
         for prompt in calibration_prompts:
-            inputs = tokenizer(prompt, return_tensors="pt").to(device)
+            text = prompt
+            if prompt_formatter:
+                text = prompt_formatter(tokenizer, prompt)
+            
+            inputs = tokenizer(text, return_tensors="pt").to(device)
             with torch.no_grad():
                 source_model(**inputs)
                 target_model(**inputs)
@@ -43,11 +55,46 @@ def align(
         source_acts = source_coll.get_stacked()
         target_acts = target_coll.get_stacked()
 
+    metadata = {
+        "num_prompts": len(calibration_prompts),
+        "source_layers": source_layers,
+        "target_layers": target_layers,
+        "prompt_formatting": {
+            "used": prompt_formatter is not None,
+            "formatter": prompt_formatter.__name__ if prompt_formatter else None
+        }
+    }
+
     dataset = PairedActivationDataset(
         source_activations=source_acts,
         target_activations=target_acts,
-        metadata={"num_prompts": len(calibration_prompts)}
+        metadata=metadata
     )
+    
+    if auto_correspondence:
+        correspondence = estimate_layer_correspondence(dataset, method=correspondence_method, device=device)
+        metadata["auto_correspondence"] = {
+            "method": correspondence_method,
+            "mapping": correspondence.target_to_source
+        }
+        # In auto mode, we map target layers to their best source match
+        # AlignmentMap currently stores {source_layer: P}. 
+        # We need to solve for each target layer.
+        
+        layer_maps = {}
+        for t_layer, s_layer in correspondence.target_to_source.items():
+            X = dataset.source_activations[s_layer]
+            Y = dataset.target_activations[t_layer]
+            P = solve_ridge(X, Y)
+            layer_maps[t_layer] = P # Note: AlignmentMap will use target layer keys here
+            
+        return AlignmentMap(
+            layer_maps=layer_maps,
+            source_model_id=getattr(source_model.config, "_name_or_path", "src"),
+            target_model_id=getattr(target_model.config, "_name_or_path", "tgt"),
+            method=method,
+            metadata=metadata
+        )
     
     return learn_alignment_map(dataset, method=method)
 
@@ -85,11 +132,17 @@ def extract_behavior_delta(
     prompts: List[str],
     tokenizer: Any,
     layers: List[str],
+    prompt_formatter: Optional[Any] = None,
     device: str = "cuda"
 ) -> BehavioralDelta:
     """
     Captures the activation shift caused by an adapter in the source model.
     """
+    if not prompts:
+        raise ValueError("prompts must not be empty.")
+    if not layers:
+        raise ValueError("layers must not be empty.")
+
     base_model.to(device).eval()
     adapted_model.to(device).eval()
     
@@ -97,7 +150,11 @@ def extract_behavior_delta(
          collection_context(adapted_model, layers) as adapted_coll:
         
         for prompt in prompts:
-            inputs = tokenizer(prompt, return_tensors="pt").to(device)
+            text = prompt
+            if prompt_formatter:
+                text = prompt_formatter(tokenizer, prompt)
+                
+            inputs = tokenizer(text, return_tensors="pt").to(device)
             with torch.no_grad():
                 base_model(**inputs)
                 adapted_model(**inputs)
@@ -109,7 +166,12 @@ def extract_behavior_delta(
     
     return BehavioralDelta(
         layer_deltas=deltas,
-        source_model_id=getattr(base_model.config, "_name_or_path", "unknown")
+        source_model_id=getattr(base_model.config, "_name_or_path", "unknown"),
+        metadata={
+            "num_prompts": len(prompts),
+            "layers": layers,
+            "prompt_formatting": prompt_formatter is not None
+        }
     )
 
 def transport_delta(
@@ -135,48 +197,118 @@ def solve_activation_adapter(
     prompts: List[str],
     tokenizer: Any,
     target_modules: List[str],
+    module_to_delta_layer: Optional[Dict[str, str]] = None,
+    prompt_formatter: Optional[Any] = None,
+    strict: bool = True,
     device: str = "cuda"
 ) -> ActivationAdapterSolution:
     """
     Computes the weight changes required to replicate a transported delta.
     """
+    if not prompts:
+        raise ValueError("prompts must not be empty.")
+    if not target_modules:
+        raise ValueError("target_modules must not be empty.")
+
     target_model.to(device).eval()
     
     with collection_context(target_model, target_modules) as coll:
         for prompt in prompts:
-            inputs = tokenizer(prompt, return_tensors="pt").to(device)
+            text = prompt
+            if prompt_formatter:
+                text = prompt_formatter(tokenizer, prompt)
+                
+            inputs = tokenizer(text, return_tensors="pt").to(device)
             with torch.no_grad():
                 target_model(**inputs)
         inputs_stacked = coll.get_stacked()
         
     weights = {}
     errors = {}
+    solved_modules = []
+    skipped_modules = []
+
     for module in target_modules:
-        if module in inputs_stacked and module in desired_delta.layer_deltas:
-            X = inputs_stacked[module]
-            Y = desired_delta.layer_deltas[module]
-            W = solve_ridge(X, Y)
-            weights[module] = W
+        delta_key = module_to_delta_layer.get(module, module) if module_to_delta_layer else module
+        
+        if module not in inputs_stacked:
+            if strict:
+                raise ValueError(f"Activation not collected for module: {module}")
+            skipped_modules.append(module)
+            continue
             
-            # Error metric
-            Y_pred = torch.matmul(X, W)
-            errors[module] = (torch.norm(Y - Y_pred) / torch.norm(Y)).item()
+        if delta_key not in desired_delta.layer_deltas:
+            if strict:
+                raise ValueError(f"No transported delta found for key: {delta_key} (mapped from {module})")
+            skipped_modules.append(module)
+            continue
+
+        X = inputs_stacked[module]
+        Y = desired_delta.layer_deltas[delta_key]
+        
+        if torch.isnan(X).any() or torch.isnan(Y).any():
+            raise ValueError(f"NaN detected in activations for module {module}")
+
+        W = solve_ridge(X, Y)
+        weights[module] = W
+        
+        # Error metric
+        Y_pred = torch.matmul(X, W)
+        errors[module] = (torch.norm(Y - Y_pred) / torch.norm(Y)).item()
+        solved_modules.append(module)
             
+    metadata = {
+        "num_prompts": len(prompts),
+        "module_to_delta_layer": module_to_delta_layer,
+        "solved_modules": solved_modules,
+        "skipped_modules": skipped_modules,
+        "prompt_formatting": prompt_formatter is not None
+    }
+
     return ActivationAdapterSolution(
         module_weights=weights,
         target_model_id=desired_delta.target_model_id,
-        reconstruction_errors=errors
+        reconstruction_errors=errors,
+        metadata=metadata
     )
+
+def build_peft_lora_key(
+    module_name: str,
+    which: str, # "A" or "B"
+    peft_key_prefix: str = "base_model.model",
+    adapter_name: Optional[str] = None,
+    key_style: str = "peft_default",
+) -> str:
+    """
+    Constructs a PEFT-compatible parameter key.
+    """
+    if key_style == "peft_default":
+        # base_model.model.model.layers.10.mlp.down_proj.lora_A.weight
+        return f"{peft_key_prefix}.{module_name}.lora_{which}.weight"
+    elif key_style == "peft_named":
+        # base_model.model.model.layers.10.mlp.down_proj.lora_A.default.weight
+        name = adapter_name or "default"
+        return f"{peft_key_prefix}.{module_name}.lora_{which}.{name}.weight"
+    elif key_style == "raw":
+        return f"{module_name}.lora_{which}.weight"
+    else:
+        raise ValueError(f"Unknown key_style: {key_style}")
 
 def export_lora(
     solution: ActivationAdapterSolution,
     rank: int = 16,
     lora_alpha: Optional[int] = None,
-    target_modules: Optional[List[str]] = None
+    target_modules: Optional[List[str]] = None,
+    peft_key_prefix: str = "base_model.model",
+    adapter_name: Optional[str] = None,
+    key_style: str = "peft_default"
 ) -> PeftExportResult:
     """
     Compresses full-rank solutions into PEFT-compatible low-rank adapters.
     """
+    if not solution.module_weights:
+        raise RuntimeError("No modules were successfully solved in the solution.")
+
     if lora_alpha is None:
         lora_alpha = rank * 2
         
@@ -185,11 +317,12 @@ def export_lora(
         # Decompose
         A, B = low_rank_decompose_for_peft(W, rank)
         
-        # PEFT Key Formatting (e.g., base_model.model.model.layers.N.mlp.down_proj.lora_A.weight)
-        # Note: This prefixing depends on the specific loading context, but we use a standard one.
-        prefix = f"base_model.model.{module_name}"
-        lora_state_dict[f"{prefix}.lora_A.weight"] = A
-        lora_state_dict[f"{prefix}.lora_B.weight"] = B
+        # PEFT Key Formatting
+        key_a = build_peft_lora_key(module_name, "A", peft_key_prefix, adapter_name, key_style)
+        key_b = build_peft_lora_key(module_name, "B", peft_key_prefix, adapter_name, key_style)
+        
+        lora_state_dict[key_a] = A
+        lora_state_dict[key_b] = B
         
     config = {
         "peft_type": "LORA",
@@ -202,12 +335,20 @@ def export_lora(
     
     mean_err = sum(solution.reconstruction_errors.values()) / len(solution.reconstruction_errors)
     
+    metadata = {
+        "peft_key_prefix": peft_key_prefix,
+        "adapter_name": adapter_name,
+        "key_style": key_style,
+        "target_model_id": solution.target_model_id
+    }
+    
     return PeftExportResult(
         lora_state_dict=lora_state_dict,
         config=config,
         rank=rank,
         lora_alpha=lora_alpha,
-        mean_error=mean_err
+        mean_error=mean_err,
+        metadata=metadata
     )
 
 def validate_behavior(
@@ -215,7 +356,10 @@ def validate_behavior(
     adapter_path: Union[str, Path],
     prompts: List[str],
     tokenizer: Any,
+    prompt_formatter: Optional[Any] = None,
     checks: List[str] = ["logit_kl", "top1_shift"],
+    kl_threshold: float = 1e-6,
+    require_nonzero_adapter: bool = True,
     device: str = "cuda"
 ) -> ValidationReport:
     """
@@ -224,19 +368,53 @@ def validate_behavior(
     from peft import PeftModel
     import torch.nn.functional as F
     
+    if not prompts:
+        raise ValueError("validate_behavior requires at least one prompt.")
+
     report = ValidationReport(phase="G8", status="PENDING")
     
     try:
         # G7: PEFT Load Check
         base_model.to(device).eval()
-        model = PeftModel.from_pretrained(base_model, adapter_path)
-        model.eval()
-        report.add_gate("G7", True, "PEFT Adapter loaded successfully.")
-        
+        try:
+            model = PeftModel.from_pretrained(base_model, adapter_path)
+            model.eval()
+            report.add_gate("G7", True, "PEFT Adapter loaded successfully.")
+        except Exception as e:
+            report.status = "FAIL"
+            report.summary = "ARTIFACT_LOAD_FAILED"
+            report.add_gate("G7", False, f"PEFT load failed: {str(e)}", severity="critical")
+            return report
+
+        # Check for zero weights
+        if require_nonzero_adapter:
+            has_params = False
+            is_zero = True
+            for name, param in model.named_parameters():
+                if "lora_" in name:
+                    has_params = True
+                    if torch.norm(param) > 0:
+                        is_zero = False
+                        break
+            if not has_params:
+                report.status = "FAIL"
+                report.summary = "ADAPTER_NOT_ACTIVE"
+                report.add_gate("G7", False, "No LoRA parameters found in the model.", severity="critical")
+                return report
+            if is_zero:
+                report.status = "FAIL"
+                report.summary = "ADAPTER_NOT_ACTIVE"
+                report.add_gate("G7", False, "LoRA parameters are all zero.", severity="critical")
+                return report
+
         results = {"kl": [], "shifts": 0}
         
         for prompt in prompts:
-            inputs = tokenizer(prompt, return_tensors="pt").to(device)
+            text = prompt
+            if prompt_formatter:
+                text = prompt_formatter(tokenizer, prompt)
+                
+            inputs = tokenizer(text, return_tensors="pt").to(device)
             with torch.no_grad():
                 # Correct comparison: Use the same 'model' instance for both
                 with model.disable_adapter():
@@ -245,6 +423,12 @@ def validate_behavior(
                 # Adapter logit
                 adapter_logits = model(**inputs).logits[:, -1, :]
                 
+            if torch.isnan(base_logits).any() or torch.isnan(adapter_logits).any():
+                report.status = "FAIL"
+                report.summary = "NUMERICALLY_UNSTABLE"
+                report.add_gate("G8", False, "NaN detected in logits.", severity="critical")
+                return report
+
             # Logit KL
             p = F.softmax(base_logits, dim=-1)
             q = F.softmax(adapter_logits, dim=-1)
@@ -262,14 +446,20 @@ def validate_behavior(
         
         # G8: Behavioral Shift Check
         if shift_rate > 0:
-            report.status = "SUCCESS"
+            report.status = "PASS"
+            report.summary = "BEHAVIORAL_SHIFT_DETECTED"
             report.add_gate("G8", True, f"Behavioral shift observed: {shift_rate:.1%} tokens changed.")
+        elif mean_kl >= kl_threshold:
+            report.status = "PASS"
+            report.summary = "LOGIT_SIGNAL_OBSERVED"
+            report.add_gate("G8", True, f"Logit signal observed (KL={mean_kl:.2e}) but no Top-1 shift.")
         else:
             report.status = "WARNING"
-            report.add_gate("G8", False, "No Top-1 token shifts observed. Signal might be too weak.")
+            report.summary = "NO_MEANINGFUL_SIGNAL"
+            report.add_gate("G8", False, f"No meaningful signal (KL={mean_kl:.2e}, shift={shift_rate:.1%}).", severity="warning")
             
     except Exception as e:
-        report.status = "FAILURE"
-        report.add_gate("G7", False, f"Validation failed: {str(e)}")
+        report.status = "FAIL"
+        report.add_gate("G7", False, f"Validation failed due to unexpected error: {str(e)}", severity="critical")
         
     return report

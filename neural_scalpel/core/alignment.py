@@ -59,3 +59,83 @@ class TransportedDelta:
     layer_deltas: Dict[str, torch.Tensor]  # {target_layer: delta_tensor(n, d_t)}
     target_model_id: str
     alignment_metadata: Dict[str, Any] = field(default_factory=dict)
+
+@dataclass
+class LayerCorrespondence:
+    """
+    Represents the estimated correspondence between source and target layers.
+    """
+    target_to_source: Dict[str, str]
+    scores: Dict[str, List[Dict[str, float]]]
+    method: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+def center_gram(K: torch.Tensor) -> torch.Tensor:
+    n = K.shape[0]
+    unit = torch.ones([n, n], device=K.device) / n
+    I = torch.eye(n, device=K.device)
+    H = I - unit
+    return H @ K @ H
+
+def gram_linear_cka(X: torch.Tensor, Y: torch.Tensor, eps: float = 1e-12) -> float:
+    """
+    Computes Linear CKA between two feature matrices using Gram matrices.
+    """
+    X = X.to(torch.float32)
+    Y = Y.to(torch.float32)
+    
+    X = X - X.mean(dim=0, keepdim=True)
+    Y = Y - Y.mean(dim=0, keepdim=True)
+
+    K = X @ X.t()
+    L = Y @ Y.t()
+
+    Kc = center_gram(K)
+    Lc = center_gram(L)
+
+    denom = torch.norm(Kc) * torch.norm(Lc)
+    if denom < eps:
+        return 0.0
+
+    return ((Kc * Lc).sum() / denom).item()
+
+def estimate_layer_correspondence(
+    dataset: PairedActivationDataset,
+    method: str = "linear_cka",
+    top_k: int = 3,
+    device: str = "cuda"
+) -> LayerCorrespondence:
+    """
+    Heuristically estimates which source layers correspond to which target layers.
+    """
+    target_to_source = {}
+    scores = {}
+    
+    target_layers = list(dataset.target_activations.keys())
+    source_layers = list(dataset.source_activations.keys())
+    
+    for t_layer in target_layers:
+        t_acts = dataset.target_activations[t_layer].to(device)
+        layer_scores = []
+        
+        for s_layer in source_layers:
+            s_acts = dataset.source_activations[s_layer].to(device)
+            
+            if method == "linear_cka":
+                score = gram_linear_cka(s_acts, t_acts)
+            else:
+                raise ValueError(f"Unknown correspondence method: {method}")
+                
+            layer_scores.append({"source_layer": s_layer, "score": score})
+        
+        # Sort by score descending
+        layer_scores.sort(key=lambda x: x["score"], reverse=True)
+        scores[t_layer] = layer_scores[:top_k]
+        target_to_source[t_layer] = layer_scores[0]["source_layer"]
+        
+    return LayerCorrespondence(
+        target_to_source=target_to_source,
+        scores=scores,
+        method=method,
+        metadata={"num_source": len(source_layers), "num_target": len(target_layers)}
+    )

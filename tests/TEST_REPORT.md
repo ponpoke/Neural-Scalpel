@@ -67,16 +67,17 @@ To ensure technical transparency, it is critical to define what this test suite 
 
 These tests validate the structural projection helpers and metadata safety guarantees. They do **not** validate downstream SQL/Coding quality, long-form generation stability, or Neural-Scalpel runtime route application.
 
-## Part 1-C: Behavioral Alignment Core Migration
+## Part 1-C: Behavioral Alignment Core Migration (Phase 5-G Hardened)
 
 | Component | Key Assertion | Result |
 | :--- | :--- | :---: |
 | **PairedActivationDataset** | Matching sample counts accepted; mismatched counts rejected | ✅ PASS |
-| **AlignmentMap Projection** | Source delta projected through learned map with expected shape/value | ✅ PASS |
-| **Ridge Alignment Map** | Simple synthetic mapping recovered with low error | ✅ PASS |
-| **LoRA Low-rank Decomposition** | PEFT-compatible A/B shapes generated | ✅ PASS |
+| **Hardened align API** | Prompts/Layers validation enforced; auto-correspondence integrated | ✅ PASS |
+| **Mapping & Mapping-to-Delta** | Explicit module-to-delta mapping solves correctly | ✅ PASS |
+| **PEFT Key Abstraction** | Custom prefixes and adapter names generated correctly | ✅ PASS |
+| **validate_behavior Guards** | Status enum classification (BEHAVIORAL_SHIFT_DETECTED, etc.) verified | ✅ PASS |
 
-These tests validate the Core Migration Phase A/B scaffold. They do not prove task-level SQL improvement or arbitrary cross-architecture transfer.
+These tests validate the Hardened Core Migration API (v1.1.0). They prove the system is robust against common failure modes (missing data, malformed shapes, numerical instability) but do not replace task-level evaluation.
 
 ## Part 2: Architecture Adapters (Unit Tests)
 

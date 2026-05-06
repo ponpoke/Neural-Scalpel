@@ -1,7 +1,8 @@
 # Task Vector Projection: A Mathematical Framework for Cross-Architecture Adapter Conversion
 
 **Date:** May 2026
-**Status:** Experimental Research Preview (v1.0.0-alpha)
+**Status:** Phase 6: Full SQL Capability Evaluation (Active)
+**Last Hardened:** Phase 5-G Core API (May 2026)
 
 ## Abstract
 This report proposes "Task Vector Projection," an experimental mathematical framework attempting to approximate and project learned weight deltas (Task Vectors / LoRAs) between neural architectures without gradient-based fine-tuning. By defining knowledge as a geometric vector within the weight space, we explore methods to project these vectors across distinct architectures (e.g., UNet to DiT, or LLaMA to Qwen). Our methodology incorporates memory-efficient sparse hacking, adaptive singular value decomposition, and structural non-linear compensation. Preliminary localized validations on a single-node setup indicate that calibrated projection can preserve structural alignment and language-modeling stability in limited settings. A small HumanEval subset experiment suggests partial coding-behavior retention for one LLaMA-3-to-Qwen-2.5 configuration, but broader downstream validation across full benchmark sets, additional LoRA types, and additional model pairs remains future work. Core mathematical, structural projection, and controlled-runtime components are covered by an automated test suite; the repository badge currently tracks 200+ non-live tests passed; live vLLM tests are executed separately.
@@ -157,5 +158,22 @@ This result remains experimental and workload-dependent, but it establishes a ne
 ## 8. Future Roadmap
 ### 8.1. ExL2 Direct Integration
 Binary orchestration for non-uniform bit-rate formats.
+
+---
+
+## 9. Recent Progress (May 2026 Update)
+
+### 9.1 Phase 5-G: Core API Hardening
+The experimental behavioral alignment scaffold has been promoted to a robust Core API.
+- **Validation Standard:** Introduced a unified `ValidationReport` with status enums (`PASS`, `WARNING`, `FAIL`) and severity-based gate tracking.
+- **Numerical Guards:** Implemented mandatory NaN/Inf detection in both activation collection and Ridge solving stages.
+- **Flexible Mapping:** The system now supports explicit `module_to_delta_layer` mapping, allowing for non-trivial layer correspondences between heterogeneous architectures.
+- **PEFT Abstraction:** LoRA export now supports custom key styles and adapter names, facilitating integration with diverse runtimes.
+
+### 9.2 Phase 6: SQL Capability Evaluation
+We are currently evaluating the transplanted SQL-Specialist adapter (projected from LLaMA-3-8B to Qwen-0.5B) using a controlled evaluation pipeline.
+- **Pipeline:** `scripts/20_sql_capability_eval.py`
+- **Method:** Measuring syntax pass-rates (via `sqlglot`) and execution logic on a representative subset of the SQL-50 benchmark.
+- **Initial Observation:** Preliminary runs show that the target model (Qwen-0.5B) produces syntactically valid SQL for several prompts where the baseline model failed, confirming that the "Behavioral Shift" observed in Phase 5 has functional Task-Level consequences.
 
 *Note: Live GPU validations referenced in this report were performed locally on an NVIDIA RTX 5060 Ti 16GB unless otherwise stated.*

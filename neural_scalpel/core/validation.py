@@ -9,15 +9,21 @@ class ValidationReport:
     Encapsulates results from G1 (Signal Presence) to G9 (Task Evaluation).
     """
     phase: str
-    status: str  # e.g., "SUCCESS", "WARNING", "FAILURE"
+    status: str = "PENDING"  # "PASS", "WARNING", "FAIL", "PENDING"
+    summary: str = ""
     gates: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     metrics: Dict[str, Any] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-    def add_gate(self, gate_id: str, success: bool, message: str, data: Optional[Dict[str, Any]] = None):
+    def add_gate(self, gate_id: str, success: bool, message: str, 
+                 severity: str = "info", metrics: Optional[Dict[str, Any]] = None,
+                 data: Optional[Dict[str, Any]] = None):
         self.gates[gate_id] = {
+            "gate_id": gate_id,
             "success": success,
+            "severity": severity,
             "message": message,
+            "metrics": metrics or {},
             "data": data or {}
         }
 

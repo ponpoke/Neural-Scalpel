@@ -2,7 +2,7 @@
 
 **No-Retraining LoRA Migration & Diagnostic Toolkit**
 
-[![Version](https://img.shields.io/badge/version-1.0.0--alpha-orange)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-1.1.0--experimental-orange)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-200%2B%20non--live%20passed-brightgreen)](tests/TEST_REPORT.md)
 [![Verification](https://img.shields.io/badge/Status-Validated%20Prototype-blue)](docs/PRODUCTION_READINESS_CRITERIA.md)
@@ -38,7 +38,11 @@ Neural-Scalpel helps answer:
 
 ---
 
-## Status: Validated Prototype with Strong Controlled Runtime Evidence
+## Status: Core Hardened & Phase 6 Evaluation Active
+
+Neural-Scalpel has completed the **Phase 5-G Core API Hardening**. The experimental behavioral alignment scaffold has been promoted to a robust, validated toolkit with numerical guards, standardized reporting, and flexible layer mapping.
+
+We are currently executing **Phase 6: Full SQL Capability Evaluation** to verify the functional task-level impact of transplanted intelligence.
 
 Neural-Scalpel remains an experimental research prototype, but recent controlled vLLM validation has produced strong evidence for the route-window hot-swap runtime design.
 
@@ -61,6 +65,8 @@ These results are strong enough to describe Neural-Scalpel as a **paradigm-shift
 - **Refined Benchmarking (Phase 5-A):** Established a rigorous performance anchor against native vLLM LoRA.
 - **Repeated Median Benchmarking (Phase 5-D):** 50 prompts × 3 runs showed Scalpel v2 median throughput of ~2574 tok/s versus Native LoRA at ~983 tok/s under controlled conditions, with route application and verified rollback events enforced in every Scalpel run.
 - **Determinism Follow-up (Phase 5-F):** After explicit route cleanup and vLLM cache reset, Base-before and Base-after matched exactly, with 100.0% top-token logprob trace similarity for the tested prompt. This is a top-token trace proxy, not a full-vocabulary logits distribution comparison.
+- **Core API Hardening (Phase 5-G):** promotions of experimental scripts to a robust `neural_scalpel.core` package with numerical stability guards, `ValidationReport` status enums, and CKA-based auto-correspondence.
+- **SQL Capability Eval (Phase 6 - Active):** Implementation of `scripts/20_sql_capability_eval.py` using `sqlglot` and greedy decoding comparison to measure task-level functional transfer.
 
 ### Roadmap / Future Work
 
