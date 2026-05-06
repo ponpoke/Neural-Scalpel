@@ -1,0 +1,54 @@
+{
+  "summary": {
+    "evaluation_type": "logit_level_delta_check",
+    "num_prompts": 2,
+    "gamma": "unknown",
+    "adapter_path": "routes/qwen05b_sql_projection/gamma_32p0/peft_adapter_calibrated",
+    "mean_symmetric_kl": 0.0,
+    "mean_abs_logit_delta": 0.0,
+    "top1_same_rate": 1.0,
+    "verdict": "NO_MEANINGFUL_LOGIT_DELTA"
+  },
+  "details": [
+    {
+      "prompt": "List all departments with more than 10 employees....",
+      "symmetric_kl": 0.0,
+      "kl_base_to_proj": 0.0,
+      "kl_proj_to_base": 0.0,
+      "mean_abs_delta": 0.0,
+      "base_top1_token": "I",
+      "proj_top1_token": "I",
+      "top1_match": true,
+      "base_margin": 0.1875,
+      "proj_margin": 0.1875,
+      "sql_logprob_deltas": {
+        "SELECT": 0.0,
+        "FROM": 0.0,
+        "WHERE": 0.0,
+        "ORDER": 0.0,
+        "INSERT": 0.0,
+        "UPDATE": 0.0
+      }
+    },
+    {
+      "prompt": "What is the average salary of engineers in San Fra...",
+      "symmetric_kl": 0.0,
+      "kl_base_to_proj": 0.0,
+      "kl_proj_to_base": 0.0,
+      "mean_abs_delta": 0.0,
+      "base_top1_token": "As",
+      "proj_top1_token": "As",
+      "top1_match": true,
+      "base_margin": 0.671875,
+      "proj_margin": 0.671875,
+      "sql_logprob_deltas": {
+        "SELECT": 0.0,
+        "FROM": 0.0,
+        "WHERE": 0.0,
+        "ORDER": 0.0,
+        "INSERT": 0.0,
+        "UPDATE": 0.0
+      }
+    }
+  ]
+}
