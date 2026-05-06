@@ -173,7 +173,7 @@ The experimental behavioral alignment scaffold has been promoted to a robust Cor
 ### 9.2 Phase 6: SQL Capability Evaluation
 We have established a comprehensive evaluation pipeline to measure the transplanted SQL-Specialist adapter (projected from LLaMA-3-8B to Qwen-0.5B).
 - **Pipeline:** `scripts/20_sql_capability_eval.py` using `SQLCapabilityEvaluator`.
-- **Method:** Measures syntax pass-rates (via `sqlglot`), heuristic schema validation, and functional execution logic using an in-memory SQLite database.
-- **Initial Observation:** The evaluation scaffold is fully implemented and verified via unit tests. Preliminary syntax checks on a small set indicate that the transplanted adapter produces valid SQL where the baseline often fails. Full execution over the complete SQL-50 benchmark is currently in progress.
+- **Method:** Measures syntax pass-rates (via `sqlglot`), heuristic schema validation, and functional execution accuracy by comparing SQLite results against expected outputs.
+- **Initial Observation:** The evaluation scaffold is fully implemented and verified via unit tests. Preliminary runs on structured SQL subsets demonstrate that the pipeline effectively tracks syntax improvements and execution deltas between the base model and the transplanted adapter. Full 50-case benchmark execution and long-form consistency analysis remain pending.
 
 *Note: Live GPU validations referenced in this report were performed locally on an NVIDIA RTX 5060 Ti 16GB unless otherwise stated.*

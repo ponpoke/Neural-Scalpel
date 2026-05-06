@@ -101,6 +101,41 @@ class SQLCapabilityEvaluator:
         self.model = model
         self.tokenizer = tokenizer
 
+    def extract_sql(self, text: str) -> str:
+        """
+        Heuristically extracts the first SQL block from model output.
+        """
+        import re
+        # 1. Check for markdown code blocks
+        sql_match = re.search(r"```sql\n(.*?)\n```", text, re.DOTALL | re.IGNORECASE)
+        if sql_match:
+            return sql_match.group(1).strip()
+            
+        sql_match = re.search(r"```\n(.*?)\n```", text, re.DOTALL | re.IGNORECASE)
+        if sql_match:
+            return sql_match.group(1).strip()
+
+        # 2. Heuristic: Look for SELECT/WITH and optional semicolon
+        text_clean = text.strip()
+        start_keywords = ["SELECT", "WITH", "UPDATE", "INSERT", "DELETE", "CREATE", "DROP"]
+        
+        best_start = -1
+        for kw in start_keywords:
+            idx = text_clean.upper().find(kw)
+            if idx != -1:
+                if best_start == -1 or idx < best_start:
+                    best_start = idx
+        
+        if best_start != -1:
+            sql_snippet = text_clean[best_start:]
+            # Look for semicolon
+            semi_idx = sql_snippet.find(";")
+            if semi_idx != -1:
+                return sql_snippet[:semi_idx+1].strip()
+            return sql_snippet.strip()
+
+        return text_clean
+
     @torch.no_grad()
     def generate_sql(self, prompt: str, max_new_tokens: int = 128) -> str:
         self.model.eval()
@@ -110,13 +145,13 @@ class SQLCapabilityEvaluator:
         outputs = self.model.generate(
             **inputs, 
             max_new_tokens=max_new_tokens,
-            do_sample=False, # Use greedy for deterministic eval
+            do_sample=False,
             pad_token_id=self.tokenizer.eos_token_id
         )
-        # Only return the generated part
         input_len = inputs.input_ids.shape[1]
         gen_ids = outputs[0, input_len:]
-        return self.tokenizer.decode(gen_ids, skip_special_tokens=True)
+        raw_text = self.tokenizer.decode(gen_ids, skip_special_tokens=True)
+        return self.extract_sql(raw_text)
 
     def validate_syntax(self, sql: str) -> Dict[str, Any]:
         """
@@ -191,9 +226,26 @@ class SQLCapabilityEvaluator:
             )
             
             # Execution check
-            execution = {"success": None}
+            execution = {"success": None, "results": None}
             if case.get("sqlite_setup") and syntax["valid"]:
                 execution = self.execute_sqlite(gen_sql, case["sqlite_setup"])
+            
+            # Result correctness check
+            is_correct = False
+            expected = case.get("expected_result")
+            order_sensitive = case.get("order_sensitive", False)
+            
+            if execution.get("success") and expected is not None:
+                actual_res = execution["results"]
+                if not order_sensitive:
+                    # Sort both if order doesn't matter
+                    try:
+                        is_correct = sorted(actual_res) == sorted(expected)
+                    except:
+                        # Fallback for complex results that might not sort easily
+                        is_correct = actual_res == expected
+                else:
+                    is_correct = actual_res == expected
             
             res = {
                 "id": case.get("id", "unknown"),
@@ -203,22 +255,27 @@ class SQLCapabilityEvaluator:
                 "syntax_valid": syntax["valid"],
                 "schema_ok": schema["table_ok"] and schema["column_ok"],
                 "execution_success": execution.get("success"),
+                "is_correct": is_correct,
                 "error": syntax["error"] or execution.get("error")
             }
             
             # Update stats
             if syntax["valid"]: stats["syntax_valid"] += 1
             if execution.get("success"): stats["execution_success"] += 1
+            if is_correct: stats["exact_match"] += 1
             
             cat = res["category"]
             if cat not in stats["categories"]:
-                stats["categories"][cat] = {"total": 0, "pass": 0}
+                stats["categories"][cat] = {"total": 0, "pass": 0, "correct": 0}
             stats["categories"][cat]["total"] += 1
             if execution.get("success"): stats["categories"][cat]["pass"] += 1
+            if is_correct: stats["categories"][cat]["correct"] += 1
             
             results.append(res)
             
-        stats["pass_rate"] = stats["execution_success"] / stats["total"] if stats["total"] > 0 else 0
+        stats["execution_success_rate"] = stats["execution_success"] / stats["total"] if stats["total"] > 0 else 0
+        stats["execution_accuracy"] = stats["exact_match"] / stats["total"] if stats["total"] > 0 else 0
+        
         return {
             "stats": stats,
             "results": results
