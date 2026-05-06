@@ -95,7 +95,13 @@ def sha256_file(path: str | Path, chunk_size: int = 64 * 1024 * 1024) -> str:
 def project_peft_lora(hf_repo_id: str, output_dir: str, target_model_id: str, export_peft: bool = False, scale_gamma: float = 1.0):
     out_path = Path(output_dir); out_path.mkdir(parents=True, exist_ok=True)
     print(f"\n[PHASE 1] Initializing Structural Projection Baseline v2...")
-    config_path = hf_hub_download(repo_id=hf_repo_id, filename="adapter_config.json")
+    if os.path.exists(hf_repo_id):
+        config_path = os.path.join(hf_repo_id, "adapter_config.json")
+        weights_path = os.path.join(hf_repo_id, "adapter_model.safetensors")
+    else:
+        config_path = hf_hub_download(repo_id=hf_repo_id, filename="adapter_config.json")
+        weights_path = hf_hub_download(repo_id=hf_repo_id, filename="adapter_model.safetensors")
+    
     with open(config_path, "r") as f: adapter_config = json.load(f)
     
     target_config = AutoConfig.from_pretrained(target_model_id)
@@ -103,7 +109,6 @@ def project_peft_lora(hf_repo_id: str, output_dir: str, target_model_id: str, ex
     scaling = (alpha / r) * scale_gamma
 
     print(f"\n[PHASE 2] Interpolating Layers...")
-    weights_path = hf_hub_download(repo_id=hf_repo_id, filename="adapter_model.safetensors")
     lora_sd = load_file(weights_path)
     src_layers = sorted(list(set([int(k.split(".layers.")[1].split(".")[0]) for k in lora_sd.keys() if ".layers." in k])))
     layer_mapping = build_interpolated_layer_mapping(src_layers, target_config.num_hidden_layers)
@@ -131,7 +136,7 @@ def project_peft_lora(hf_repo_id: str, output_dir: str, target_model_id: str, ex
             if dW_up is None: dW_up = dW_low # Fallback to low if up missing
 
             dW = (1.0 - alpha_w) * dW_low + alpha_w * dW_up
-            clean_module = suffix.replace(".lora_A", "")
+            clean_module = suffix.replace(".lora_A", "").replace(".weight", "")
             target_shape = infer_qwen_target_shape(clean_module, target_config)
             re_t, stats, svd = resize_and_analyze(dW, target_shape, rank=r)
             
