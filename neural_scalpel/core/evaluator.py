@@ -160,28 +160,36 @@ class SQLCapabilityEvaluator:
         try:
             import sqlglot
             # Basic parse check
-            sqlglot.transpile(sql, read=None)
+            sqlglot.parse_one(sql, read=None)
             return {"valid": True, "error": None}
-        except ImportError:
-            return {"valid": None, "error": "sqlglot not installed"}
         except Exception as e:
             return {"valid": False, "error": str(e)}
 
     def validate_schema(self, sql: str, expected_tables: List[str], expected_columns: List[str]) -> Dict[str, Any]:
         """
-        Heuristically checks if the SQL uses expected tables and columns.
+        Uses sqlglot AST to extract tables and columns for stricter validation.
         """
-        sql_lower = sql.lower()
-        missing_tables = [t for t in expected_tables if t.lower() not in sql_lower]
-        # Very naive column check
-        missing_columns = [c for c in expected_columns if c.lower() not in sql_lower]
-        
-        return {
-            "table_ok": len(missing_tables) == 0,
-            "column_ok": len(missing_columns) == 0,
-            "missing_tables": missing_tables,
-            "missing_columns": missing_columns
-        }
+        try:
+            import sqlglot
+            from sqlglot import exp
+            parsed = sqlglot.parse_one(sql)
+            
+            # Extract tables
+            found_tables = {t.name.lower() for t in parsed.find_all(exp.Table)}
+            # Extract columns
+            found_cols = {c.name.lower() for c in parsed.find_all(exp.Column)}
+            
+            table_ok = all(t.lower() in found_tables for t in expected_tables)
+            column_ok = all(c.lower() in found_cols for c in expected_columns)
+            
+            return {
+                "table_ok": table_ok,
+                "column_ok": column_ok,
+                "found_tables": list(found_tables),
+                "found_columns": list(found_cols)
+            }
+        except Exception:
+            return {"table_ok": False, "column_ok": False, "found_tables": [], "found_columns": []}
 
     def execute_sqlite(self, sql: str, setup_script: str) -> Dict[str, Any]:
         """
@@ -205,6 +213,7 @@ class SQLCapabilityEvaluator:
         Evaluates a list of test cases with syntax, schema, and execution checks.
         """
         results = []
+        failure_cases = []
         stats = {
             "total": len(test_cases),
             "syntax_valid": 0,
@@ -272,11 +281,14 @@ class SQLCapabilityEvaluator:
             if is_correct: stats["categories"][cat]["correct"] += 1
             
             results.append(res)
+            if not is_correct:
+                failure_cases.append(res)
             
         stats["execution_success_rate"] = stats["execution_success"] / stats["total"] if stats["total"] > 0 else 0
         stats["execution_accuracy"] = stats["exact_match"] / stats["total"] if stats["total"] > 0 else 0
         
         return {
             "stats": stats,
-            "results": results
+            "results": results,
+            "failure_cases": failure_cases
         }

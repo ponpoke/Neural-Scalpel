@@ -72,15 +72,27 @@ These tests validate the structural projection helpers and metadata safety guara
 | Component | Key Assertion | Result |
 | :--- | :--- | :---: |
 | **PairedActivationDataset** | Matching sample counts accepted; mismatched counts rejected | ✅ PASS |
-| **Hardened align API** | Empty prompt / empty layer validation enforced; verified via real tests | ✅ PASS |
-| **Numerical Guards** | NaN/Inf in activations or solve triggers `ValueError`; verified via real tests | ✅ PASS |
-| **ValidationReport Gate Schema** | Gate-level severity and metrics stored; verified via real tests | ✅ PASS |
+| **Hardened align API** | Empty prompt / empty layer validation enforced; verified via real hardening tests | ✅ PASS |
+| **Numerical Guards** | NaN/Inf in activations or solve triggers `ValueError`; verified via real hardening tests | ✅ PASS |
+| **ValidationReport Gate Schema** | Gate-level severity and metrics stored; verified via real hardening tests | ✅ PASS |
 | **module_to_delta_layer Mapping** | Implemented and verified via mapping-specific unit tests | ✅ PASS |
-| **PEFT Key Abstraction** | Multiple key styles and custom prefixes verified via real tests | ✅ PASS |
-| **Prompt Formatter Support** | Chat template integration and formatter calls verified via real tests | ✅ PASS |
-| **validate_behavior Guards** | Status enum classification and KL stability verified via real tests | ✅ PASS |
+| **PEFT Key Abstraction** | Multiple key styles and custom prefixes verified via real hardening tests | ✅ PASS |
+| **Prompt Formatter Support** | Chat template integration and formatter calls verified via real hardening tests | ✅ PASS |
+| **validate_behavior Guards** | Status enum classification and KL stability verified via real hardening tests | ✅ PASS |
 
-These tests validate the Hardened Core Migration API (v1.1.0-experimental). All core abstractions and numerical guards are now covered by a dedicated hardening test suite (`tests/test_core_migration_hardening.py`). Task-level SQL execution accuracy is being evaluated separately in Phase 6.
+These tests validate the Hardened Core Migration API (v1.1.0-experimental). All core abstractions and numerical guards are covered by a dedicated hardening test suite (`tests/test_core_migration_hardening.py`).
+
+## Part 1-D: Phase 6 SQL Evaluation (Logic Verification)
+
+| Component | Key Assertion | Result |
+| :--- | :--- | :---: |
+| **SQL-50 Benchmark Suite** | 50-case structured test suite implemented and loadable | ✅ PASS |
+| **extract_sql Logic** | SQL extraction from markdown and raw text verified via Mock | ✅ PASS |
+| **AST Schema Validation** | Table/Column extraction via `sqlglot` verified via Mock | ✅ PASS |
+| **Execution Flow** | SQLite execution and exact-result matching flow verified via Mock | ✅ PASS |
+| **Comparison Metrics** | Overall and Category-level delta calculations verified via Mock | ✅ PASS |
+
+**Current Status:** The Phase 6 evaluation pipeline logic is smoke-verified via `scripts/verify_phase6_logic.py`. Real-model execution over the SQL-50 benchmark remains the final validation step (PENDING).
 
 ## Part 2: Architecture Adapters (Unit Tests)
 

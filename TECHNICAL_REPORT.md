@@ -171,9 +171,9 @@ The experimental behavioral alignment scaffold has been promoted to a robust Cor
 - **PEFT Abstraction:** LoRA export now supports custom key styles and adapter names, facilitating integration with diverse runtimes.
 
 ### 9.2 Phase 6: SQL Capability Evaluation
-We have established a comprehensive evaluation pipeline to measure the transplanted SQL-Specialist adapter (projected from LLaMA-3-8B to Qwen-0.5B).
-- **Pipeline:** `scripts/20_sql_capability_eval.py` using `SQLCapabilityEvaluator`.
-- **Method:** Measures syntax pass-rates (via `sqlglot`), heuristic schema validation, and functional execution accuracy by comparing SQLite results against expected outputs.
-- **Initial Observation:** The evaluation scaffold is fully implemented and verified via unit tests. Preliminary runs on structured SQL subsets demonstrate that the pipeline effectively tracks syntax improvements and execution deltas between the base model and the transplanted adapter. Full 50-case benchmark execution and long-form consistency analysis remain pending.
+We have implemented a structured SQL-50 evaluation suite to measure the functional consequences of behavioral transplantation (projected from LLaMA-3-8B to Qwen-0.5B).
+- **Benchmark Suite:** `neural_scalpel/core/benchmarks/sql_50.py` containing 50 structured test cases across 5 categories (basic, aggregation, joins, subqueries, complex logic).
+- **Evaluation Pipeline:** `scripts/20_sql_capability_eval.py` utilizing AST-based schema validation (`sqlglot`), failure tracking, and category-level delta calculation.
+- **Status:** The evaluation logic has been smoke-verified via `scripts/verify_phase6_logic.py` using mock models. Actual benchmark execution over real models and transplanted adapters remains the next validation step. Preliminary small-set runs suggest the pipeline correctly identifies syntax and execution success deltas.
 
 *Note: Live GPU validations referenced in this report were performed locally on an NVIDIA RTX 5060 Ti 16GB unless otherwise stated.*

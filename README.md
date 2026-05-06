@@ -66,7 +66,7 @@ These results are strong enough to describe Neural-Scalpel as a **paradigm-shift
 - **Repeated Median Benchmarking (Phase 5-D):** 50 prompts × 3 runs showed Scalpel v2 median throughput of ~2574 tok/s versus Native LoRA at ~983 tok/s under controlled conditions, with route application and verified rollback events enforced in every Scalpel run.
 - **Determinism Follow-up (Phase 5-F):** After explicit route cleanup and vLLM cache reset, Base-before and Base-after matched exactly, with 100.0% top-token logprob trace similarity for the tested prompt. This is a top-token trace proxy, not a full-vocabulary logits distribution comparison.
 - **Core API Hardening (Phase 5-G):** promotions of experimental scripts to a robust `neural_scalpel.core` package with numerical stability guards, `ValidationReport` status enums, and CKA-based auto-correspondence.
-- **SQL Capability Eval (Phase 6 - Active):** Implementation of `scripts/20_sql_capability_eval.py` for task-level functional transfer evaluation. The pipeline supports syntax validation, heuristic schema checks, and SQLite execution accuracy. Verified on structured subsets; full benchmark execution is ongoing.
+- **SQL Capability Eval (Phase 6 - Active):** Implementation of a structured SQL-50 benchmark suite (`neural_scalpel/core/benchmarks/sql_50.py`) and a logic-verified evaluation pipeline (`scripts/20_sql_capability_eval.py`). The pipeline supports syntax validation, AST-based schema checks, and SQLite execution accuracy. Real-model benchmark results are pending.
 
 ### Roadmap / Future Work
 
