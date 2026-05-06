@@ -16,6 +16,8 @@
     "sql_signal_rate": 0.75,
     "repetition_rate": 0.0
   },
-  "exact_same_count": 4,
-  "exact_same_rate": 1.0
+  "exact_same_count_raw": 4,
+  "exact_same_count_normalized": 4,
+  "exact_same_rate_raw": 1.0,
+  "exact_same_rate_normalized": 1.0
 }

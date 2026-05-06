@@ -90,5 +90,23 @@ def main():
     
     print(f"\nReal evaluation results saved to {output_json}")
 
+    # Save to Markdown for report synchronization
+    report_md = Path("reports/before_after_real.md")
+    with open(report_md, "w", encoding="utf-8") as f:
+        f.write("# Qualitative Before/After Evaluation (REAL)\n\n")
+        f.write(f"**Base Model:** {args.base_model}\n")
+        f.write(f"**Adapter:** {args.adapter_path}\n\n")
+        f.write("> [!NOTE]\n")
+        f.write("> This report is generated using greedy decoding and chat templates for objective comparison.\n\n")
+        
+        for i, res in enumerate(results):
+            f.write(f"### Example {i+1}\n\n")
+            f.write(f"**Prompt:**\n```\n{res['prompt']}\n```\n\n")
+            f.write(f"**Base Output:**\n```\n{res['base_output']}\n```\n\n")
+            f.write(f"**Projected Output:**\n```\n{res['projected_output']}\n```\n\n")
+            f.write("---\n\n")
+    
+    print(f"Qualitative Markdown report saved to {report_md}")
+
 if __name__ == "__main__":
     main()

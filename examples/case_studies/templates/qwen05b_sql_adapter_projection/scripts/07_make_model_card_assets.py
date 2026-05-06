@@ -7,8 +7,16 @@ def make_model_card():
     
     # Check if reports are simulated
     is_simulated = True
+    is_inconclusive = False
     if os.path.exists("reports/eval_summary_real.json"):
         is_simulated = False
+        try:
+            with open("reports/eval_summary_real.json", "r", encoding="utf-8") as f:
+                metrics = json.load(f)
+                if metrics.get("behavioral_improvement") == "INCONCLUSIVE":
+                    is_inconclusive = True
+        except:
+            pass
     else:
         try:
             with open("reports/eval_summary.json", "r", encoding="utf-8") as f:
@@ -51,6 +59,10 @@ def make_model_card():
             f.write("> [!CAUTION]\n")
             f.write("> **SIMULATED CASE-STUDY SCAFFOLD**: Real-weight evaluation has NOT been completed yet.\n")
             f.write("> The metrics and examples below are placeholders for demonstration purposes.\n\n")
+        elif is_inconclusive:
+            f.write("> [!WARNING]\n")
+            f.write("> **Real inference smoke evaluation was run, but behavioral improvement is NOT PROVEN.**\n")
+            f.write("> The current greedy smoke set showed high identity between Base and Projected outputs.\n\n")
             
         f.write("## What is this?\n\n")
         f.write("This is an experimental projected SQL/Coding adapter for Qwen2.5-0.5B, produced with Neural-Scalpel.\n\n")

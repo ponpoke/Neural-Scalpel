@@ -1,5 +1,9 @@
 # Qwen2.5-0.5B SQL Adapter Projection via Neural-Scalpel
 
+> [!WARNING]
+> **Real inference smoke evaluation was run, but behavioral improvement is NOT PROVEN.**
+> The current greedy smoke set showed high identity between Base and Projected outputs.
+
 ## What is this?
 
 This is an experimental projected SQL/Coding adapter for Qwen2.5-0.5B, produced with Neural-Scalpel.
@@ -21,7 +25,9 @@ Evaluated on 4 curated prompts.
 | Observed Repetition Rate | 0% | 0% | +0% |
 | Avg Output Length | 502 | 502 | +0.0 |
 
-**Exact Identity Rate (Base vs Projected):** 100%
+**Identity Rates (Base vs Projected):**
+- Exact Bit-Identical: 100.0%
+- Normalized (Whitespace-Insensitive): 100.0%
 
 
 ## Before / After
@@ -30,6 +36,9 @@ Evaluated on 4 curated prompts.
 
 **Base Model:** Qwen/Qwen2.5-0.5B-Instruct
 **Adapter:** routes/qwen05b_sql_projection/peft_adapter
+
+> [!NOTE]
+> This report is generated using greedy decoding and chat templates for objective comparison.
 
 ### Example 1
 
@@ -40,40 +49,38 @@ Table: sales(id, product, amount, date). SQL to find total sales for 'Laptop'.
 
 **Base Output:**
 ```
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id; 
+To find the total sales for the 'Laptop' product in the `sales` table, you can use the following SQL query:
 
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id;
+```sql
+SELECT SUM(amount) AS total_sales
+FROM sales
+WHERE product = 'Laptop';
+```
 
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop'; 
+This query does the following:
+1. It selects the sum of all amounts from the `amount` column where the `product` is equal to `'Laptop'`.
+2. It aliases the result as `total_sales` to make it easier to reference.
+3. It uses the `SUM()` function to calculate the total sales.
 
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id; 
-
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop';
-
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id; 
-
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop'; 
-
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY
+If you want to include any other columns or conditions in
 ```
 
 **Projected Output:**
 ```
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id; 
+To find the total sales for the 'Laptop' product in the `sales` table, you can use the following SQL query:
 
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id;
+```sql
+SELECT SUM(amount) AS total_sales
+FROM sales
+WHERE product = 'Laptop';
+```
 
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop'; 
+This query does the following:
+1. It selects the sum of all amounts from the `amount` column where the `product` is equal to `'Laptop'`.
+2. It aliases the result as `total_sales` to make it easier to reference.
+3. It uses the `SUM()` function to calculate the total sales.
 
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id; 
-
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop';
-
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY id; 
-
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop'; 
-
-SELECT SUM(amount) FROM sales WHERE product = 'Laptop' GROUP BY
+If you want to include any other columns or conditions in
 ```
 
 ---
@@ -87,40 +94,28 @@ Table: employees(id, name, department, salary). SQL for average salary in 'Engin
 
 **Base Output:**
 ```
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
+To calculate the average salary of employees in the "Engineering" department using SQL, you can use the following query:
 
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id;
+```sql
+SELECT AVG(salary) AS average_salary
+FROM employees
+WHERE department = 'Engineering';
+```
 
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering'; 
-
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
-
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering';
-
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
-
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering'; 
-
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY
+This query selects the average (AVG function) of the `salary` column from the `employees` table where the `department` is equal to `'Engineering'`. The result will be a single row with an `average_salary` value that represents the average salary across all employees in the Engineering department.
 ```
 
 **Projected Output:**
 ```
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
+To calculate the average salary of employees in the "Engineering" department using SQL, you can use the following query:
 
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
+```sql
+SELECT AVG(salary) AS average_salary
+FROM employees
+WHERE department = 'Engineering';
+```
 
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering'; 
-
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
-
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
-
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
-
-SELECT AVG(salary) FROM employees WHERE department = 'Engineering' GROUP BY id; 
-
-SELECT AVG(salary)
+This query selects the average (AVG function) of the `salary` column from the `employees` table where the `department` is equal to `'Engineering'`. The result will be a single row with an `average_salary` value that represents the average salary across all employees in the Engineering department.
 ```
 
 ---
@@ -134,34 +129,28 @@ Write a SQL query to list all students who scored above 90 in 'Mathematics'.
 
 **Base Output:**
 ```
-Additionally, include the following additional requirements:
-
-1. Exclude any student whose name starts with "A" or ends with "Z".
-2. Only consider students who have taken at least one course.
-3. Sort the results by their score in descending order and then by their name in ascending order.
-
-Assume that there is a table named `students` with columns `name`, `math_score`, and `course_taken`. The table has a column `is_passed` indicating whether the student passed the course (1 for passed, 0 for failed).
+To write an SQL query that lists all students who scored above 90 in the "Mathematics" subject, you can use the following query:
 
 ```sql
 SELECT *
-FROM students
-WHERE math_score > 90 AND name NOT
+FROM Students
+WHERE Mathematics > 90;
+```
+
+This query selects all columns (`*`) from the `Students` table where the value in the `Mathematics` column is greater than 90. This will return all rows where the student's mathematics score is higher than 90.
 ```
 
 **Projected Output:**
 ```
-Additionally, include the following additional requirements:
-
-1. Exclude any student whose name starts with "A" or ends with "Z".
-2. Only consider students who have taken at least one course.
-3. Sort the results by their score in descending order and then by their name in ascending order.
-
-Assume that there is a table named `students` with columns `name`, `math_score`, and `course_taken`. The table has a column `is_passed` indicating whether the student passed the course (1 for passed, 0 for failed).
+To write an SQL query that lists all students who scored above 90 in the "Mathematics" subject, you can use the following query:
 
 ```sql
 SELECT *
-FROM students
-WHERE math_score > 90 AND name NOT
+FROM Students
+WHERE Mathematics > 90;
+```
+
+This query selects all columns (`*`) from the `Students` table where the value in the `Mathematics` column is greater than 90. This will return all rows where the student's mathematics score is higher than 90.
 ```
 
 ---
@@ -175,52 +164,44 @@ Write a Python function for palindrome check.
 
 **Base Output:**
 ```
-The function should take in two strings as input and return True if the first string is a palindrome, False otherwise.
+Certainly! Below is a Python function that checks if a given string (or any other type of object) is a palindrome:
 
-Example:
-Input: "racecar"
-Output: True
-
-Input: "hello"
-Output: False
-
-Input: ""
-Output: True
-
-Note:
-- The function should ignore spaces and punctuation.
-- The function should not use any built-in functions or libraries for checking palindromes.
-- The function should be case-insensitive.
-- The function should handle both uppercase and lowercase letters.
-def is_palindrome(s):
-    # Convert the string to lowercase
-    s = s.lower()
+```python
+def is_palindrome(input_object):
+    """
+    Check if the input object is a palindrome.
     
-    # Remove all non-al
+    A palindrome is a word, phrase, number, or other sequence of characters which reads the same backward as forward,
+    e.g., madam, racecar, and python.
+    
+    Parameters:
+    - input_object: The object to be checked.
+    
+    Returns:
+    - True if the input object is a palindrome, False otherwise.
+    """
+    # Convert the object into a string
 ```
 
 **Projected Output:**
 ```
-The function should take in two strings as input and return True if the first string is a palindrome of the second string, and False otherwise.
+Certainly! Below is a Python function that checks if a given string (or any other type of object) is a palindrome:
 
-Example:
-Input: "racecar"
-Output: True
-
-Input: "hello"
-Output: False
-
-Input: "madam"
-Output: True
-
-Input: "python"
-Output: False
-def is_palindrome(s):
-    # Remove all non-alphanumeric characters from the string
-    s = ''.join(char.lower() for char in s if char.isalnum())
+```python
+def is_palindrome(input_object):
+    """
+    Check if the input object is a palindrome.
     
-    # Check if the cleaned string is equal to its reverse
-    return s == s[::-1]
+    A palindrome is a word, phrase, number, or other sequence of characters which reads the same backward as forward,
+    e.g., madam, racecar, and python.
+    
+    Parameters:
+    - input_object: The object to be checked.
+    
+    Returns:
+    - True if the input object is a palindrome, False otherwise.
+    """
+    # Convert the object into a string
 ```
 
 ---

@@ -3,9 +3,16 @@ import os
 from pathlib import Path
 import argparse
 
+def normalize_text(s: str) -> str:
+    return "\n".join(line.rstrip() for line in s.strip().splitlines())
+
 def calculate_metrics(results):
+    n = len(results)
+    if n == 0:
+        raise ValueError("No evaluation results found. Ensure 04_eval_before_after.py ran correctly.")
+
     metrics = {
-        "num_prompts": len(results),
+        "num_prompts": n,
         "evaluation_type": "preliminary_heuristic_smoke",
         "behavioral_improvement": "INCONCLUSIVE",
         "base": {
@@ -18,7 +25,8 @@ def calculate_metrics(results):
             "repetition_failure": 0,
             "avg_length": 0
         },
-        "exact_same_count": 0
+        "exact_same_count_raw": 0,
+        "exact_same_count_normalized": 0
     }
 
     sql_keywords = ["SELECT", "FROM", "WHERE", "GROUP BY", "ORDER BY", "SUM(", "AVG("]
@@ -28,13 +36,15 @@ def calculate_metrics(results):
         proj_out = res["projected_output"]
         
         if base_out == proj_out:
-            metrics["exact_same_count"] += 1
+            metrics["exact_same_count_raw"] += 1
+        
+        if normalize_text(base_out) == normalize_text(proj_out):
+            metrics["exact_same_count_normalized"] += 1
 
         # Base
         metrics["base"]["avg_length"] += len(base_out)
         if any(kw in base_out.upper() for kw in sql_keywords):
             metrics["base"]["sql_signal"] += 1
-        # Simple repetition check (looking for duplicated lines)
         lines = base_out.split("\n")
         if len(lines) > 5 and len(set(lines)) < len(lines) * 0.5:
             metrics["base"]["repetition_failure"] += 1
@@ -47,14 +57,14 @@ def calculate_metrics(results):
         if len(lines) > 5 and len(set(lines)) < len(lines) * 0.5:
             metrics["projected"]["repetition_failure"] += 1
 
-    # Normalize
-    n = metrics["num_prompts"]
+    # Normalize rates
     for key in ["base", "projected"]:
         metrics[key]["sql_signal_rate"] = metrics[key]["sql_signal"] / n
         metrics[key]["repetition_rate"] = metrics[key]["repetition_failure"] / n
         metrics[key]["avg_length"] = metrics[key]["avg_length"] / n
 
-    metrics["exact_same_rate"] = metrics["exact_same_count"] / n
+    metrics["exact_same_rate_raw"] = metrics["exact_same_count_raw"] / n
+    metrics["exact_same_rate_normalized"] = metrics["exact_same_count_normalized"] / n
     return metrics
 
 def main():
@@ -92,7 +102,9 @@ def main():
         f.write(f"| Observed Repetition Rate | {metrics['base']['repetition_rate']:.0%} | {metrics['projected']['repetition_rate']:.0%} | {metrics['projected']['repetition_rate'] - metrics['base']['repetition_rate']:+.0%} |\n")
         f.write(f"| Avg Output Length | {metrics['base']['avg_length']:.0f} | {metrics['projected']['avg_length']:.0f} | {metrics['projected']['avg_length'] - metrics['base']['avg_length']:+.1f} |\n")
         
-        f.write(f"\n**Exact Identity Rate (Base vs Projected):** {metrics['exact_same_rate']:.0%}\n")
+        f.write(f"\n**Identity Rates (Base vs Projected):**\n")
+        f.write(f"- Exact Bit-Identical: {metrics['exact_same_rate_raw']:.1%}\n")
+        f.write(f"- Normalized (Whitespace-Insensitive): {metrics['exact_same_rate_normalized']:.1%}\n")
 
     print(f"Markdown report saved to {report_md}")
 

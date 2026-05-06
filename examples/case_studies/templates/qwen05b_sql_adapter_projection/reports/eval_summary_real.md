@@ -11,4 +11,6 @@ Evaluated on 4 curated prompts.
 | Observed Repetition Rate | 0% | 0% | +0% |
 | Avg Output Length | 502 | 502 | +0.0 |
 
-**Exact Identity Rate (Base vs Projected):** 100%
+**Identity Rates (Base vs Projected):**
+- Exact Bit-Identical: 100.0%
+- Normalized (Whitespace-Insensitive): 100.0%
