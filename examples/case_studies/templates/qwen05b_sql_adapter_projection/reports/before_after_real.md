@@ -1,7 +1,7 @@
 # Qualitative Before/After Evaluation (REAL)
 
 **Base Model:** Qwen/Qwen2.5-0.5B-Instruct
-**Adapter:** routes/qwen05b_sql_projection/peft_lora
+**Adapter:** routes/qwen05b_sql_projection/peft_lora_alpha16
 
 > [!NOTE]
 > This report is generated using greedy decoding and chat templates for objective comparison.
@@ -33,7 +33,19 @@ If you want to include any other columns or conditions in
 
 **Projected Output:**
 ```
-To calculate the average total sales of laptops, you can create a query calculating averages of sums grouped together. Use AVG sum partitioned sum average sum aggregate sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average
+To calculate the total sales of laptops, you can write an SQL query that calculates the sum of amounts for rows where the `product` is "Laptop". Here's how you can construct this query:
+
+```sql
+SELECT AVG(amount) AS average_sales 
+FROM sales 
+WHERE product = 'Laptop';
+```
+
+This query does the following:
+1. **AVG (Average)** calculates the average amount sold.
+2. **AS average_sales** adds a descriptive alias to the result.
+
+The query will always return the average sale amount per laptop, assuming there is only one row with "Laptop" as the product. If there
 ```
 
 ---
@@ -60,7 +72,27 @@ This query selects the average (AVG function) of the `salary` column from the `e
 
 **Projected Output:**
 ```
-Designing Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary
+To calculate the average salary of employees in the "Engineering" department, you can use SQL with window functions or common table expressions (CTEs) to aggregate salaries. Here's how you can achieve this:
+
+### Using Window Functions:
+```sql
+WITH AverageSalaries AS (
+    SELECT 
+        id,
+        name,
+        department,
+        AVG(salary) OVER (PARTITION BY department ORDER BY salary DESC) AS avg_salary
+    FROM 
+        employees
+    WHERE 
+        department = 'Engineering'
+)
+SELECT * FROM AverageSalaries;
+```
+
+### Explanation:
+1. **Common Table Expression (CTE)**:
+   -
 ```
 
 ---
@@ -87,15 +119,22 @@ This query selects all columns (`*`) from the `Students` table where the value i
 
 **Projected Output:**
 ```
-To write this solution, you can use SQL aggregating constructs and window functions (partition grouping). Here's how you could perform it:
+To write an SQL query that lists all students who scored above 90 in 'Mathematics', you can use the following steps:
 
-Designing Design Estimations:
-1. Calculate average scores of subjects.
-2. Create partitioned averages with average scoring greater than 90.
-3. Present average scores for students grouped by average scores.
+1. **Create or Select Tables**: Ensure you have tables with student information and mathematics scores.
+2. **Design Conditions**: Create conditions to filter students based on their mathematics score.
+3. **Construct Query**: Write SQL queries to achieve this.
 
-Construct Design Estimations:
-Create average student listing average scores average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average
+Here is how you can construct your SQL query:
+
+```sql
+SELECT *
+FROM Students
+WHERE MathematicsScore > 90;
+```
+
+### Explanation:
+- **SELECT ***: This part of the query selects all columns (or rows) from the table `
 ```
 
 ---
@@ -130,7 +169,20 @@ def is_palindrome(input_object):
 
 **Projected Output:**
 ```
-To write a Python function to check if a given phrase (generally consisting of words) is both **Construct Average Average Average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average
+To write a Python function to check if a given string is a palindrome, you can compare the first and last characters of both halves of the string. Here's how you can implement this:
+
+```python
+def is_palindrome(s):
+    """
+    Check if the given string is a palindrome.
+    
+    A palindrome is a word, phrase, or sequence that reads the same backward as forward,
+    e.g., madam, racecar, and weight.
+    
+    :param s: The string to check.
+    :type s: str
+    :return: True if the string is a palindrome, False otherwise.
+    :rtype
 ```
 
 ---

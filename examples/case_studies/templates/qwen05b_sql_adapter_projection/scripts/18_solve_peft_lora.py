@@ -43,7 +43,10 @@ def low_rank_decompose_for_peft(W, rank):
     
     return A, B
 
-def solve_peft_lora(module_activations_path, output_dir, rank=16, alpha=1.0):
+def solve_peft_lora(module_activations_path, output_dir, rank=16, alpha=1.0, lora_alpha=None):
+    if lora_alpha is None:
+        lora_alpha = rank * 2 # Default to 2.0 scaling for consistency
+        
     print(f"Loading module activations and desired deltas...")
     data = torch.load(module_activations_path)
     module_inputs = data["module_inputs"]
@@ -52,7 +55,7 @@ def solve_peft_lora(module_activations_path, output_dir, rank=16, alpha=1.0):
     lora_state_dict = {}
     layer_reports = []
     
-    print(f"Solving PEFT-style LoRA (Rank={rank}, Alpha={alpha})...")
+    print(f"Solving PEFT-style LoRA (Rank={rank}, Alpha={alpha}, LoRA-Alpha={lora_alpha})...")
     
     for layer_key, delta in desired_deltas.items():
         idx = int(layer_key.split(".")[-1])
@@ -71,7 +74,6 @@ def solve_peft_lora(module_activations_path, output_dir, rank=16, alpha=1.0):
         A, B = low_rank_decompose_for_peft(W_full, rank)
         
         # Key naming: PEFT typically maps 'lora_A.weight' to the active adapter internally
-        # We remove '.default' to match the most common saved format
         lora_state_dict[f"base_model.model.model.layers.{idx}.mlp.down_proj.lora_A.weight"] = A
         lora_state_dict[f"base_model.model.model.layers.{idx}.mlp.down_proj.lora_B.weight"] = B
         
@@ -102,7 +104,7 @@ def solve_peft_lora(module_activations_path, output_dir, rank=16, alpha=1.0):
         "peft_type": "LORA",
         "task_type": "CAUSAL_LM",
         "r": rank,
-        "lora_alpha": rank * 2, # Scale factor = 2.0 (matches gamma=2.0 smoke success)
+        "lora_alpha": lora_alpha,
         "target_modules": ["down_proj"],
         "modules_to_save": None,
         "bias": "none",
@@ -118,17 +120,14 @@ def solve_peft_lora(module_activations_path, output_dir, rank=16, alpha=1.0):
     summary = {
         "status": "MODULE_LORA_SOLVED",
         "rank": rank,
+        "lora_alpha": lora_alpha,
         "mean_reconstruction_error": mean_err,
-        "layer_reports": layer_reports,
-        "warnings": [
-            "This LoRA was solved to minimize layer-output activation delta.",
-            "Must pass PEFT load validation before testing behavioral transfer."
-        ]
+        "layer_reports": layer_reports
     }
     with open(Path(output_dir) / "lora_solve_report.json", "w") as f:
         json.dump(summary, f, indent=2)
 
-    print(f"[SUCCESS] PEFT LoRA solved. Mean Error: {mean_err:.4f}")
+    print(f"[SUCCESS] PEFT LoRA solved (Alpha={lora_alpha}). Mean Error: {mean_err:.4f}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -136,6 +135,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", default="routes/qwen05b_sql_projection/peft_lora")
     parser.add_argument("--rank", type=int, default=16)
     parser.add_argument("--alpha", type=float, default=1.0)
+    parser.add_argument("--lora_alpha", type=int, default=None)
     args = parser.parse_args()
     
-    solve_peft_lora(args.inputs, args.output_dir, rank=args.rank, alpha=args.alpha)
+    solve_peft_lora(args.inputs, args.output_dir, rank=args.rank, alpha=args.alpha, lora_alpha=args.lora_alpha)

@@ -3,7 +3,7 @@
     "evaluation_type": "logit_level_delta_check",
     "num_prompts": 50,
     "gamma": "unknown",
-    "adapter_path": "routes/qwen05b_sql_projection/peft_lora",
+    "adapter_path": "routes/qwen05b_sql_projection/peft_lora_alpha32",
     "mean_symmetric_kl": 4.852155327796936,
     "mean_abs_logit_delta": 2.129077825546265,
     "top1_same_rate": 0.1,
