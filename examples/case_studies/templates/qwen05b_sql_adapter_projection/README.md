@@ -1,13 +1,13 @@
-# Qwen2.5-0.5B SQL Adapter Projection Case Study
+# Qwen2.5-0.5B SQL Adapter Projection Case Study Template
 
 > [!WARNING]
-> **Status: Scaffold / Simulation Mode**  
-> This case study currently provides the repository structure, phase scripts, report templates, and Hugging Face model-card generation flow.  
-> **Real-weight validation is NOT completed yet.** Scripts that generate inspection, metrics, runtime validation, and model-card reports use simulated values by default. Do not use these reports as evidence of performance until `--real` validation is executed.
+> **Status: Case Study Template / Simulation Mode**  
+> This directory is a reusable scaffold for building a real Qwen2.5-0.5B SQL/Coding adapter projection case study.  
+> **It is not a completed evaluation.** Real-weight validation has not been completed yet. Scripts that generate inspection, metrics, runtime validation, and model-card reports use simulated values by default.
 
 ## Overview
 
-Can a tiny 0.5B model inherit useful SQL/Coding behavior without retraining? This experiment uses mathematical weight projection to answer that question.
+Can a tiny 0.5B model inherit useful SQL/Coding behavior without retraining? This template provides a structured scaffold for testing that question through mathematical adapter projection.
 
 ## Project Structure
 
@@ -21,7 +21,7 @@ Can a tiny 0.5B model inherit useful SQL/Coding behavior without retraining? Thi
 
 ### 1. Install Dependencies
 ```bash
-pip install -e ../../../  # Install Neural-Scalpel from parent
+pip install -e ../../../../  # Install Neural-Scalpel from parent
 pip install -r requirements.txt
 ```
 
@@ -50,7 +50,9 @@ python scripts/00_check_licenses.py --real \
   --adapter <LORA_ID>
 
 # 1. Inspect actual source adapter
-python scripts/01_inspect_source_adapter.py --real --adapter <ADAPTER_SAFETENSORS>
+python scripts/01_inspect_source_adapter.py --real \
+  --adapter <ADAPTER_SAFETENSORS> \
+  --target Qwen/Qwen2.5-0.5B
 
 # 2. Generate projected payload
 python scripts/02_prepare_payload.py --real --lora_id <LORA_ID>

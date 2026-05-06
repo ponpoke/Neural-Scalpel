@@ -11,7 +11,7 @@ def prepare_payload(lora_id, target_model, output_dir, real_run=False):
     if real_run:
         cmd = [
             "python",
-            "../../../scripts/prepare_actual_lora_payload.py",
+            "../../../../scripts/prepare_actual_lora_payload.py",
             "--lora_id", lora_id,
             "--target-model", target_model,
             "--output_dir", output_dir,
