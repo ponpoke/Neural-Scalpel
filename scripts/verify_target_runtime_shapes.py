@@ -95,11 +95,9 @@ def verify_shapes(payload_path: str, target_model_id: str):
                     missing += 1
                     print(f"  [MISSING] {key} not found in payload.")
 
-    status = "PASS" if mismatched == 0 and missing == 0 else "FAIL"
-    
     report = {
-        "status": status,
-        "validation_type": "runtime_state_dict_shape_validation",
+        "status": "FAIL", # Default
+        "validation_type": "transformers_meta_state_dict_fused_shape_validation",
         "target_model": target_model_id,
         "payload_path": str(payload_path),
         "summary": {
@@ -108,21 +106,31 @@ def verify_shapes(payload_path: str, target_model_id: str):
             "missing_tensors": missing,
             "unexpected_tensors": len(unexpected)
         },
-        "note": "This report verifies structural shape alignment only. Behavioral transfer is not tested."
+        "does_not_validate": [
+            "vLLM internal tensor ordering",
+            "successful route application",
+            "behavioral transfer",
+            "generation quality"
+        ],
+        "note": "Structural shape alignment only. Behavioral validation is PENDING."
     }
+
+    # Stricter status check: everything must match, no unexpected tensors allowed.
+    if mismatched == 0 and missing == 0 and len(unexpected) == 0:
+        report["status"] = "PASS"
 
     report_path = payload_path.parent / "runtime_shape_verification.json"
     with open(report_path, "w") as f:
         json.dump(report, f, indent=2)
 
-    print(f"\n[RESULT] Verification: {status} (RUNTIME_SHAPE_VERIFIED)")
+    print(f"\n[RESULT] Verification: {report['status']} (RUNTIME_SHAPE_VERIFIED)")
     print(f"  Matched: {matched}")
     print(f"  Mismatched: {mismatched}")
     print(f"  Missing: {missing}")
     print(f"  Unexpected: {len(unexpected)}")
     print(f"Report saved to {report_path}")
 
-    return status == "PASS"
+    return report["status"] == "PASS"
 
 if __name__ == "__main__":
     import argparse
