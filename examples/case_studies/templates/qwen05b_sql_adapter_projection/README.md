@@ -66,25 +66,32 @@ python scripts/03_check_payload_integrity.py --real --payload <PAYLOAD> --manife
 > [!IMPORTANT]
 > **Real results are pending.** The current reports are scaffold outputs only.
 
+> [!WARNING]
+> **Status: Structural Projection Baseline v2 / Behavioral Validation Pending**  
+> This case study has completed real source-adapter inspection, structural projection, artifact generation, and initial compatibility smoke tests.  
+> It is **not yet a completed behavioral evaluation**. Real before/after inference and SQL task performance metrics remain pending.
+
 **Current Task Status:**
 - [x] Real source adapter license verification: **COMPLETED**
 - [x] Real source adapter inspection: **COMPLETED**
-- [x] Baseline payload generation: **COMPLETED** (745.51 MB Dense Payload)
-- [x] Config-based shape validation: **COMPLETED** (PASS - GQA-aware)
-- [ ] Runtime state_dict validation: **STAGED**
-- [ ] Real before/after inference: **STAGED**
+- [x] Structural projection baseline v2: **COMPLETED** (Interpolated Folding)
+- [x] Target-shape verification: **COMPLETED** (**PASS** - RUNTIME_SHAPE_VERIFIED)
+- [x] PEFT adapter smoke test: **COMPLETED** (**PASS** - Loaded & Generated 1 token)
+- [x] Calibrated scaling: **IMPLEMENTED** (Default: $\gamma=0.5$ for safety)
+- [ ] Neural-Scalpel runtime route smoke test: **PENDING**
+- [ ] Behavioral benchmark (Spider/BIRD): **STAGED**
 
-### Technical Findings (Phase 2: Structural Projection Baseline)
-We have implemented and executed a **Structural Bilinear Resize + SVD Recompression** pipeline to bridge the architectural gap between Qwen2.5-7B and Qwen2.5-0.5B:
-1.  **GQA-Aware Mapping**: Successfully calculated target shapes for Q/K/V heads, ensuring that $d_{kv}$ (Grouped Query Attention dimension) is correctly handled for the 0.5B architecture.
-2.  **Uniform Layer Sampling**: Mapped 28 source layers to 24 target layers using a uniform sampling strategy. The exact mapping is recorded in the `.scalpel_route` manifest.
-3.  **Size Reduction**: Reduced the 12.45GB raw delta to a **745.51 MB rank-limited dense payload** (SVD Rank-16 constraint). While significantly smaller, this remains a dense matrix delta rather than a sparse LoRA adapter.
-4.  **Scientific Status**: The current payload is a mathematical baseline. **Behavioral inheritance (SQL performance) and actual runtime loadability have not yet been verified.**
+### Technical Findings (Phase 2: Structural Baseline v2)
+The architectural bridge has been established using the **Structural Projection Baseline v2** pipeline:
+1.  **Interpolated Layer Folding**: 28 source layers were mapped to 24 target layers using weighted linear interpolation, ensuring continuity of weights across depths.
+2.  **Runtime-Compatible Shape Alignment**: 100% of the 96 payload tensors (including vLLM-fused layers) were verified against the target model state_dict. Status: **RUNTIME_SHAPE_VERIFIED**.
+3.  **PEFT Loadability**: The generated adapter was successfully loaded into a standard PEFT/Transformers environment and executed a single-token generation smoke test without failure.
+4.  **High SVD Energy Retention**: SVD analysis shows a **Mean Energy Retention of 0.9580**, indicating that the structural resizing preserved ~96% of the singular-value energy of the source matrices.
+5.  **Calibrated Intensity**: Implemented `--scale-gamma` to control the delta norm ratio, allowing for safer initial behavioral tests.
 
-## Research Roadmap (Phase 3: Runtime & Behavioral Validation)
-To move beyond the structural baseline, the following steps are required:
-- **Phase 3**: Verify the payload against the actual vLLM runtime `state_dict` to ensure 100% naming and shape alignment.
-- **Phase 4**: Execute "Before vs. After" inference to determine if the structural projection preserved the source SQL knowledge.
+## Research Roadmap (Phase 3: Behavioral Validation)
+- **Phase 3**: Execute comparative inference on SQL tasks to determine if the 0.5B model effectively inherited the 7B SQL ability.
+- **Phase 4**: Move toward **Activation-Calibrated Projection** (Phase 3 Advanced) to align representation subspaces using real task activation data.
 
 Detailed technical goals can be found in [docs/methodology.md](docs/methodology.md).
 

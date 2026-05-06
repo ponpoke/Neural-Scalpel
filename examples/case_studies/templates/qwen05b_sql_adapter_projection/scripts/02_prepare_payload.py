@@ -4,18 +4,21 @@ import argparse
 import subprocess
 from pathlib import Path
 
-def prepare_payload(lora_id, target_model, output_dir, real_run=False):
+def prepare_payload(lora_id, target_model, output_dir, real_run=False, export_peft=False, scale_gamma=1.0):
     mode = "REAL" if real_run else "SIMULATED"
     print(f"[Phase 2] Preparing projected payload ({mode}) for {lora_id} -> {target_model}")
     
     if real_run:
         cmd = [
-            "python",
+            sys.executable,
             "../../../../scripts/prepare_actual_lora_payload.py",
             "--lora_id", lora_id,
             "--target-model", target_model,
-            "--output_dir", output_dir
+            "--output_dir", output_dir,
+            "--scale-gamma", str(scale_gamma)
         ]
+        if export_peft:
+            cmd.append("--export-peft")
         
         print(f"Running command: {' '.join(cmd)}")
         try:
@@ -39,6 +42,8 @@ if __name__ == "__main__":
     parser.add_argument("--lora_id", default="onurerkan/qwen2.5-0.5b-alpaca-lora-demo")
     parser.add_argument("--target-model", default="Qwen/Qwen2.5-0.5B-Instruct")
     parser.add_argument("--output_dir", default="routes/qwen05b_sql_projection")
+    parser.add_argument("--export-peft", action="store_true", help="Export as PEFT-compatible LoRA adapter")
+    parser.add_argument("--scale-gamma", type=float, default=1.0, help="Scale factor for the projected delta")
     args = parser.parse_args()
 
-    prepare_payload(args.lora_id, args.target_model, args.output_dir, real_run=args.real)
+    prepare_payload(args.lora_id, args.target_model, args.output_dir, real_run=args.real, export_peft=args.export_peft, scale_gamma=args.scale_gamma)
