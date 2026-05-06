@@ -1,0 +1,1466 @@
+以下は、そのまま
+`docs/QWEN_05B_SQL_CODING_PROJECTION_DEFINITION.md`
+として置けるレベルの定義書です。
+
+目的は、単なる技術検証ではなく、**Hugging Faceで「見たくなる」「試したくなる」「GitHubへ流入したくなる」成果物**にすることです。
+ただし、誇張して「7B/14Bの知能を0.5Bへ移植」とは言わず、**“adapter behavior projection / survival test”** として打ち出します。
+
+---
+
+````md
+# Qwen2.5-0.5B SQL/Coding Adapter Projection Definition
+
+## Status
+
+**Planned Public Demonstration / Hugging Face Awareness Track**
+
+This document defines the validation plan, success criteria, model-card strategy, and public-release requirements for a Neural-Scalpel demonstration that projects SQL/Coding adapter behavior from a larger Qwen-family source into a Qwen2.5-0.5B target.
+
+The goal is to create a technically honest but attention-grabbing public artifact:
+
+> Can a tiny 0.5B model inherit useful SQL/Coding adapter behavior from a much larger source adapter without gradient-based retraining?
+
+This is not a claim that a 0.5B model becomes a 7B/14B model.  
+It is a controlled diagnostic experiment measuring how much task behavior from a larger adapter survives after projection into a small model.
+
+---
+
+## 1. Public Demo Concept
+
+### 1.1. Core Hook
+
+Recommended public-facing title:
+
+```text
+Can a 0.5B model inherit SQL behavior without retraining?
+````
+
+Alternative titles:
+
+```text
+Qwen2.5-0.5B SQL Adapter Projection via Neural-Scalpel
+```
+
+```text
+How much SQL behavior survives when a larger adapter is projected into Qwen2.5-0.5B?
+```
+
+```text
+No-retraining adapter migration: projecting SQL/Coding behavior into Qwen2.5-0.5B
+```
+
+### 1.2. What This Demonstrates
+
+This demo attempts to show that:
+
+* a larger/source SQL or Coding adapter can be converted into a target payload for Qwen2.5-0.5B;
+* the target 0.5B model can show measurable behavioral change after applying the projected payload;
+* the behavior is not merely name remapping, but an actual tensor-level projection and fused-layer payload conversion;
+* the runtime can apply and remove the route safely under Neural-Scalpel’s controlled validation path;
+* the result can be evaluated with SQL/Coding-specific metrics and failure examples.
+
+### 1.3. What This Does Not Claim
+
+This demo must not claim:
+
+* that Qwen2.5-0.5B becomes equivalent to a 7B or 14B model;
+* that the larger model’s full reasoning capacity is compressed into 0.5B;
+* that all SQL tasks improve;
+* that this replaces fine-tuning or distillation;
+* that projected adapters are production-ready without downstream validation;
+* that the result works for arbitrary model families or arbitrary LoRAs.
+
+Safe wording:
+
+```text
+This is an adapter-behavior projection experiment, not a full model compression method.
+```
+
+```text
+The runtime model is Qwen2.5-0.5B plus a projected adapter payload. The source 7B/14B model is not loaded during inference.
+```
+
+---
+
+## 2. Why Qwen2.5-0.5B Is a Strong Target
+
+Qwen2.5-0.5B is a good public demo target because:
+
+* it is small enough to run on consumer hardware;
+* it is part of a well-known model family;
+* it is structurally related to larger Qwen models, making projection more plausible than cross-family extreme transfers;
+* it has existing vLLM validation coverage in Neural-Scalpel;
+* SQL/Coding tasks produce clear before/after examples.
+
+Qwen2.5-0.5B has a documented 32,768-token context length in its Hugging Face model card, and Qwen2.5-0.5B-Instruct belongs to the Qwen2.5 family of 0.5B to 72B instruction/base models. Qwen2.5-Coder-7B-Instruct is a code-focused Qwen-family model with long-context support up to 128K tokens. ([Hugging Face][1])
+
+Qwen’s official Qwen2.5 announcement states that open-source Qwen2.5 models, except the 3B and 72B variants, are licensed under Apache 2.0, but every source model, target model, and adapter must still be checked individually before redistribution. ([Qwen][2])
+
+---
+
+## 3. Candidate Source / Target Matrix
+
+### 3.1. Target Models
+
+Primary target:
+
+```text
+Qwen/Qwen2.5-0.5B
+```
+
+Secondary target:
+
+```text
+Qwen/Qwen2.5-0.5B-Instruct
+```
+
+Optional coding-specific target:
+
+```text
+Qwen/Qwen2.5-Coder-0.5B
+```
+
+Target choice guidance:
+
+| Target                | Use Case                    | Pros                                          | Cons                                          |
+| --------------------- | --------------------------- | --------------------------------------------- | --------------------------------------------- |
+| Qwen2.5-0.5B          | Clean base-model projection | Easier to attribute behavior shift to adapter | Less chat-friendly                            |
+| Qwen2.5-0.5B-Instruct | Public demo                 | Better before/after prompts                   | Instruction tuning may obscure adapter effect |
+| Qwen2.5-Coder-0.5B    | Coding/SQL demo             | Better task prior                             | Less dramatic if already good at code         |
+
+Recommended public target:
+
+```text
+Qwen/Qwen2.5-0.5B-Instruct
+```
+
+Recommended research target:
+
+```text
+Qwen/Qwen2.5-0.5B
+```
+
+Best practice:
+
+Run both if possible.
+Publish the demo model for the Instruct target, but keep the base-target evaluation in the report.
+
+---
+
+### 3.2. Source Adapter Candidates
+
+Ideal source adapter traits:
+
+* trained on SQL or coding tasks;
+* Qwen-family if possible;
+* compatible or partially compatible module naming;
+* redistributable license;
+* not tied to private datasets;
+* has clear baseline behavior;
+* small enough to inspect and convert.
+
+Candidate source categories:
+
+```text
+Qwen2.5-Coder-7B LoRA
+Qwen2.5-7B SQL LoRA
+Qwen2.5-14B SQL/Coding LoRA
+Qwen2.5-Coder-14B LoRA
+```
+
+Source ranking:
+
+| Source Type                        |    Impact | Projection Difficulty | Public Clarity |
+| ---------------------------------- | --------: | --------------------: | -------------: |
+| Qwen2.5-Coder-7B → Qwen2.5-0.5B    |      High |                Medium |           High |
+| Qwen2.5-7B SQL LoRA → Qwen2.5-0.5B |      High |                Medium |      Very high |
+| Qwen2.5-Coder-14B → Qwen2.5-0.5B   | Very high |                  High |      Very high |
+| Cross-family 9B → Qwen2.5-0.5B     | Very high |             Very high |          Risky |
+
+Recommended first public experiment:
+
+```text
+Qwen2.5-Coder-7B or Qwen2.5-7B SQL adapter → Qwen2.5-0.5B-Instruct
+```
+
+Recommended stress experiment later:
+
+```text
+14B SQL/Coding adapter → Qwen2.5-0.5B
+```
+
+---
+
+## 4. Public Claim Boundaries
+
+### 4.1. Allowed Claims
+
+The following claims are acceptable if validated:
+
+```text
+We projected a SQL/Coding adapter into Qwen2.5-0.5B without gradient-based retraining.
+```
+
+```text
+The projected route produced measurable behavior changes compared with the base target model.
+```
+
+```text
+The target runtime only loads the 0.5B target model and projected payload, not the source 7B/14B model.
+```
+
+```text
+The experiment evaluates how much task behavior survives projection.
+```
+
+```text
+The route passed checksum rollback and route-isolation validation under the tested setup.
+```
+
+### 4.2. Forbidden / Unsafe Claims
+
+Avoid:
+
+```text
+We compressed a 14B model into 0.5B.
+```
+
+```text
+Qwen2.5-0.5B now has 14B-level reasoning.
+```
+
+```text
+This makes 14B inference possible on 8GB VRAM.
+```
+
+```text
+No data is needed.
+```
+
+```text
+The migrated adapter is production-ready.
+```
+
+Use instead:
+
+```text
+This does not run the source 7B/14B model. It tests whether task-adapter behavior can survive projection into a smaller target model.
+```
+
+---
+
+## 5. Hypotheses
+
+### H1: Behavioral Shift
+
+The projected SQL/Coding route should produce outputs that differ from the base target in task-relevant ways.
+
+Evidence:
+
+* higher SQL format compliance;
+* more valid SELECT / JOIN / GROUP BY structures;
+* more code-like or SQL-like output;
+* fewer generic natural-language answers when SQL is requested.
+
+Minimum pass:
+
+```text
+Route output differs from base output in task-relevant form on ≥70% of curated examples.
+```
+
+Strong pass:
+
+```text
+Route output improves task-specific judge preference or executable correctness over base on the evaluation set.
+```
+
+---
+
+### H2: Functional Improvement
+
+The projected route should improve at least one measurable SQL/Coding metric over the base target.
+
+Possible metrics:
+
+* SQL exact match;
+* SQL execution accuracy;
+* SQL syntax validity;
+* component-level match;
+* code unit-test pass rate;
+* LLM-as-a-Judge task preference;
+* format compliance.
+
+Spider is a standard cross-domain text-to-SQL benchmark, consisting of 10,181 questions, 5,693 unique complex SQL queries, and 200 databases across 138 domains. Its official evaluation includes component matching, exact matching, and execution accuracy. ([yale-lily.github.io][3])
+
+Minimum pass:
+
+```text
+Projected route improves at least one task-specific metric over the base target without catastrophic regression in syntax validity.
+```
+
+Strong pass:
+
+```text
+Projected route improves execution accuracy or judge preference by a statistically visible margin over base.
+```
+
+Fail condition:
+
+```text
+Projected route consistently underperforms base or produces unstable/repetitive outputs.
+```
+
+---
+
+### H3: Runtime Safety
+
+The route must be safely applicable and removable.
+
+Minimum pass:
+
+```text
+swap_count > 0
+verified_rollbacks > 0
+route_violations == 0
+quarantine_events == 0
+worker_is_healthy == true
+```
+
+Strong pass:
+
+```text
+Passes Phase 5-E style mixed-route validation and Phase 5-F determinism follow-up under tested cache-reset conditions.
+```
+
+---
+
+### H4: Public Demo Value
+
+The model card should be interesting even if the performance gain is modest.
+
+Minimum pass:
+
+```text
+Clear before/after examples show visible SQL/Coding behavior shift.
+```
+
+Strong pass:
+
+```text
+A reader can understand the experiment in under 30 seconds and reproduce a minimal demo in under 5 minutes.
+```
+
+---
+
+## 6. Required Validation Stages
+
+## Stage 0: License and Redistribution Check
+
+### Objective
+
+Ensure that the source model, target model, source adapter, projected payload, and generated artifacts can be legally published.
+
+### Checklist
+
+```text
+[ ] Target model license checked
+[ ] Source model license checked
+[ ] Source adapter license checked
+[ ] Dataset license checked
+[ ] Projected adapter redistribution rights checked
+[ ] Model card includes license attribution
+[ ] No private dataset artifacts included
+```
+
+### Output
+
+```text
+docs/reports/qwen05b_sql_projection_license_check.md
+```
+
+### Pass Criteria
+
+```text
+All artifacts intended for Hugging Face publication are redistributable or clearly excluded.
+```
+
+If source adapter redistribution is unclear:
+
+```text
+Publish diagnostic report only, not projected weights.
+```
+
+---
+
+## Stage 1: Baseline Capability Profile
+
+### Objective
+
+Measure target model behavior before projection.
+
+### Inputs
+
+```text
+Qwen2.5-0.5B or Qwen2.5-0.5B-Instruct
+SQL/Coding evaluation prompts
+```
+
+### Required Baselines
+
+```text
+Base target
+Target + native small SQL LoRA if available
+Source model or source adapter output, optional reference only
+```
+
+### Metrics
+
+SQL:
+
+```text
+syntax_validity_rate
+exact_match
+execution_accuracy
+component_match
+format_compliance
+LLM_judge_preference
+```
+
+Coding:
+
+```text
+unit_test_pass_rate
+syntax_validity_rate
+format_compliance
+LLM_judge_preference
+```
+
+### Output
+
+```text
+reports/qwen05b_sql_baseline.json
+reports/qwen05b_sql_baseline_examples.md
+```
+
+### Pass Criteria
+
+There is no pass/fail here.
+This stage defines the reference point.
+
+---
+
+## Stage 2: Source Adapter Inspection
+
+### Objective
+
+Determine whether the source adapter is structurally convertible.
+
+### Checks
+
+```text
+[ ] Source adapter loads
+[ ] Target modules identified
+[ ] LoRA rank detected
+[ ] Module names mapped
+[ ] q/k/v or qkv fusion differences identified
+[ ] gate/up or gate_up fusion differences identified
+[ ] tensor shape compatibility assessed
+[ ] unsupported modules listed
+[ ] license metadata captured
+```
+
+### Output
+
+```text
+reports/qwen05b_sql_source_adapter_inspection.json
+```
+
+### Pass Criteria
+
+Minimum:
+
+```text
+At least attention and/or MLP target modules can be mapped.
+```
+
+Strong:
+
+```text
+Most major target modules can be mapped or fused into target vLLM-compatible shapes.
+```
+
+Fail:
+
+```text
+Adapter targets modules absent in Qwen2.5-0.5B and cannot be projected safely.
+```
+
+---
+
+## Stage 3: Projection and Payload Generation
+
+### Objective
+
+Generate a Qwen2.5-0.5B-compatible projected payload.
+
+### Required Features
+
+```text
+[ ] Structural projection applied
+[ ] Layer name mapping applied
+[ ] q/k/v → qkv fusion handled if needed
+[ ] gate/up → gate_up fusion handled if needed
+[ ] dtype controlled, preferably float16
+[ ] manifest generated
+[ ] payload checksum generated
+[ ] unsupported tensors recorded
+[ ] fail-close if required deltas are missing
+```
+
+### Example Command
+
+```bash
+PYTHONPATH=. python scripts/prepare_actual_lora_payload.py \
+  --lora_id <source-sql-or-coding-lora> \
+  --output_dir routes/qwen05b_sql_projection \
+  --target-model Qwen/Qwen2.5-0.5B \
+  --dtype float16
+```
+
+### Outputs
+
+```text
+routes/qwen05b_sql_projection/<name>_payload.safetensors
+routes/qwen05b_sql_projection/<name>.scalpel_route
+reports/qwen05b_sql_projection_manifest_check.json
+```
+
+### Pass Criteria
+
+```text
+payload_exists == true
+manifest_exists == true
+all_required_target_layers_present == true
+unsupported_tensor_count documented
+checksum_present == true
+```
+
+Strong pass:
+
+```text
+Projected payload passes manifest shape check against target runtime state_dict.
+```
+
+---
+
+## Stage 4: Static Payload Integrity Validation
+
+### Objective
+
+Validate that generated tensors match expected Qwen/vLLM internal layer structure.
+
+### Checks
+
+```text
+[ ] safetensors opens
+[ ] all tensors finite
+[ ] no NaN / Inf
+[ ] expected dtype
+[ ] expected layer names
+[ ] expected fused shapes
+[ ] manifest names match runtime targets
+[ ] checksum verification passes
+```
+
+### Output
+
+```text
+reports/qwen05b_sql_payload_integrity.json
+```
+
+### Pass Criteria
+
+```text
+no_nan == true
+no_inf == true
+shape_check_passed == true
+manifest_check_passed == true
+```
+
+Fail-close:
+
+```text
+If any required tensor shape does not match, do not run runtime tests.
+```
+
+---
+
+## Stage 5: Qualitative Before/After Smoke Test
+
+### Objective
+
+Show visible behavior change in examples suitable for a model card.
+
+### Prompt Categories
+
+SQL:
+
+```text
+simple SELECT
+WHERE filtering
+JOIN
+GROUP BY aggregation
+ORDER BY / LIMIT
+nested query
+schema-grounded query
+ambiguous user request
+```
+
+Coding:
+
+```text
+Python function
+bug fix
+regex
+unit test generation
+SQLAlchemy/pandas conversion
+```
+
+### Example Prompt
+
+```text
+Given a table orders(order_id, customer_id, total, created_at), write SQL to find the top 5 customers by total revenue in 2024.
+```
+
+### Output Format
+
+```md
+## Before / After Example
+
+Prompt:
+...
+
+Base Qwen2.5-0.5B:
+...
+
+Projected SQL Route:
+...
+
+Observation:
+...
+```
+
+### Pass Criteria
+
+Minimum:
+
+```text
+At least 10 curated examples show route-specific behavior change.
+```
+
+Strong:
+
+```text
+At least 10 examples show task-relevant improvement, not merely stylistic change.
+```
+
+Fail:
+
+```text
+Changes are mostly repetition, incoherence, or degraded task behavior.
+```
+
+### Output
+
+```text
+reports/qwen05b_sql_before_after.md
+reports/qwen05b_sql_qualitative_smoke.json
+```
+
+---
+
+## Stage 6: SQL/Coding Task Evaluation
+
+### Objective
+
+Measure whether projected behavior improves task performance.
+
+### Evaluation Sets
+
+Minimum public-safe set:
+
+```text
+50 curated SQL prompts
+50 curated coding prompts
+```
+
+Better:
+
+```text
+Spider dev subset
+BIRD mini subset if license permits
+HumanEval-style small coding subset
+custom schema-grounded SQL set
+```
+
+Spider is suitable for text-to-SQL evaluation because it is a cross-domain benchmark with complex SQL over multiple databases, and its evaluation scripts support exact, component, and execution-based metrics. ([yale-lily.github.io][3])
+
+### Evaluation Modes
+
+Run:
+
+```text
+Base target
+Projected route
+Source adapter/model reference, optional
+Native LoRA baseline if available
+```
+
+### Required Metrics
+
+SQL:
+
+```text
+syntax_validity_rate
+execution_accuracy
+exact_match
+component_match
+format_compliance
+```
+
+Coding:
+
+```text
+syntax_validity_rate
+unit_test_pass_rate
+format_compliance
+```
+
+Judge:
+
+```text
+LLM_judge_preference_base_vs_projected
+```
+
+### Required Output
+
+```text
+reports/qwen05b_sql_eval.json
+reports/qwen05b_sql_eval_summary.md
+reports/qwen05b_sql_failure_cases.md
+```
+
+### Minimum Pass Criteria
+
+```text
+Projected route shows measurable improvement over base in at least one primary metric.
+No catastrophic degradation in syntax validity.
+Failure cases are documented.
+```
+
+### Strong Pass Criteria
+
+```text
+Projected route improves execution accuracy or unit-test pass rate over base.
+Projected route is preferred by judge in ≥60% of task-relevant comparisons.
+```
+
+### Public Release Criteria
+
+If only qualitative improvement is observed:
+
+```text
+Release as "qualitative behavior projection experiment."
+```
+
+If quantitative metric improves:
+
+```text
+Release as "measured SQL/Coding behavior improvement experiment."
+```
+
+If metrics degrade:
+
+```text
+Release as "negative result / adapter projection stress test" or do not publish weights.
+```
+
+---
+
+## Stage 7: Runtime Route Validation
+
+### Objective
+
+Ensure the projected route works under Neural-Scalpel runtime.
+
+### Required Tests
+
+```bash
+PYTHONPATH=. python scripts/verify_alpaca_improvement.py \
+  --payload routes/qwen05b_sql_projection/<name>_payload.safetensors \
+  --output reports/qwen05b_sql_runtime_smoke.json \
+  --dtype float16
+```
+
+Additional route-window benchmark:
+
+```bash
+PYTHONPATH=. python scripts/bench_vllm_scalpel_overhead.py \
+  --model Qwen/Qwen2.5-0.5B \
+  --payload routes/qwen05b_sql_projection/<name>_payload.safetensors \
+  --prompts 50 \
+  --max-tokens 32 \
+  --output reports/qwen05b_sql_route_window_bench.json
+```
+
+### Required Metrics
+
+```text
+route_application_proven
+swap_count
+rollback_count
+verified_rollbacks
+route_violations
+quarantine_events
+worker_is_healthy
+throughput
+e2e_latency_p50/p90/p99
+```
+
+### Pass Criteria
+
+```text
+swap_count > 0
+verified_rollbacks > 0
+route_violations == 0
+quarantine_events == 0
+worker_is_healthy == true
+```
+
+Strong pass:
+
+```text
+Route-window overhead remains within acceptable bounds compared with base/native baselines.
+```
+
+---
+
+## Stage 8: Determinism / Cleanup Validation
+
+### Objective
+
+Ensure applying the projected route does not contaminate the base model after cleanup.
+
+### Required Test
+
+```bash
+PYTHONPATH=. python scripts/run_phase_5f_determinism.py \
+  --payload routes/qwen05b_sql_projection/<name>_payload.safetensors \
+  --max-tokens 32 \
+  --output reports/qwen05b_sql_determinism.json
+```
+
+### Metrics
+
+```text
+cleanup_executed
+checksum_verified_rollbacks
+text_exact_match
+top_token_logprob_similarity_pct
+first_mismatch_index
+```
+
+### Pass Criteria
+
+Minimum:
+
+```text
+checksum_verified_rollbacks > 0
+cleanup_executed == true
+```
+
+Strong:
+
+```text
+text_exact_match == true
+top_token_logprob_similarity_pct >= 99.0
+first_mismatch_index == null
+```
+
+Important limitation:
+
+```text
+Top-token logprob trace is a proxy, not a full-vocabulary logits comparison.
+```
+
+---
+
+## Stage 9: Hugging Face Release Package
+
+### Objective
+
+Publish an artifact that is clear, honest, and attractive.
+
+### Recommended Repository Name
+
+```text
+neural-scalpel-qwen2.5-0.5b-sql-projection
+```
+
+Alternative:
+
+```text
+qwen05b-sql-adapter-projection-neural-scalpel
+```
+
+### Files to Publish
+
+If license permits projected weights:
+
+```text
+README.md
+adapter_model.safetensors or payload.safetensors
+adapter_config.json if applicable
+scalpel_route.json or .scalpel_route
+reports/eval_summary.md
+reports/before_after.md
+reports/failure_cases.md
+LICENSE
+```
+
+If weights cannot be redistributed:
+
+```text
+README.md
+reports/eval_summary.md
+reports/before_after.md
+reports/failure_cases.md
+scripts/reproduce_projection.md
+NO_WEIGHTS_PUBLISHED.md
+```
+
+### Model Card Sections
+
+Required:
+
+```text
+What is this?
+Why this is interesting
+What this is not
+Source/target models
+How it was produced
+Evaluation summary
+Before/After examples
+Failure cases
+How to reproduce
+Limitations
+License and attribution
+Citation / GitHub link
+```
+
+---
+
+## 10. Model Card Draft
+
+```md
+# Qwen2.5-0.5B SQL Adapter Projection via Neural-Scalpel
+
+## What is this?
+
+This is an experimental projected SQL/Coding adapter for Qwen2.5-0.5B, produced with Neural-Scalpel.
+
+It tests whether task behavior from a larger Qwen-family SQL/Coding adapter can survive projection into a much smaller 0.5B target model without gradient-based retraining.
+
+## Why this is interesting
+
+- Target runtime is a 0.5B model.
+- The source adapter behavior comes from a larger SQL/Coding setup.
+- No gradient-based retraining is performed during projection.
+- The release includes before/after examples, evaluation metrics, and failure cases.
+- The goal is to measure adapter-behavior survival, not to claim full model compression.
+
+## What this is not
+
+This is not a compressed 7B/14B model.
+This does not make Qwen2.5-0.5B equivalent to a larger model.
+This is not production-ready.
+This does not guarantee SQL correctness on arbitrary schemas.
+
+## Source and Target
+
+Target:
+- Qwen2.5-0.5B / Qwen2.5-0.5B-Instruct
+
+Source:
+- Larger Qwen-family SQL/Coding adapter
+
+## Key Result
+
+[Fill after evaluation]
+
+Example:
+Projected route improved SQL syntax validity from X% to Y% on a 50-prompt curated SQL set.
+Execution accuracy changed from X% to Y%.
+Judge preference favored the projected route in Z% of comparisons.
+
+## Before / After
+
+Prompt:
+Given tables `customers(id, name)` and `orders(id, customer_id, total)`, write SQL to find the top 5 customers by total order value.
+
+Base:
+...
+
+Projected route:
+...
+
+Observation:
+...
+
+## Limitations
+
+- Downstream task improvement is not guaranteed.
+- The route may fail on complex schemas.
+- This is a projected adapter experiment, not model distillation.
+- The source model is not loaded at inference time.
+- Use only after downstream validation.
+
+## Reproduce
+
+See the Neural-Scalpel GitHub repository:
+<repo link>
+```
+
+---
+
+## 11. Public Narrative Strategy
+
+### 11.1. Best One-Line Pitch
+
+```text
+I tested whether SQL adapter behavior from a larger model can survive inside Qwen2.5-0.5B without retraining.
+```
+
+### 11.2. Strong But Safe Social Post
+
+```text
+Can a tiny 0.5B model inherit SQL behavior without retraining?
+
+I used Neural-Scalpel to project a larger Qwen-family SQL/Coding adapter into Qwen2.5-0.5B, then evaluated what survived.
+
+This is not model compression. The 7B/14B source is not loaded at inference time.
+It is an adapter-behavior survival test.
+
+Results:
+- Before/after examples
+- SQL validity metrics
+- failure cases
+- runtime rollback validation
+
+HF repo:
+GitHub:
+```
+
+### 11.3. Japanese Version
+
+```text
+「大きいモデル用のSQL/Coding LoRAの振る舞いは、0.5Bモデルにどこまで残るのか？」
+
+Neural-Scalpelで、Qwen系の大きめモデル由来adapterをQwen2.5-0.5B向けに投影する実験をしました。
+
+これは7B/14Bモデルを0.5Bに圧縮する技術ではありません。
+実行時に動くのは0.5Bモデル + 投影adapterです。
+
+公開内容:
+- Before / After
+- SQL評価
+- 失敗例
+- rollback検証
+```
+
+---
+
+## 12. Evaluation Dashboard Requirements
+
+For public trust, include a compact table:
+
+| Metric                  | Base Qwen2.5-0.5B | Projected SQL Route | Delta |
+| ----------------------- | ----------------: | ------------------: | ----: |
+| SQL syntax validity     |               TBD |                 TBD |   TBD |
+| Execution accuracy      |               TBD |                 TBD |   TBD |
+| Exact match             |               TBD |                 TBD |   TBD |
+| Judge preference        |               TBD |                 TBD |   TBD |
+| Repetition failure rate |               TBD |                 TBD |   TBD |
+
+Runtime table:
+
+| Runtime Metric     |        Result |
+| ------------------ | ------------: |
+| swap_count         |           TBD |
+| verified_rollbacks |           TBD |
+| route_violations   |    0 expected |
+| quarantine_events  |    0 expected |
+| worker healthy     | true expected |
+| throughput         |           TBD |
+
+Qualitative table:
+
+| Prompt Type   | Base | Projected Route | Outcome                    |
+| ------------- | ---- | --------------- | -------------------------- |
+| Simple SELECT | ...  | ...             | improved / neutral / worse |
+| JOIN          | ...  | ...             | improved / neutral / worse |
+| GROUP BY      | ...  | ...             | improved / neutral / worse |
+| Nested query  | ...  | ...             | improved / neutral / worse |
+
+---
+
+## 13. Failure Case Policy
+
+Failure cases must be published.
+
+Required categories:
+
+```text
+syntax invalid SQL
+schema hallucination
+wrong join key
+overly generic answer
+repetition
+base better than projected route
+route instability
+```
+
+Purpose:
+
+```text
+Trust-building and scientific honesty.
+```
+
+Public wording:
+
+```text
+This release includes failure cases because adapter projection is not guaranteed to improve downstream task performance.
+```
+
+---
+
+## 14. Success Levels
+
+### Level 0: Negative Result
+
+```text
+Route applies safely but task behavior degrades.
+```
+
+Publish?
+
+```text
+Maybe, as a negative result / stress test.
+```
+
+Good title:
+
+```text
+When adapter projection fails: 7B-to-0.5B SQL transfer stress test
+```
+
+---
+
+### Level 1: Behavior Shift
+
+```text
+Route visibly changes output style/form but does not improve metrics.
+```
+
+Publish?
+
+```text
+Yes, as behavior projection demo.
+```
+
+Claim:
+
+```text
+Projected adapter behavior is observable, but task improvement is not proven.
+```
+
+---
+
+### Level 2: Task-Relevant Improvement
+
+```text
+Route improves SQL validity, format compliance, or judge preference.
+```
+
+Publish?
+
+```text
+Yes.
+```
+
+Claim:
+
+```text
+Projected route improved task-relevant behavior under controlled evaluation.
+```
+
+---
+
+### Level 3: Strong Task Improvement
+
+```text
+Route improves execution accuracy or unit-test pass rate over base.
+```
+
+Publish?
+
+```text
+Strong public demo.
+```
+
+Claim:
+
+```text
+Projected SQL/Coding route showed measurable task improvement over the 0.5B base under the tested benchmark.
+```
+
+---
+
+### Level 4: Runtime + Task + Reproducibility
+
+```text
+Task improvement + runtime safety + reproducible scripts + failure cases.
+```
+
+Publish?
+
+```text
+Ideal Hugging Face release.
+```
+
+Claim:
+
+```text
+A complete no-retraining adapter projection case study for Qwen2.5-0.5B.
+```
+
+---
+
+## 15. Minimum Release Gate
+
+Do not publish as a model artifact unless:
+
+```text
+[ ] License check passed
+[ ] Payload integrity check passed
+[ ] Qualitative before/after examples prepared
+[ ] At least one task-specific evaluation completed
+[ ] Failure cases documented
+[ ] Runtime route application verified
+[ ] Rollback/checksum validation passed
+[ ] Model card includes limitations
+```
+
+If any of the following fail, publish only a report:
+
+```text
+[ ] redistribution license unclear
+[ ] task output unstable
+[ ] projected route causes severe repetition
+[ ] route fails checksum rollback
+[ ] route cannot be reproduced
+```
+
+---
+
+## 16. Reproducibility Package
+
+Required commands:
+
+```bash
+# Prepare payload
+PYTHONPATH=. python scripts/prepare_actual_lora_payload.py \
+  --lora_id <source-lora> \
+  --output_dir routes/qwen05b_sql_projection \
+  --target-model Qwen/Qwen2.5-0.5B \
+  --dtype float16
+
+# Integrity check
+PYTHONPATH=. python scripts/check_payload_integrity.py \
+  --payload routes/qwen05b_sql_projection/<name>_payload.safetensors \
+  --manifest routes/qwen05b_sql_projection/<name>.scalpel_route \
+  --output reports/qwen05b_sql_payload_integrity.json
+
+# Qualitative evaluation
+PYTHONPATH=. python scripts/eval_qwen05b_sql_projection.py \
+  --payload routes/qwen05b_sql_projection/<name>_payload.safetensors \
+  --eval-set tests/sql_eval_prompts.json \
+  --output reports/qwen05b_sql_eval.json
+
+# Runtime validation
+PYTHONPATH=. python scripts/bench_vllm_scalpel_overhead.py \
+  --model Qwen/Qwen2.5-0.5B \
+  --payload routes/qwen05b_sql_projection/<name>_payload.safetensors \
+  --prompts 50 \
+  --max-tokens 32 \
+  --output reports/qwen05b_sql_route_window_bench.json
+```
+
+If these scripts do not yet exist, create them before public release.
+
+---
+
+## 17. Recommended Implementation Order
+
+### Phase QSQL-A: Source Selection
+
+```text
+Pick source SQL/Coding adapter.
+Check license.
+Check module names and shapes.
+```
+
+### Phase QSQL-B: Payload Projection
+
+```text
+Generate Qwen2.5-0.5B-compatible payload.
+Run static integrity checks.
+```
+
+### Phase QSQL-C: Qualitative Smoke
+
+```text
+Run 20 curated before/after prompts.
+Select 5 best and 5 failure cases.
+```
+
+### Phase QSQL-D: Metric Evaluation
+
+```text
+Run 50–200 SQL/Coding prompts.
+Compute syntax validity, execution accuracy, judge preference.
+```
+
+### Phase QSQL-E: Runtime Safety
+
+```text
+Run route application / rollback / determinism checks.
+```
+
+### Phase QSQL-F: HF Packaging
+
+```text
+Write model card.
+Upload payload if license permits.
+Upload reports.
+Link GitHub.
+```
+
+### Phase QSQL-G: Launch
+
+```text
+Post on X / Reddit / HF community / Zenn / Qiita.
+Use “adapter behavior survival test” framing.
+```
+
+---
+
+## 18. Main Risk Register
+
+| Risk                                    | Severity | Mitigation                                                  |
+| --------------------------------------- | -------: | ----------------------------------------------------------- |
+| Task score below base                   |     High | Publish as negative/stress result or do not publish weights |
+| License ambiguity                       | Critical | Publish report only                                         |
+| Repetition / instability                |     High | Add failure cases; mark as unsafe                           |
+| Overclaiming 7B/14B transfer            | Critical | Use “adapter behavior projection” wording                   |
+| No visible before/after                 |     High | Do not launch publicly                                      |
+| Source adapter incompatible             |   Medium | Try Qwen-family source first                                |
+| HF artifact ignored                     |   Medium | Use strong model card + examples + social launch            |
+| Evaluation too weak                     |     High | Include at least syntax validity + judge preference         |
+| Runtime works but task does not improve |   Medium | Frame as behavior survival / diagnostic result              |
+
+---
+
+## 19. Final Public Positioning
+
+Recommended:
+
+```text
+Qwen2.5-0.5B SQL Adapter Projection is a no-retraining adapter-behavior survival experiment.
+```
+
+Avoid:
+
+```text
+We compressed a 14B SQL model into 0.5B.
+```
+
+Best balanced claim:
+
+```text
+This release tests whether task behavior from a larger SQL/Coding adapter can survive projection into Qwen2.5-0.5B. The target runtime uses only the 0.5B model and the projected adapter payload. Results include before/after examples, task metrics, runtime rollback validation, and failure cases.
+```
+
+---
+
+## 20. Launch Readiness Checklist
+
+```text
+[ ] Source adapter selected
+[ ] Source/target licenses checked
+[ ] Payload generated
+[ ] Integrity report generated
+[ ] Before/after examples generated
+[ ] SQL/Coding evaluation completed
+[ ] Failure cases documented
+[ ] Runtime safety validation completed
+[ ] Determinism/cleanup validation completed
+[ ] HF model card written
+[ ] GitHub README link added
+[ ] Social post drafted
+[ ] Claims reviewed for overstatement
+```
+
+When all items pass, publish as:
+
+```text
+Experimental / Research Artifact
+```
+
+not:
+
+```text
+Production Model
+```
+
+````
+
+---
+
+## この定義書で一番大事な思想
+
+この企画は、**「9B/14Bを0.5Bに圧縮した」ではなく、「大きいadapterのタスク挙動が小型モデルにどれくらい残るかを見せる」** 企画です。
+
+なので、Hugging Faceで刺すなら、主役はモデルそのものではなく、
+
+```text
+Before / After
+評価表
+失敗例
+8GB級環境でも動く小型ターゲット
+Neural-Scalpelで再現可能
+````
+
+です。
+
+最初の公開は、成功断言よりもこのタイトルが一番強いです。
+
+```text
+Can a 0.5B model inherit SQL behavior without retraining?
+```
+
+これなら、技術者が「それは見たい」と思いやすく、かつ誇張にもなりにくいです。
+
+[1]: https://huggingface.co/Qwen/Qwen2.5-0.5B?utm_source=chatgpt.com "Qwen/Qwen2.5-0.5B"
+[2]: https://qwenlm.github.io/blog/qwen2.5/?utm_source=chatgpt.com "Qwen2.5: A Party of Foundation Models!"
+[3]: https://yale-lily.github.io/spider?utm_source=chatgpt.com "Spider: Yale Semantic Parsing and Text-to-SQL Challenge"

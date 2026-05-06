@@ -85,7 +85,7 @@ tests/quality_eval_results/payloads/
 *.safetensors
 
 
-examples/case_study/
+# examples/case_study/
 
 # Logs and local outputs
 *.log

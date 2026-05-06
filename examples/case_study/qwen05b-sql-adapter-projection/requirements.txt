@@ -1,0 +1,12 @@
+# Neural-Scalpel Case Study Dependencies
+torch>=2.0.0
+safetensors>=0.4.0
+transformers>=4.40.0
+# neural-scalpel should be installed from the parent directory: pip install -e ../../../
+vllm>=0.4.0
+pydantic>=2.0.0
+fastapi
+uvicorn
+httpx
+prometheus_client
+pyjwt

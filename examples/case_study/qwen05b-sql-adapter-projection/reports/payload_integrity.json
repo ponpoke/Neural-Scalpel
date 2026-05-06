@@ -1,0 +1,10 @@
+{
+  "payload_path": "routes/qwen05b_sql_projection/qwen05b_sql_payload.safetensors",
+  "mode": "SIMULATED",
+  "no_nan": true,
+  "no_inf": true,
+  "shape_check_passed": true,
+  "manifest_check_passed": true,
+  "status": "SCAFFOLD",
+  "note": "This is a SIMULATED integrity check. No real files were inspected."
+}

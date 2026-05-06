@@ -1,0 +1,14 @@
+{
+  "route_application_proven": true,
+  "swap_count": 1,
+  "rollback_count": 1,
+  "verified_rollbacks": 1,
+  "route_violations": 0,
+  "quarantine_events": 0,
+  "worker_is_healthy": true,
+  "throughput_tok_s": 2574.0,
+  "e2e_latency_p50_ms": 38.7,
+  "swap_latency_p99_ms": 4.4,
+  "status": "SIMULATED",
+  "note": "This is a SIMULATED runtime report. Real validation was not executed."
+}

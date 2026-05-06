@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "prompt": "List all departments with more than 10 employees.",
+    "expected_sql": "SELECT department_name FROM departments JOIN employees ON departments.id = employees.department_id GROUP BY department_name HAVING COUNT(*) > 10;"
+  },
+  {
+    "id": 2,
+    "prompt": "What is the average salary of engineers in San Francisco?",
+    "expected_sql": "SELECT AVG(salary) FROM employees WHERE job_title = 'Engineer' AND city = 'San Francisco';"
+  }
+]
