@@ -345,13 +345,15 @@ def sinkhorn_knopp(
 ) -> torch.Tensor:
     """
     Log-domain Sinkhorn-Knopp algorithm for Entropic Regularized Optimal Transport.
-    More stable than Gibbs kernel for small epsilon.
+    Improved with marginal residual stopping criteria.
     """
+    if epsilon <= 0:
+        raise ValueError("epsilon must be positive.")
+        
     device = C.device
     dtype = C.dtype
     n, m = C.shape
     
-    # K_log = -C / epsilon
     K_log = -C / epsilon
     
     # Uniform marginals in log domain
@@ -363,19 +365,18 @@ def sinkhorn_knopp(
     log_v = torch.zeros(m, device=device, dtype=dtype)
 
     for i in range(n_iter):
-        log_u_prev = log_u
-        
-        # log_u = log_a - logsumexp(K_log + log_v_j)
         log_u = log_a - torch.logsumexp(K_log + log_v.unsqueeze(0), dim=1)
-        # log_v = log_b - logsumexp(K_log_i + log_u_i)
         log_v = log_b - torch.logsumexp(K_log.t() + log_u.unsqueeze(0), dim=1)
         
+        # Marginal Residual Stopping Criteria
         if i % 10 == 0:
-            err = (log_u - log_u_prev).abs().sum()
-            if err < stop_thr:
+            log_P = log_u.unsqueeze(1) + K_log + log_v.unsqueeze(0)
+            row_err = (torch.logsumexp(log_P, dim=1) - log_a).abs().max()
+            col_err = (torch.logsumexp(log_P, dim=0) - log_b).abs().max()
+            
+            if max(row_err.item(), col_err.item()) < stop_thr:
                 break
                 
-    # Reconstruct Transport plan P = exp(log_u + K_log + log_v)
     log_P = log_u.unsqueeze(1) + K_log + log_v.unsqueeze(0)
     return torch.exp(log_P)
 
@@ -384,12 +385,16 @@ def wasserstein_discrete_routing(
     target_heads: torch.Tensor,
     epsilon: float = 0.01,
     alpha: float = 0.1,
-    mode: str = "hard"
-) -> torch.Tensor:
+    mode: str = "hard",
+    return_diagnostics: bool = False
+) -> Union[torch.Tensor, Tuple[torch.Tensor, dict]]:
     """
     Wasserstein Discrete Routing (WDR) with Soft-Merge Fallback.
-    Numerically stabilized for Baseline v2.
+    Numerically stabilized for Baseline v2 with diagnostic reporting.
     """
+    if mode not in {"soft", "hard"}:
+        raise ValueError("mode must be 'soft' or 'hard'")
+        
     S_heads = source_heads.shape[1]
     T_heads = target_heads.shape[1]
     dtype = source_heads.dtype
@@ -406,21 +411,27 @@ def wasserstein_discrete_routing(
     # 2. Solve Soft Optimal Transport (Log-domain Sinkhorn)
     P_soft = sinkhorn_knopp(C, epsilon=epsilon)
     
+    col_sums = P_soft.sum(dim=0, keepdim=True)
+    tiny = torch.finfo(P_soft.dtype).tiny
+    fallback_used = bool(torch.any(col_sums <= tiny).item())
+    
     if mode == "soft":
-        col_sums = P_soft.sum(dim=0, keepdim=True)
-        # Numerical safeguard: If Sinkhorn underflows, fallback to column-wise softmax over cost
-        tiny = torch.finfo(P_soft.dtype).tiny
-        if torch.any(col_sums <= tiny):
+        if fallback_used:
             P_col = torch.softmax(-C / max(epsilon, 1e-6), dim=0)
-            return (P_col / P_col.sum(dim=0, keepdim=True)).to(dtype)
-        return (P_soft / col_sums.clamp_min(tiny)).to(dtype)
+            P_final = (P_col / P_col.sum(dim=0, keepdim=True)).to(dtype)
+        else:
+            P_final = (P_soft / col_sums.clamp_min(tiny)).to(dtype)
+            
+        if return_diagnostics:
+            diag = {"sinkhorn_fallback_used": fallback_used, "epsilon": epsilon, "mode": mode}
+            return P_final, diag
+        return P_final
 
     # 3. Hard-WDR with Soft-Merge Fallback
     winner_indices = torch.argmax(P_soft, dim=0) 
     P_hard = torch.zeros_like(P_soft)
     P_hard[winner_indices, torch.arange(T_heads, device=P_soft.device)] = 1.0
     
-    # 4. Identify Remnant (Unmatched) Source Heads
     all_source_indices = set(range(S_heads))
     matched_source_indices = set(winner_indices.tolist())
     remnant_indices = list(all_source_indices - matched_source_indices)
@@ -430,10 +441,12 @@ def wasserstein_discrete_routing(
             j = torch.argmin(C[i, :])
             P_hard[i, j] = alpha
             
-    # 5. Final Column-wise Renormalization
-    P_final = P_hard / (P_hard.sum(dim=0, keepdim=True) + 1e-12)
+    P_final = (P_hard / (P_hard.sum(dim=0, keepdim=True) + 1e-12)).to(dtype)
     
-    return P_final.to(dtype)
+    if return_diagnostics:
+        diag = {"sinkhorn_fallback_used": False, "epsilon": epsilon, "mode": mode}
+        return P_final, diag
+    return P_final
 
 # ==============================================================================
 # V5 Enterprise Upgrades: Quantization & MoE

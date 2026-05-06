@@ -4,7 +4,7 @@
 **Status:** Experimental Research Preview (v1.0.0-alpha)
 
 ## Abstract
-This report proposes "Task Vector Projection," an experimental mathematical framework attempting to approximate and project learned weight deltas (Task Vectors / LoRAs) between neural architectures without gradient-based fine-tuning. By defining knowledge as a geometric vector within the weight space, we explore methods to project these vectors across distinct architectures (e.g., UNet to DiT, or LLaMA to Qwen). Our methodology incorporates memory-efficient sparse hacking, adaptive singular value decomposition, and structural non-linear compensation. Preliminary localized validations on a single-node setup indicate that calibrated projection can preserve structural alignment and language-modeling stability in limited settings. A small HumanEval subset experiment suggests partial coding-behavior retention for one LLaMA-3-to-Qwen-2.5 configuration, but broader downstream validation across full benchmark sets, additional LoRA types, and additional model pairs remains future work. Core mathematical and runtime components are covered by an automated test suite; the repository badge currently tracks 193 non-live tests passed; live vLLM tests are executed separately.
+This report proposes "Task Vector Projection," an experimental mathematical framework attempting to approximate and project learned weight deltas (Task Vectors / LoRAs) between neural architectures without gradient-based fine-tuning. By defining knowledge as a geometric vector within the weight space, we explore methods to project these vectors across distinct architectures (e.g., UNet to DiT, or LLaMA to Qwen). Our methodology incorporates memory-efficient sparse hacking, adaptive singular value decomposition, and structural non-linear compensation. Preliminary localized validations on a single-node setup indicate that calibrated projection can preserve structural alignment and language-modeling stability in limited settings. A small HumanEval subset experiment suggests partial coding-behavior retention for one LLaMA-3-to-Qwen-2.5 configuration, but broader downstream validation across full benchmark sets, additional LoRA types, and additional model pairs remains future work. Core mathematical, structural projection, and controlled-runtime components are covered by an automated test suite; the repository badge currently tracks 200+ non-live tests passed; live vLLM tests are executed separately.
 
 ---
 
@@ -89,6 +89,21 @@ Validated components include:
 
 This fallback does not eliminate all deployment risk. It trades route density and memory efficiency for process-level isolation and operational simplicity.
 
+### 5.6. Structural Projection Baseline v2
+
+Neural-Scalpel now includes a focused structural projection baseline for Qwen2.5-style cross-scale adapter experiments. This baseline is designed to test whether a source adapter can be converted into a target-compatible structural artifact before any claim of behavioral transfer is made.
+
+Validated components include:
+
+- GQA-aware target-shape inference for Q/O/K/V and MLP projections
+- Interpolated layer mapping from source depth to target depth
+- SVD-based recompression statistics and energy-retention reporting
+- Qwen fused tensor construction for `qkv_proj` and `gate_up_proj`
+- Strict unexpected-tensor rejection during target-shape verification
+- PEFT-format load and one-token generation smoke validation
+
+This baseline verifies structural and format compatibility only. It does not prove SQL/Coding task improvement, long-form generation stability, or arbitrary cross-model intelligence transfer. Behavioral validation remains a downstream requirement.
+
 ---
 
 ## 6. Executable Ablation Study Framework
@@ -123,7 +138,7 @@ Formal Production Candidate status remains pending the 24h persistent-route soak
 
 On the projection side, HAMA and the Streaming I/O Bridge suggest that adapter weights can be structurally mapped and physically managed across architectures within the limits of high-precision linear and second-order non-linear approximations. Downstream task improvement remains workload-dependent and must be validated separately.
 
-All core mathematical components are covered by an automated suite (193 non-live tests passed; live vLLM tests are executed separately; see `tests/TEST_REPORT.md`).
+All core mathematical, structural projection, and controlled-runtime components are covered by an automated suite (200+ non-live tests passed; live vLLM tests are executed separately; see `tests/TEST_REPORT.md`).
 
 ---
 

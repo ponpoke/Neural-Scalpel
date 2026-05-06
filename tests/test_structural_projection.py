@@ -2,6 +2,7 @@ import unittest
 import torch
 import torch.nn as nn
 from types import SimpleNamespace
+from pathlib import Path
 from scripts.prepare_actual_lora_payload import (
     infer_qwen_target_shape,
     build_interpolated_layer_mapping,
@@ -97,6 +98,7 @@ class TestStructuralProjection(unittest.TestCase):
 
     def test_strict_verification_unexpected_fail(self):
         from scripts.verify_target_runtime_shapes import verify_shapes
+        from unittest.mock import patch, MagicMock
         import tempfile
         from safetensors.torch import save_file
         import os
@@ -107,22 +109,24 @@ class TestStructuralProjection(unittest.TestCase):
             # Create payload with an UNEXPECTED tensor
             save_file({"unexpected.tensor.weight": torch.randn(10, 10)}, payload_path)
             
-            # This should return False (FAIL) because of strict verification
-            # Note: We need a real target model ID to fetch config, use a small one or mock.
-            # Using Qwen2.5-0.5B-Instruct as it's our case study target.
-            # We wrap in try-except because it might fail if no internet, but logic check is key.
-            try:
-                success = verify_shapes(payload_path, "Qwen/Qwen2.5-0.5B-Instruct")
+            # Mock AutoModelForCausalLM to avoid live download
+            mock_model = MagicMock()
+            # Fake state dict for Qwen2.5-0.5B (partial)
+            mock_model.state_dict.return_value = {
+                "model.layers.0.self_attn.qkv_proj.weight": torch.randn(1152, 896),
+                "model.layers.0.mlp.gate_up_proj.weight": torch.randn(9728, 896),
+            }
+            
+            with patch("scripts.verify_target_runtime_shapes.AutoModelForCausalLM.from_pretrained", return_value=mock_model):
+                success = verify_shapes(payload_path, "dummy/model")
                 self.assertFalse(success, "Strict verification should fail on unexpected tensors.")
                 
                 # Check report content
-                report_path = os.path.join(tmpdir, "runtime_shape_verification.json")
+                report_path = Path(payload_path).parent / "runtime_shape_verification.json"
                 with open(report_path, "r") as f:
                     report = json.load(f)
                 self.assertEqual(report["summary"]["unexpected"], 1)
                 self.assertEqual(report["status"], "FAIL")
-            except Exception as e:
-                print(f"Skipping live shape check in unit test: {e}")
 
     def test_manifest_and_metadata_requirements(self):
         # Verify that the projected manifest uses the correct humble terminology
@@ -141,16 +145,10 @@ class TestStructuralProjection(unittest.TestCase):
             mock_dl.return_value = "dummy_path"
             mock_load.return_value = {} # empty lora_sd
             
-            # We don't run the full projection here, just check that if it were to produce a manifest,
-            # it would have the right fields. (Or we can just inspect the code/constants)
-            # Actually, let's just verify the metadata requirement directly.
+            # Simulate metadata generation
             peft_dir = os.path.join(tmpdir, "peft_adapter")
             os.makedirs(peft_dir)
             
-            # Requirement: diagnostics.verdict == NOT_EVALUATED
-            # This is hardcoded in project_peft_lora's manifest dictionary.
-            
-            # Simulate metadata generation
             meta_path = os.path.join(peft_dir, "projection_metadata.json")
             with open(meta_path, "w") as f:
                 json.dump({

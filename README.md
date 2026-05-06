@@ -4,7 +4,7 @@
 
 [![Version](https://img.shields.io/badge/version-1.0.0--alpha-orange)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-193%20non--live%20passed-brightgreen)](tests/TEST_REPORT.md)
+[![Tests](https://img.shields.io/badge/tests-200%2B%20non--live%20passed-brightgreen)](tests/TEST_REPORT.md)
 [![Verification](https://img.shields.io/badge/Status-Validated%20Prototype-blue)](docs/PRODUCTION_READINESS_CRITERIA.md)
 
 Neural-Scalpel is an experimental no-retraining LoRA migration toolkit for projecting learned adapter weights (Task Vectors / LoRAs) across partially compatible neural architectures.
@@ -111,6 +111,7 @@ PYTHONPATH=. python tests/smoke_test_proxy_forwarding.py
 - **[Empirical Consistency Report](docs/LOGIC_CONSISTENCY_REPORT.md):** Details on mathematical evaluation metrics and failure modes.
 - **[Project Vision & Roadmap](docs/RESEARCH_AND_COMMERCIAL_ROADMAP.md):** Our strategy for ML research validation and commercial diagnostic tools.
 - **[Technical Report](TECHNICAL_REPORT.md):** Mathematical proofs and architecture overview.
+- **[Qwen2.5 SQL/Coding Projection Case Study Template](examples/case_studies/templates/qwen05b_sql_adapter_projection/README.md):** Structural Projection Baseline v2 scaffold for cross-scale adapter projection experiments. Behavioral SQL/Coding validation remains pending.
 - **[Security Policy](SECURITY.md):** Important security considerations and vulnerability reporting.
 - **[Model License Policy](MODEL_LICENSE_POLICY.md):** Legal and licensing responsibility regarding derivative adapter works.
 - **[Disclaimer](DISCLAIMER.md):** Experimental software disclaimer and lack of production guarantees.
