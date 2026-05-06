@@ -5,6 +5,7 @@ __pycache__/
 
 # C extensions
 *.so
+Thumbs.db
 
 # Distribution / packaging
 .Python
@@ -80,6 +81,33 @@ verification_demo/transplanted_llm_lora/
 verification_demo/transplanted_lora.safetensors
 
 port_error.log
-
 tests/quality_eval_results/payloads/
 *.safetensors
+
+
+examples/case_study/
+
+# Logs and local outputs
+*.log
+*.jsonl
+verify_result.txt
+port_error.log
+
+# Model weights / large artifacts
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.gguf
+*.awq
+*.exl2
+
+# Generated outputs
+reports/*.json
+reports/*.jsonl
+reports/*.txt
+vllm_registry_storage/
+routes/actual_loras/
+scratch/
+
+Thumbs.db
