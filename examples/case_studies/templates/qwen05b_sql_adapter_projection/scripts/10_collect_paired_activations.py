@@ -19,14 +19,23 @@ def flush_storage(storage, target_stream):
     for k, values in storage.items():
         if not values:
             continue
+        # Take the latest one and append to the stream list
         target_stream.setdefault(k, []).append(indices_to_last_token(values[-1]))
     storage.clear()
 
 def indices_to_last_token(tensor):
     """Extract the hidden state for the very last input token (generation start)."""
-    return tensor[:, -1, :].detach().cpu().to(torch.float32)
+    # Handle (batch, seq, hidden) -> (batch, hidden)
+    if tensor.dim() == 3:
+        return tensor[:, -1, :].detach().cpu().to(torch.float32)
+    # Handle (seq, hidden) -> (1, hidden)
+    elif tensor.dim() == 2:
+        return tensor[-1:, :].detach().cpu().to(torch.float32)
+    else:
+        # Strict validation: Fail if unexpected shape to avoid corrupting CKA/Ridge downstream
+        raise ValueError(f"Unexpected activation tensor shape: {tuple(tensor.shape)}. Expected 2D or 3D.")
 
-def collect_paired_activations(source_id, lora_id, target_id, prompts, output_path, num_samples=128):
+def collect_paired_activations(source_id, lora_id, target_id, prompts, output_path, num_samples=128, min_samples=20):
     print(f"Loading Models and Tokenizers...")
     source_tokenizer = AutoTokenizer.from_pretrained(source_id)
     target_tokenizer = AutoTokenizer.from_pretrained(target_id)
@@ -65,7 +74,9 @@ def collect_paired_activations(source_id, lora_id, target_id, prompts, output_pa
 
     def get_hook(storage):
         def hook(module, input, output):
-            storage.setdefault(module.metadata_layer_name, []).append(output[0])
+            # output is (hidden_states, ...) or hidden_states Tensor directly
+            hidden = output[0] if isinstance(output, (tuple, list)) else output
+            storage.setdefault(module.metadata_layer_name, []).append(hidden)
         return hook
 
     hooks = []
@@ -116,11 +127,14 @@ def collect_paired_activations(source_id, lora_id, target_id, prompts, output_pa
         
         captured_prompts.append({"index": idx, "text": prompt})
 
-    # Final Validation
+    # Final Validation: Prevent underdetermined alignment learning in Phase 5-C/D
     valid_samples = len(streams["target_base"].get("layers.0", []))
-    if valid_samples == 0:
+    if valid_samples < min_samples:
         for h in hooks: h.remove()
-        raise RuntimeError("No valid paired activation samples collected. Check tokenizer alignment and prompts.")
+        raise RuntimeError(
+            f"Only {valid_samples} valid paired samples collected. "
+            f"At least {min_samples} are required for Phase 5-C/D."
+        )
 
     final_payload = {
         "metadata": {
@@ -156,6 +170,7 @@ def main():
     parser.add_argument("--eval_prompts", default="eval/sql_prompts_50.json")
     parser.add_argument("--output", default="routes/qwen05b_sql_projection/paired_activations.pt")
     parser.add_argument("--num_samples", type=int, default=50)
+    parser.add_argument("--min_samples", type=int, default=20)
     args = parser.parse_args()
     
     if not os.path.exists(args.eval_prompts):
@@ -168,7 +183,7 @@ def main():
     prompts = [p.get("prompt", str(p)) if isinstance(p, dict) else str(p) for p in prompts_raw]
     
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
-    collect_paired_activations(args.source_id, args.lora_id, args.target_id, prompts, args.output, num_samples=args.num_samples)
+    collect_paired_activations(args.source_id, args.lora_id, args.target_id, prompts, args.output, num_samples=args.num_samples, min_samples=args.min_samples)
 
 if __name__ == "__main__":
     main()

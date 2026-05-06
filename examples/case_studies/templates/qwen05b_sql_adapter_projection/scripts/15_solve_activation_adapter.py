@@ -3,7 +3,6 @@ import json
 import argparse
 import os
 from pathlib import Path
-from sklearn.model_selection import train_test_split
 
 def solve_ridge(X, Y, alpha=1.0):
     """
@@ -40,8 +39,11 @@ def solve_activation_adapter(activations_path, desired_delta_path, output_dir, a
     if n_samples < 5:
         raise ValueError("At least 5 paired samples are required for train/heldout split.")
 
-    indices = list(range(n_samples))
-    train_idx, heldout_idx = train_test_split(indices, test_size=0.2, random_state=42)
+    # Native torch train/test split (80/20)
+    torch.manual_seed(42)
+    indices = torch.randperm(n_samples)
+    split_idx = int(n_samples * 0.8)
+    train_idx, heldout_idx = indices[:split_idx], indices[split_idx:]
     
     print(f"Solving Activation-space Adapter (Train: {len(train_idx)}, Heldout: {len(heldout_idx)})...")
     

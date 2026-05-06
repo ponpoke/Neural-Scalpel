@@ -21,15 +21,27 @@ def runtime_injection_smoke(model, tokenizer, adapter_weights, prompts, gamma=1.
     
     def get_injection_hook(W_cpu, scale):
         def hook(module, input, output):
-            h = output[0]
+            # output can be (hidden_states, ...) or hidden_states Tensor directly
+            is_tuple = isinstance(output, (tuple, list))
+            h = output[0] if is_tuple else output
+            
             # Dynamic device adaptation (supports device_map='auto')
             W = W_cpu.to(device=h.device, dtype=h.dtype)
             
-            # Last-token only injection
+            # Robust Last-token only injection
             delta = torch.zeros_like(h)
-            delta[:, -1, :] = torch.matmul(h[:, -1, :], W) * scale
+            if h.dim() == 3:
+                # (batch, seq, hidden)
+                delta[:, -1, :] = torch.matmul(h[:, -1, :], W) * scale
+            elif h.dim() == 2:
+                # (seq, hidden)
+                delta[-1, :] = torch.matmul(h[-1, :], W) * scale
             
-            return (h + delta,) + output[1:]
+            # Return in same format as input
+            if is_tuple:
+                return (h + delta,) + output[1:]
+            else:
+                return h + delta
         return hook
 
     # Register Hooks
