@@ -1,7 +1,7 @@
 {
-  "payload_path": "routes/qwen05b_sql_projection/qwen2.5-7b-text-to-sql_payload.safetensors",
+  "payload_path": "routes/qwen05b_sql_projection/qwen2.5-7b-text-to-sql_projected.safetensors",
   "mode": "REAL",
-  "num_tensors": 112,
+  "num_tensors": 96,
   "is_finite": true,
   "status": "PASS"
 }

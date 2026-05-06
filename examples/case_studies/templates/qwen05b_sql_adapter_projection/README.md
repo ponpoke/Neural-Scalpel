@@ -69,18 +69,24 @@ python scripts/03_check_payload_integrity.py --real --payload <PAYLOAD> --manife
 **Current Task Status:**
 - [x] Real source adapter license verification: **COMPLETED**
 - [x] Real source adapter inspection: **COMPLETED**
-- [x] Real payload generation: **COMPLETED** (12.45 GB Full-rank Delta)
-- [x] Static payload integrity validation: **COMPLETED** (PASS)
+- [x] Baseline payload generation: **COMPLETED** (745.51 MB Dense Payload)
+- [x] Config-based shape validation: **COMPLETED** (PASS - GQA-aware)
+- [ ] Runtime state_dict validation: **STAGED**
 - [ ] Real before/after inference: **STAGED**
-- [ ] Real SQL/Coding metrics: **STAGED**
-- [ ] Real runtime validation: **STAGED**
 
-### Technical Findings (Real Validation)
-During the real validation of `vindows/qwen2.5-7b-text-to-sql`, we observed the following:
-1.  **Payload Scale**: Projecting a Rank-16 LoRA from a 7B model results in a ~12.5GB full-rank delta. This highlights the memory efficiency of LoRA vs. the raw delta needed for atomic runtime swapping.
-2.  **Memory Management**: Robust SHA256 hashing (streaming chunks) and layer-wise tensor hashing are mandatory for handling full-rank deltas of this scale.
-3.  **Shape Compatibility (PENDING)**: The current raw delta preserves the source (7B) hidden dimension. For successful execution on a 0.5B target, the next phase of the Neural-Scalpel pipeline must apply cross-architecture projection (e.g., SVD or Procrustes-based resizing) to map the weights into the target's dimension.
-4.  **Scientific Honesty**: Diagnostics are marked as `NOT_EVALUATED` until actual inference-based metrics are collected, ensuring reports do not imply false success.
+### Technical Findings (Phase 2: Structural Projection Baseline)
+We have implemented and executed a **Structural Bilinear Resize + SVD Recompression** pipeline to bridge the architectural gap between Qwen2.5-7B and Qwen2.5-0.5B:
+1.  **GQA-Aware Mapping**: Successfully calculated target shapes for Q/K/V heads, ensuring that $d_{kv}$ (Grouped Query Attention dimension) is correctly handled for the 0.5B architecture.
+2.  **Uniform Layer Sampling**: Mapped 28 source layers to 24 target layers using a uniform sampling strategy. The exact mapping is recorded in the `.scalpel_route` manifest.
+3.  **Size Reduction**: Reduced the 12.45GB raw delta to a **745.51 MB rank-limited dense payload** (SVD Rank-16 constraint). While significantly smaller, this remains a dense matrix delta rather than a sparse LoRA adapter.
+4.  **Scientific Status**: The current payload is a mathematical baseline. **Behavioral inheritance (SQL performance) and actual runtime loadability have not yet been verified.**
+
+## Research Roadmap (Phase 3: Runtime & Behavioral Validation)
+To move beyond the structural baseline, the following steps are required:
+- **Phase 3**: Verify the payload against the actual vLLM runtime `state_dict` to ensure 100% naming and shape alignment.
+- **Phase 4**: Execute "Before vs. After" inference to determine if the structural projection preserved the source SQL knowledge.
+
+Detailed technical goals can be found in [docs/methodology.md](docs/methodology.md).
 
 See [reports/](reports/) for generated validation logs.
 
