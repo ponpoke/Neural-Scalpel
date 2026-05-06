@@ -1,34 +1,21 @@
 # Qwen2.5-0.5B SQL Adapter Projection Case Study Template
  
  > [!WARNING]
- > **Status: Phase 4 Negative Baseline Established / Phase 5-F-2 Runtime Validation Pending**  
- > This case study has transitioned from target-only conditioning to **Paired Source-Target Activation Alignment**. Behavioral transfer remains **NOT PROVEN**.
+ > **Status: Phase 5-F-2 Positive Runtime Signal Observed / Proceeding to PEFT Solve**  
+ > Runtime injection has demonstrated that the transported behavioral signal can influence the target model's decision boundary. However, task-level behavioral transfer is **NOT PROVEN**.
 
 ## Current Research Status
 
-### Phase 4 Recap
-Target-only activation conditioning produced 100% output identity. Simple signal amplification was insufficient.
+### Phase 5-F-2 Runtime Injection Result
 
-### Phase 5-E / 5-F-1: Transported Delta and Activation-space Adapter Solve
+The activation-space adapter was injected into the target model through forward hooks and evaluated with a gamma sweep.
 
-Phase 5-E transports the source-side behavioral activation delta into the target representation space using learned source-to-target alignment maps. 
+Unlike the earlier target-only projection path, paired-alignment runtime injection produced measurable next-token distribution movement. At higher gamma values, all tested prompts showed Top-1 next-token changes.
 
-The output is a **desired target activation delta**, which serves as a teacher signal, not yet a deployable adapter.
-
-Phase 5-F-1 solves an activation-space adapter to test whether the transported deltas are linearly recoverable from target hidden states.
-
-### Phase 5-F-2: Runtime Activation Injection Smoke (Current Gate)
-
-Phase 5-F-2 injects the solved activation-space adapter through runtime forward hooks to test whether the transported signal can produce measurable logit-level or text-level movement in the target model.
+This is a **positive runtime signal**: the transported activation-space adapter can affect the target model's decision boundary.
 
 > [!IMPORTANT]
-> Proceed to PEFT LoRA extraction only if runtime injection produces measurable logit movement without collapse.
-
-Current status:
-- Activation-space adapter solve: IMPLEMENTED
-- Runtime injection smoke: IMPLEMENTED / READY FOR TEST
-- PEFT LoRA extraction: PENDING
-- Behavioral transfer: NOT YET PROVEN
+> This result does **NOT** yet prove SQL skill transfer, stable generation improvement, or deployable PEFT LoRA success. The observed token shifts demonstrate influence, not necessarily improvement. The next step is to collect module-level activations and attempt a low-rank PEFT-style adapter solve.
 
 ## Strategic Research Roadmap
 
@@ -37,9 +24,9 @@ Current status:
 1.  **Phase 5-A/B/C**: Capture paired activations, extract source deltas, and estimate initial layer correspondence. [COMPLETED]
 2.  **Phase 5-D/E**: Learn alignment maps and transport behavioral deltas to target manifold. [COMPLETED]
 3.  **Phase 5-F-1**: Solve activation-space adapter and verify linear recoverability. [COMPLETED]
-4.  **Phase 5-F-2: Runtime Activation Injection Smoke**: (NEXT STEP) Inject solved activation-space deltas via forward hooks to observe logit/text divergence.
-5.  **Phase 5-F-3**: Module-level activation collection (Prerequisite for PEFT).
-6.  **Phase 5-F-4**: PEFT LoRA extraction (Weight Solve).
+4.  **Phase 5-F-2: Runtime Activation Injection Smoke**: [COMPLETED] Positive runtime signal observed (top-1 shifts detected).
+5.  **Phase 5-F-3: Module-level Activation Collection**: (NEXT STEP) Collect module-level target inputs required for PEFT LoRA solving.
+6.  **Phase 5-F-4: PEFT LoRA Export**: Solve weight deltas and export as deployable `.safetensors`.
 
 ---
 

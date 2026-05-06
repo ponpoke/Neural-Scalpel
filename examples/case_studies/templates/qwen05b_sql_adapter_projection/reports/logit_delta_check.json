@@ -1,53 +1,1013 @@
 {
   "summary": {
     "evaluation_type": "logit_level_delta_check",
-    "num_prompts": 2,
+    "num_prompts": 50,
     "gamma": "unknown",
-    "adapter_path": "routes/qwen05b_sql_projection/gamma_32p0/peft_adapter_calibrated",
-    "mean_symmetric_kl": 0.0,
-    "mean_abs_logit_delta": 0.0,
-    "top1_same_rate": 1.0,
-    "verdict": "NO_MEANINGFUL_LOGIT_DELTA"
+    "adapter_path": "routes/qwen05b_sql_projection/peft_lora",
+    "mean_symmetric_kl": 4.852155327796936,
+    "mean_abs_logit_delta": 2.129077825546265,
+    "top1_same_rate": 0.1,
+    "verdict": "TOKEN_PREFERENCE_SHIFT_DETECTED"
   },
   "details": [
     {
-      "prompt": "List all departments with more than 10 employees....",
-      "symmetric_kl": 0.0,
-      "kl_base_to_proj": 0.0,
-      "kl_proj_to_base": 0.0,
-      "mean_abs_delta": 0.0,
-      "base_top1_token": "I",
-      "proj_top1_token": "I",
-      "top1_match": true,
-      "base_margin": 0.1875,
-      "proj_margin": 0.1875,
+      "prompt": "Table: employees(id, name, department_id, salary)....",
+      "symmetric_kl": 5.62007999420166,
+      "kl_base_to_proj": 2.841764450073242,
+      "kl_proj_to_base": 8.398395538330078,
+      "mean_abs_delta": 2.1200830936431885,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 2.734375,
+      "proj_margin": 1.703125,
       "sql_logprob_deltas": {
-        "SELECT": 0.0,
-        "FROM": 0.0,
-        "WHERE": 0.0,
-        "ORDER": 0.0,
-        "INSERT": 0.0,
-        "UPDATE": 0.0
+        "SELECT": 0.6065053939819336,
+        "FROM": 6.01275634765625,
+        "WHERE": 2.58306884765625,
+        "ORDER": 6.50885009765625,
+        "INSERT": -2.33099365234375,
+        "UPDATE": -6.27630615234375
       }
     },
     {
-      "prompt": "What is the average salary of engineers in San Fra...",
-      "symmetric_kl": 0.0,
-      "kl_base_to_proj": 0.0,
-      "kl_proj_to_base": 0.0,
-      "mean_abs_delta": 0.0,
-      "base_top1_token": "As",
-      "proj_top1_token": "As",
+      "prompt": "Table: products(id, name, price, stock). Query: Fi...",
+      "symmetric_kl": 3.5581957697868347,
+      "kl_base_to_proj": 1.388989806175232,
+      "kl_proj_to_base": 5.7274017333984375,
+      "mean_abs_delta": 2.1557579040527344,
+      "base_top1_token": "To",
+      "proj_top1_token": "To",
       "top1_match": true,
-      "base_margin": 0.671875,
-      "proj_margin": 0.671875,
+      "base_margin": 4.25,
+      "proj_margin": 0.109375,
       "sql_logprob_deltas": {
-        "SELECT": 0.0,
-        "FROM": 0.0,
-        "WHERE": 0.0,
-        "ORDER": 0.0,
-        "INSERT": 0.0,
-        "UPDATE": 0.0
+        "SELECT": 0.13326072692871094,
+        "FROM": 5.090292930603027,
+        "WHERE": 2.378377914428711,
+        "ORDER": 7.930136680603027,
+        "INSERT": -2.231973648071289,
+        "UPDATE": -5.980020523071289
+      }
+    },
+    {
+      "prompt": "Table: customers(id, first_name, last_name, countr...",
+      "symmetric_kl": 4.875495672225952,
+      "kl_base_to_proj": 2.1396303176879883,
+      "kl_proj_to_base": 7.611361026763916,
+      "mean_abs_delta": 2.159048080444336,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.25,
+      "proj_margin": 1.171875,
+      "sql_logprob_deltas": {
+        "SELECT": -0.8918371200561523,
+        "FROM": 5.037851333618164,
+        "WHERE": 2.149179458618164,
+        "ORDER": 6.683359146118164,
+        "INSERT": -2.977773666381836,
+        "UPDATE": -6.094961166381836
+      }
+    },
+    {
+      "prompt": "Table: orders(id, customer_id, total_amount). Quer...",
+      "symmetric_kl": 4.263265371322632,
+      "kl_base_to_proj": 1.845792293548584,
+      "kl_proj_to_base": 6.68073844909668,
+      "mean_abs_delta": 2.0932605266571045,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.09375,
+      "proj_margin": 0.6328125,
+      "sql_logprob_deltas": {
+        "SELECT": -0.0022897720336914062,
+        "FROM": 4.911772727966309,
+        "WHERE": 1.7652873992919922,
+        "ORDER": 6.935210227966309,
+        "INSERT": -2.650728225708008,
+        "UPDATE": -6.514009475708008
+      }
+    },
+    {
+      "prompt": "Table: students(id, name, age, major). Query: List...",
+      "symmetric_kl": 4.8085856437683105,
+      "kl_base_to_proj": 2.0723085403442383,
+      "kl_proj_to_base": 7.544862747192383,
+      "mean_abs_delta": 2.0901472568511963,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.71875,
+      "proj_margin": 1.1015625,
+      "sql_logprob_deltas": {
+        "SELECT": 0.4798698425292969,
+        "FROM": 6.063855171203613,
+        "WHERE": 2.946666717529297,
+        "ORDER": 7.800183296203613,
+        "INSERT": -1.7701301574707031,
+        "UPDATE": -5.680286407470703
+      }
+    },
+    {
+      "prompt": "Table: books(id, title, author, year). Query: Find...",
+      "symmetric_kl": 4.969723761081696,
+      "kl_base_to_proj": 1.8751202821731567,
+      "kl_proj_to_base": 8.064327239990234,
+      "mean_abs_delta": 2.1661152839660645,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.453125,
+      "proj_margin": 0.8828125,
+      "sql_logprob_deltas": {
+        "SELECT": 0.4087514877319336,
+        "FROM": 6.85601806640625,
+        "WHERE": 2.44488525390625,
+        "ORDER": 8.50250244140625,
+        "INSERT": -1.48187255859375,
+        "UPDATE": -5.61468505859375
+      }
+    },
+    {
+      "prompt": "Table: inventory(id, item_name, quantity). Query: ...",
+      "symmetric_kl": 5.08072304725647,
+      "kl_base_to_proj": 2.1534790992736816,
+      "kl_proj_to_base": 8.007966995239258,
+      "mean_abs_delta": 2.1587188243865967,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.578125,
+      "proj_margin": 1.2578125,
+      "sql_logprob_deltas": {
+        "SELECT": 0.259063720703125,
+        "FROM": 6.378204345703125,
+        "WHERE": 1.961212158203125,
+        "ORDER": 7.763946533203125,
+        "INSERT": -2.549530029296875,
+        "UPDATE": -6.834686279296875
+      }
+    },
+    {
+      "prompt": "Table: flights(id, origin, destination, duration)....",
+      "symmetric_kl": 3.814197838306427,
+      "kl_base_to_proj": 1.507743000984192,
+      "kl_proj_to_base": 6.120652675628662,
+      "mean_abs_delta": 2.0511012077331543,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.515625,
+      "proj_margin": 0.0078125,
+      "sql_logprob_deltas": {
+        "SELECT": -0.6034927368164062,
+        "FROM": 5.345726013183594,
+        "WHERE": 1.9853744506835938,
+        "ORDER": 6.539085388183594,
+        "INSERT": -1.3027114868164062,
+        "UPDATE": -3.7031021118164062
+      }
+    },
+    {
+      "prompt": "Table: employees(id, name, department_id, salary)....",
+      "symmetric_kl": 5.050398111343384,
+      "kl_base_to_proj": 2.4195518493652344,
+      "kl_proj_to_base": 7.681244373321533,
+      "mean_abs_delta": 1.9942067861557007,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.46875,
+      "proj_margin": 1.546875,
+      "sql_logprob_deltas": {
+        "SELECT": 1.7854337692260742,
+        "FROM": 8.136995315551758,
+        "WHERE": 3.610628128051758,
+        "ORDER": 7.651643753051758,
+        "INSERT": -1.4528484344482422,
+        "UPDATE": -4.505582809448242
+      }
+    },
+    {
+      "prompt": "Table: sales(id, product_id, amount, region). Quer...",
+      "symmetric_kl": 4.898726224899292,
+      "kl_base_to_proj": 1.9438414573669434,
+      "kl_proj_to_base": 7.853610992431641,
+      "mean_abs_delta": 2.0641767978668213,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.296875,
+      "proj_margin": 1.0703125,
+      "sql_logprob_deltas": {
+        "SELECT": 1.7066326141357422,
+        "FROM": 8.012297630310059,
+        "WHERE": 3.954679489135742,
+        "ORDER": 8.423430442810059,
+        "INSERT": -0.7621173858642578,
+        "UPDATE": -4.342195510864258
+      }
+    },
+    {
+      "prompt": "Table: courses(id, name, credits). Table: enrollme...",
+      "symmetric_kl": 3.9953166246414185,
+      "kl_base_to_proj": 1.834228754043579,
+      "kl_proj_to_base": 6.156404495239258,
+      "mean_abs_delta": 1.9727076292037964,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.890625,
+      "proj_margin": 0.609375,
+      "sql_logprob_deltas": {
+        "SELECT": 2.4692745208740234,
+        "FROM": 7.85013484954834,
+        "WHERE": 3.48880672454834,
+        "ORDER": 7.15286922454834,
+        "INSERT": -1.7533817291259766,
+        "UPDATE": -5.776819229125977
+      }
+    },
+    {
+      "prompt": "Table: weather(id, city, temp, date). Query: Max t...",
+      "symmetric_kl": 4.406127572059631,
+      "kl_base_to_proj": 1.726710557937622,
+      "kl_proj_to_base": 7.085544586181641,
+      "mean_abs_delta": 2.0788509845733643,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.578125,
+      "proj_margin": 0.7109375,
+      "sql_logprob_deltas": {
+        "SELECT": 1.498570442199707,
+        "FROM": 7.999546051025391,
+        "WHERE": 3.4170265197753906,
+        "ORDER": 7.943881988525391,
+        "INSERT": -1.3744773864746094,
+        "UPDATE": -4.936977386474609
+      }
+    },
+    {
+      "prompt": "Table: reviews(id, product_id, rating). Query: Ave...",
+      "symmetric_kl": 5.140954852104187,
+      "kl_base_to_proj": 2.3288538455963135,
+      "kl_proj_to_base": 7.9530558586120605,
+      "mean_abs_delta": 2.0641798973083496,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.171875,
+      "proj_margin": 1.359375,
+      "sql_logprob_deltas": {
+        "SELECT": 2.0701751708984375,
+        "FROM": 7.9471282958984375,
+        "WHERE": 3.6805267333984375,
+        "ORDER": 7.8455657958984375,
+        "INSERT": -0.9395904541015625,
+        "UPDATE": -5.1641998291015625
+      }
+    },
+    {
+      "prompt": "Table: transactions(id, user_id, amount). Query: S...",
+      "symmetric_kl": 4.145413041114807,
+      "kl_base_to_proj": 1.962989091873169,
+      "kl_proj_to_base": 6.327836990356445,
+      "mean_abs_delta": 1.9689173698425293,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.265625,
+      "proj_margin": 0.5859375,
+      "sql_logprob_deltas": {
+        "SELECT": 1.8635358810424805,
+        "FROM": 7.8830671310424805,
+        "WHERE": 3.550058364868164,
+        "ORDER": 8.15552806854248,
+        "INSERT": -1.302480697631836,
+        "UPDATE": -4.364980697631836
+      }
+    },
+    {
+      "prompt": "Table: logins(id, user_id, timestamp). Query: Numb...",
+      "symmetric_kl": 4.065435528755188,
+      "kl_base_to_proj": 2.3523848056793213,
+      "kl_proj_to_base": 5.778486251831055,
+      "mean_abs_delta": 1.8307524919509888,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.203125,
+      "proj_margin": 1.296875,
+      "sql_logprob_deltas": {
+        "SELECT": 1.3531370162963867,
+        "FROM": 6.89415168762207,
+        "WHERE": 3.3272571563720703,
+        "ORDER": 6.80430793762207,
+        "INSERT": -0.7288951873779297,
+        "UPDATE": -3.5101451873779297
+      }
+    },
+    {
+      "prompt": "Table: tickets(id, status, priority). Query: Count...",
+      "symmetric_kl": 5.288280963897705,
+      "kl_base_to_proj": 2.289435386657715,
+      "kl_proj_to_base": 8.287126541137695,
+      "mean_abs_delta": 2.0710437297821045,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.28125,
+      "proj_margin": 1.5,
+      "sql_logprob_deltas": {
+        "SELECT": 2.2855262756347656,
+        "FROM": 8.61072063446045,
+        "WHERE": 4.262088775634766,
+        "ORDER": 7.463259696960449,
+        "INSERT": -1.3082237243652344,
+        "UPDATE": -4.544551849365234
+      }
+    },
+    {
+      "prompt": "Table: users(id, name). Table: posts(id, user_id, ...",
+      "symmetric_kl": 4.609999775886536,
+      "kl_base_to_proj": 2.598256826400757,
+      "kl_proj_to_base": 6.6217427253723145,
+      "mean_abs_delta": 2.002781629562378,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 2.953125,
+      "proj_margin": 1.046875,
+      "sql_logprob_deltas": {
+        "SELECT": 0.8608341217041016,
+        "FROM": 6.302239418029785,
+        "WHERE": 3.098137855529785,
+        "ORDER": 6.151848793029785,
+        "INSERT": -1.7446346282958984,
+        "UPDATE": -5.725103378295898
+      }
+    },
+    {
+      "prompt": "Table: orders(id, user_id, total). Table: products...",
+      "symmetric_kl": 4.594405174255371,
+      "kl_base_to_proj": 1.982914924621582,
+      "kl_proj_to_base": 7.20589542388916,
+      "mean_abs_delta": 2.097388744354248,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.15625,
+      "proj_margin": 0.375,
+      "sql_logprob_deltas": {
+        "SELECT": 3.0674877166748047,
+        "FROM": 8.846783638000488,
+        "WHERE": 3.8985414505004883,
+        "ORDER": 9.387799263000488,
+        "INSERT": -0.7469654083251953,
+        "UPDATE": -5.366106033325195
+      }
+    },
+    {
+      "prompt": "Table: employees(id, name, dept_id). Table: depart...",
+      "symmetric_kl": 5.247555494308472,
+      "kl_base_to_proj": 3.595567226409912,
+      "kl_proj_to_base": 6.899543762207031,
+      "mean_abs_delta": 2.0703859329223633,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 2.03125,
+      "proj_margin": 1.859375,
+      "sql_logprob_deltas": {
+        "SELECT": -0.39816761016845703,
+        "FROM": 4.443629264831543,
+        "WHERE": 1.404566764831543,
+        "ORDER": 3.590113639831543,
+        "INSERT": -3.8278541564941406,
+        "UPDATE": -6.886447906494141
+      }
+    },
+    {
+      "prompt": "Table: students(id, name). Table: exams(student_id...",
+      "symmetric_kl": 5.456808805465698,
+      "kl_base_to_proj": 2.492310047149658,
+      "kl_proj_to_base": 8.421307563781738,
+      "mean_abs_delta": 2.050013542175293,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.8125,
+      "proj_margin": 1.625,
+      "sql_logprob_deltas": {
+        "SELECT": 1.2585067749023438,
+        "FROM": 7.135459899902344,
+        "WHERE": 2.6520614624023438,
+        "ORDER": 7.098350524902344,
+        "INSERT": -0.8313369750976562,
+        "UPDATE": -5.440711975097656
+      }
+    },
+    {
+      "prompt": "Table: authors(id, name). Table: books(id, author_...",
+      "symmetric_kl": 4.140717387199402,
+      "kl_base_to_proj": 2.247934103012085,
+      "kl_proj_to_base": 6.033500671386719,
+      "mean_abs_delta": 1.9391815662384033,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.140625,
+      "proj_margin": 0.7734375,
+      "sql_logprob_deltas": {
+        "SELECT": 0.9469432830810547,
+        "FROM": 5.927412033081055,
+        "WHERE": 3.0348339080810547,
+        "ORDER": 5.366865158081055,
+        "INSERT": -1.5374317169189453,
+        "UPDATE": -5.017900466918945
+      }
+    },
+    {
+      "prompt": "Table: suppliers(id, name). Table: parts(id, suppl...",
+      "symmetric_kl": 5.068399548530579,
+      "kl_base_to_proj": 2.409963846206665,
+      "kl_proj_to_base": 7.726835250854492,
+      "mean_abs_delta": 2.0749118328094482,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.171875,
+      "proj_margin": 1.3203125,
+      "sql_logprob_deltas": {
+        "SELECT": 1.315720558166504,
+        "FROM": 7.194626808166504,
+        "WHERE": 2.898728370666504,
+        "ORDER": 7.778611183166504,
+        "INSERT": -1.1139678955078125,
+        "UPDATE": -4.2545928955078125
+      }
+    },
+    {
+      "prompt": "Table: matches(id, team_a_id, team_b_id). Table: t...",
+      "symmetric_kl": 3.00710666179657,
+      "kl_base_to_proj": 1.5886075496673584,
+      "kl_proj_to_base": 4.425605773925781,
+      "mean_abs_delta": 2.03269624710083,
+      "base_top1_token": "To",
+      "proj_top1_token": "To",
+      "top1_match": true,
+      "base_margin": 3.265625,
+      "proj_margin": 1.1484375,
+      "sql_logprob_deltas": {
+        "SELECT": 1.621262550354004,
+        "FROM": 7.043137550354004,
+        "WHERE": 2.779465675354004,
+        "ORDER": 7.207200050354004,
+        "INSERT": -3.0740509033203125,
+        "UPDATE": -6.6834259033203125
+      }
+    },
+    {
+      "prompt": "Table: customers(id, name). Table: feedback(id, cu...",
+      "symmetric_kl": 5.352602124214172,
+      "kl_base_to_proj": 3.3355066776275635,
+      "kl_proj_to_base": 7.369697570800781,
+      "mean_abs_delta": 2.0364437103271484,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 2.328125,
+      "proj_margin": 1.9765625,
+      "sql_logprob_deltas": {
+        "SELECT": 0.6904182434082031,
+        "FROM": 5.209948539733887,
+        "WHERE": 2.7177600860595703,
+        "ORDER": 4.858386039733887,
+        "INSERT": -2.5791149139404297,
+        "UPDATE": -6.75098991394043
+      }
+    },
+    {
+      "prompt": "Table: doctors(id, name). Table: appointments(doc_...",
+      "symmetric_kl": 6.047970533370972,
+      "kl_base_to_proj": 4.2277960777282715,
+      "kl_proj_to_base": 7.868144989013672,
+      "mean_abs_delta": 2.0652971267700195,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 2.25,
+      "proj_margin": 2.453125,
+      "sql_logprob_deltas": {
+        "SELECT": -1.6902666091918945,
+        "FROM": 4.6202802658081055,
+        "WHERE": 1.109537124633789,
+        "ORDER": 3.3155927658081055,
+        "INSERT": -3.846517562866211,
+        "UPDATE": -7.088705062866211
+      }
+    },
+    {
+      "prompt": "Table: cities(id, name, country_id). Table: countr...",
+      "symmetric_kl": 4.154367923736572,
+      "kl_base_to_proj": 2.4903459548950195,
+      "kl_proj_to_base": 5.818389892578125,
+      "mean_abs_delta": 2.0830612182617188,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 2.375,
+      "proj_margin": 0.2421875,
+      "sql_logprob_deltas": {
+        "SELECT": 0.1686229705810547,
+        "FROM": 5.266279220581055,
+        "WHERE": 2.7633495330810547,
+        "ORDER": 4.643232345581055,
+        "INSERT": -3.1907520294189453,
+        "UPDATE": -6.475908279418945
+      }
+    },
+    {
+      "prompt": "Table: employees(id, name, salary). Query: Top 5 h...",
+      "symmetric_kl": 4.244914531707764,
+      "kl_base_to_proj": 2.0765175819396973,
+      "kl_proj_to_base": 6.41331148147583,
+      "mean_abs_delta": 1.9411972761154175,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.8125,
+      "proj_margin": 1.3515625,
+      "sql_logprob_deltas": {
+        "SELECT": 1.7068519592285156,
+        "FROM": 7.646305084228516,
+        "WHERE": 3.3914222717285156,
+        "ORDER": 4.253726959228516,
+        "INSERT": -1.7833824157714844,
+        "UPDATE": -5.291194915771484
+      }
+    },
+    {
+      "prompt": "Table: products(id, name, stock). Query: List 10 i...",
+      "symmetric_kl": 4.219995856285095,
+      "kl_base_to_proj": 2.0356719493865967,
+      "kl_proj_to_base": 6.404319763183594,
+      "mean_abs_delta": 2.039848566055298,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 2.96875,
+      "proj_margin": 0.6640625,
+      "sql_logprob_deltas": {
+        "SELECT": 1.9101696014404297,
+        "FROM": 7.380871772766113,
+        "WHERE": 3.4404430389404297,
+        "ORDER": 5.470715522766113,
+        "INSERT": -1.8827991485595703,
+        "UPDATE": -5.79686164855957
+      }
+    },
+    {
+      "prompt": "Table: news(id, headline, date). Query: Most recen...",
+      "symmetric_kl": 3.4011550545692444,
+      "kl_base_to_proj": 1.3534642457962036,
+      "kl_proj_to_base": 5.448845863342285,
+      "mean_abs_delta": 2.019723653793335,
+      "base_top1_token": "To",
+      "proj_top1_token": "To",
+      "top1_match": true,
+      "base_margin": 4.75,
+      "proj_margin": 0.3046875,
+      "sql_logprob_deltas": {
+        "SELECT": 2.109745979309082,
+        "FROM": 8.711309432983398,
+        "WHERE": 4.117559432983398,
+        "ORDER": 6.676153182983398,
+        "INSERT": -1.5191593170166016,
+        "UPDATE": -5.296503067016602
+      }
+    },
+    {
+      "prompt": "Table: runners(id, name, time). Query: List runner...",
+      "symmetric_kl": 3.8234254717826843,
+      "kl_base_to_proj": 1.5648359060287476,
+      "kl_proj_to_base": 6.082015037536621,
+      "mean_abs_delta": 2.0485172271728516,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.9375,
+      "proj_margin": 0.1953125,
+      "sql_logprob_deltas": {
+        "SELECT": 0.2049999237060547,
+        "FROM": 6.624921798706055,
+        "WHERE": 2.9364452362060547,
+        "ORDER": 5.406171798706055,
+        "INSERT": -1.9160938262939453,
+        "UPDATE": -5.880937576293945
+      }
+    },
+    {
+      "prompt": "Table: songs(id, title, play_count). Query: Top 20...",
+      "symmetric_kl": 3.58720064163208,
+      "kl_base_to_proj": 1.6962056159973145,
+      "kl_proj_to_base": 5.478195667266846,
+      "mean_abs_delta": 1.957891821861267,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.75,
+      "proj_margin": 0.5,
+      "sql_logprob_deltas": {
+        "SELECT": 1.5981435775756836,
+        "FROM": 7.324706077575684,
+        "WHERE": 3.6723623275756836,
+        "ORDER": 4.535643577575684,
+        "INSERT": -0.5874042510986328,
+        "UPDATE": -3.233888626098633
+      }
+    },
+    {
+      "prompt": "Table: employees(id, name, salary). Query: Find em...",
+      "symmetric_kl": 5.302574157714844,
+      "kl_base_to_proj": 2.441385269165039,
+      "kl_proj_to_base": 8.163763046264648,
+      "mean_abs_delta": 2.099407911300659,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.890625,
+      "proj_margin": 1.5078125,
+      "sql_logprob_deltas": {
+        "SELECT": 0.6112356185913086,
+        "FROM": 7.113187789916992,
+        "WHERE": 2.951078414916992,
+        "ORDER": 7.419828414916992,
+        "INSERT": -1.7598590850830078,
+        "UPDATE": -5.607515335083008
+      }
+    },
+    {
+      "prompt": "Table: products(id, name, price). Query: List prod...",
+      "symmetric_kl": 4.248915016651154,
+      "kl_base_to_proj": 1.7598158121109009,
+      "kl_proj_to_base": 6.738014221191406,
+      "mean_abs_delta": 2.024397134780884,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.90625,
+      "proj_margin": 0.5390625,
+      "sql_logprob_deltas": {
+        "SELECT": 1.6021814346313477,
+        "FROM": 6.174447059631348,
+        "WHERE": 3.2330408096313477,
+        "ORDER": 7.531868934631348,
+        "INSERT": -0.6614913940429688,
+        "UPDATE": -4.354850769042969
+      }
+    },
+    {
+      "prompt": "Table: customers(id, name). Table: orders(id, cust...",
+      "symmetric_kl": 4.189748764038086,
+      "kl_base_to_proj": 1.6276063919067383,
+      "kl_proj_to_base": 6.751891136169434,
+      "mean_abs_delta": 2.046173572540283,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.671875,
+      "proj_margin": 0.3203125,
+      "sql_logprob_deltas": {
+        "SELECT": 1.5759239196777344,
+        "FROM": 6.816158294677734,
+        "WHERE": 3.1481895446777344,
+        "ORDER": 8.702877044677734,
+        "INSERT": -1.4631385803222656,
+        "UPDATE": -5.502201080322266
+      }
+    },
+    {
+      "prompt": "Table: departments(id, name). Query: Show departme...",
+      "symmetric_kl": 5.030113458633423,
+      "kl_base_to_proj": 2.19370174407959,
+      "kl_proj_to_base": 7.866525173187256,
+      "mean_abs_delta": 2.0366647243499756,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.21875,
+      "proj_margin": 1.3984375,
+      "sql_logprob_deltas": {
+        "SELECT": 1.4808826446533203,
+        "FROM": 6.85588264465332,
+        "WHERE": 3.0824451446533203,
+        "ORDER": 7.53068733215332,
+        "INSERT": -1.3335704803466797,
+        "UPDATE": -5.13630485534668
+      }
+    },
+    {
+      "prompt": "Table: winners(id, name, year). Query: Find names ...",
+      "symmetric_kl": 5.380803227424622,
+      "kl_base_to_proj": 2.4239513874053955,
+      "kl_proj_to_base": 8.337655067443848,
+      "mean_abs_delta": 2.0633296966552734,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.78125,
+      "proj_margin": 1.1796875,
+      "sql_logprob_deltas": {
+        "SELECT": 1.066493034362793,
+        "FROM": 7.384852409362793,
+        "WHERE": 3.5533084869384766,
+        "ORDER": 9.140711784362793,
+        "INSERT": -0.5155391693115234,
+        "UPDATE": -4.999914169311523
+      }
+    },
+    {
+      "prompt": "Table: logs(id, message, created_at). Query: List ...",
+      "symmetric_kl": 4.4699167013168335,
+      "kl_base_to_proj": 2.0752923488616943,
+      "kl_proj_to_base": 6.864541053771973,
+      "mean_abs_delta": 2.044567346572876,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.8125,
+      "proj_margin": 0.6015625,
+      "sql_logprob_deltas": {
+        "SELECT": 2.58917236328125,
+        "FROM": 8.48663330078125,
+        "WHERE": 4.09600830078125,
+        "ORDER": 7.84112548828125,
+        "INSERT": -0.37567138671875,
+        "UPDATE": -4.15887451171875
+      }
+    },
+    {
+      "prompt": "Table: events(id, name, start_date). Query: Find a...",
+      "symmetric_kl": 5.352274775505066,
+      "kl_base_to_proj": 2.066776990890503,
+      "kl_proj_to_base": 8.637772560119629,
+      "mean_abs_delta": 2.200848340988159,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.578125,
+      "proj_margin": 1.1484375,
+      "sql_logprob_deltas": {
+        "SELECT": 0.6208915710449219,
+        "FROM": 7.238079071044922,
+        "WHERE": 2.586223602294922,
+        "ORDER": 8.691204071044922,
+        "INSERT": -1.2443428039550781,
+        "UPDATE": -5.215045928955078
+      }
+    },
+    {
+      "prompt": "Table: subscriptions(id, user_id, expire_date). Qu...",
+      "symmetric_kl": 3.741251587867737,
+      "kl_base_to_proj": 1.5317270755767822,
+      "kl_proj_to_base": 5.950776100158691,
+      "mean_abs_delta": 1.9678667783737183,
+      "base_top1_token": "To",
+      "proj_top1_token": "To",
+      "top1_match": true,
+      "base_margin": 3.90625,
+      "proj_margin": 0.3125,
+      "sql_logprob_deltas": {
+        "SELECT": 1.1940650939941406,
+        "FROM": 5.906955718994141,
+        "WHERE": 3.3581275939941406,
+        "ORDER": 8.47531509399414,
+        "INSERT": -0.7082786560058594,
+        "UPDATE": -5.040309906005859
+      }
+    },
+    {
+      "prompt": "Table: reservations(id, room_id, checkin, checkout...",
+      "symmetric_kl": 5.357736229896545,
+      "kl_base_to_proj": 2.2982876300811768,
+      "kl_proj_to_base": 8.417184829711914,
+      "mean_abs_delta": 2.074559211730957,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.546875,
+      "proj_margin": 1.59375,
+      "sql_logprob_deltas": {
+        "SELECT": 1.3476905822753906,
+        "FROM": 7.246128082275391,
+        "WHERE": 2.5239601135253906,
+        "ORDER": 7.763706207275391,
+        "INSERT": -1.4726219177246094,
+        "UPDATE": -4.816371917724609
+      }
+    },
+    {
+      "prompt": "Table: posts(id, title, published_at). Query: Show...",
+      "symmetric_kl": 4.547448098659515,
+      "kl_base_to_proj": 1.8699864149093628,
+      "kl_proj_to_base": 7.224909782409668,
+      "mean_abs_delta": 2.0941669940948486,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 4.15625,
+      "proj_margin": 0.734375,
+      "sql_logprob_deltas": {
+        "SELECT": 1.777115821838379,
+        "FROM": 8.032975196838379,
+        "WHERE": 3.5407886505126953,
+        "ORDER": 8.123307228088379,
+        "INSERT": -0.8986644744873047,
+        "UPDATE": -4.832258224487305
+      }
+    },
+    {
+      "prompt": "Table: tasks(id, name, status). Query: Set status ...",
+      "symmetric_kl": 5.445334196090698,
+      "kl_base_to_proj": 2.615779399871826,
+      "kl_proj_to_base": 8.27488899230957,
+      "mean_abs_delta": 2.4592525959014893,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 2.1875,
+      "proj_margin": 0.875,
+      "sql_logprob_deltas": {
+        "SELECT": 4.080463409423828,
+        "FROM": 8.749652862548828,
+        "WHERE": 2.101947784423828,
+        "ORDER": 6.904682159423828,
+        "INSERT": -4.235942840576172,
+        "UPDATE": -11.321880340576172
+      }
+    },
+    {
+      "prompt": "Table: users(id, name, email). Query: Delete users...",
+      "symmetric_kl": 4.151017665863037,
+      "kl_base_to_proj": 1.9260787963867188,
+      "kl_proj_to_base": 6.3759565353393555,
+      "mean_abs_delta": 2.0884106159210205,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.9375,
+      "proj_margin": 0.9375,
+      "sql_logprob_deltas": {
+        "SELECT": 4.959991455078125,
+        "FROM": 7.695343017578125,
+        "WHERE": 3.254913330078125,
+        "ORDER": 7.858428955078125,
+        "INSERT": -1.577117919921875,
+        "UPDATE": -6.051727294921875
+      }
+    },
+    {
+      "prompt": "Table: products(id, price). Query: Increase all pr...",
+      "symmetric_kl": 4.03529417514801,
+      "kl_base_to_proj": 1.5287888050079346,
+      "kl_proj_to_base": 6.541799545288086,
+      "mean_abs_delta": 2.459017753601074,
+      "base_top1_token": "To",
+      "proj_top1_token": "Design",
+      "top1_match": false,
+      "base_margin": 3.46875,
+      "proj_margin": 0.0,
+      "sql_logprob_deltas": {
+        "SELECT": 4.138631820678711,
+        "FROM": 10.267539024353027,
+        "WHERE": 2.7255477905273438,
+        "ORDER": 7.656210899353027,
+        "INSERT": -4.072303771972656,
+        "UPDATE": -11.587929725646973
+      }
+    },
+    {
+      "prompt": "Table: sessions(id, data). Query: Clear all data f...",
+      "symmetric_kl": 3.3374655842781067,
+      "kl_base_to_proj": 1.7692514657974243,
+      "kl_proj_to_base": 4.905679702758789,
+      "mean_abs_delta": 2.4067635536193848,
+      "base_top1_token": "To",
+      "proj_top1_token": "To",
+      "top1_match": true,
+      "base_margin": 2.65625,
+      "proj_margin": 1.109375,
+      "sql_logprob_deltas": {
+        "SELECT": 4.665942192077637,
+        "FROM": 7.867114067077637,
+        "WHERE": 2.7382078170776367,
+        "ORDER": 6.214770317077637,
+        "INSERT": -3.2403087615966797,
+        "UPDATE": -9.41999626159668
+      }
+    },
+    {
+      "prompt": "\u30c6\u30fc\u30d6\u30eb: \u793e\u54e1(ID, \u540d\u524d, \u7d66\u4e0e). \u30af\u30a8\u30ea: \u7d66\u4e0e\u304c50\u4e07\u4ee5\u4e0a\u306e\u793e\u54e1\u306e\u540d\u524d\u3092\u30ea\u30b9\u30c8\u30a2\u30c3\u30d7\u3057\u3066...",
+      "symmetric_kl": 7.55756950378418,
+      "kl_base_to_proj": 8.392122268676758,
+      "kl_proj_to_base": 6.723016738891602,
+      "mean_abs_delta": 2.5437300205230713,
+      "base_top1_token": "\u3053\u306e",
+      "proj_top1_token": "To",
+      "top1_match": false,
+      "base_margin": 0.03125,
+      "proj_margin": 2.3671875,
+      "sql_logprob_deltas": {
+        "SELECT": 1.9645490646362305,
+        "FROM": 1.3483381271362305,
+        "WHERE": 1.0326652526855469,
+        "ORDER": -0.7185707092285156,
+        "INSERT": -7.5823259353637695,
+        "UPDATE": -7.329883575439453
+      }
+    },
+    {
+      "prompt": "\u30c6\u30fc\u30d6\u30eb: \u5546\u54c1(ID, \u5546\u54c1\u540d, \u4fa1\u683c). \u30af\u30a8\u30ea: 1000\u5186\u4ee5\u4e0b\u306e\u5546\u54c1\u3092\u3059\u3079\u3066\u8868\u793a\u3057\u3066\u3002...",
+      "symmetric_kl": 7.298373699188232,
+      "kl_base_to_proj": 8.053020477294922,
+      "kl_proj_to_base": 6.543726921081543,
+      "mean_abs_delta": 2.5541086196899414,
+      "base_top1_token": "\u30c6\u30fc\ufffd",
+      "proj_top1_token": "To",
+      "top1_match": false,
+      "base_margin": 0.5,
+      "proj_margin": 1.0,
+      "sql_logprob_deltas": {
+        "SELECT": 2.526042938232422,
+        "FROM": 1.8072929382324219,
+        "WHERE": 1.4222831726074219,
+        "ORDER": -0.20808792114257812,
+        "INSERT": -6.868488311767578,
+        "UPDATE": -8.379718780517578
+      }
+    },
+    {
+      "prompt": "\u30c6\u30fc\u30d6\u30eb: \u6ce8\u6587(ID, \u9867\u5ba2ID, \u91d1\u984d). \u30af\u30a8\u30ea: \u5408\u8a08\u91d1\u984d\u304c1\u4e07\u5186\u3092\u8d85\u3048\u308b\u6ce8\u6587\u3092\u8868\u793a\u3002...",
+      "symmetric_kl": 7.1122729778289795,
+      "kl_base_to_proj": 7.975419998168945,
+      "kl_proj_to_base": 6.249125957489014,
+      "mean_abs_delta": 2.5751702785491943,
+      "base_top1_token": "\u3053\u306e",
+      "proj_top1_token": "To",
+      "top1_match": false,
+      "base_margin": 0.0625,
+      "proj_margin": 1.5078125,
+      "sql_logprob_deltas": {
+        "SELECT": 1.8503589630126953,
+        "FROM": 1.5446949005126953,
+        "WHERE": 0.3498706817626953,
+        "ORDER": -1.2194652557373047,
+        "INSERT": -8.204328536987305,
+        "UPDATE": -8.832258224487305
+      }
+    },
+    {
+      "prompt": "\u30c6\u30fc\u30d6\u30eb: \u5b66\u751f(ID, \u540d\u524d, \u5b66\u90e8). \u30af\u30a8\u30ea: '\u5de5\u5b66\u90e8'\u306b\u6240\u5c5e\u3059\u308b\u5b66\u751f\u306e\u4eba\u6570\u3092\u6559\u3048\u3066\u3002...",
+      "symmetric_kl": 7.15596866607666,
+      "kl_base_to_proj": 7.834177017211914,
+      "kl_proj_to_base": 6.477760314941406,
+      "mean_abs_delta": 2.6303343772888184,
+      "base_top1_token": "\u30c6\u30fc\ufffd",
+      "proj_top1_token": "To",
+      "top1_match": false,
+      "base_margin": 0.2421875,
+      "proj_margin": 1.6171875,
+      "sql_logprob_deltas": {
+        "SELECT": 0.7832565307617188,
+        "FROM": 0.29888153076171875,
+        "WHERE": -0.5995550155639648,
+        "ORDER": -1.7392024993896484,
+        "INSERT": -8.298773765563965,
+        "UPDATE": -9.194281578063965
+      }
+    },
+    {
+      "prompt": "\u30c6\u30fc\u30d6\u30eb: \u652f\u5e97(ID, \u652f\u5e97\u540d, \u5730\u57df). \u30af\u30a8\u30ea: '\u6771\u4eac\u90fd'\u306b\u3042\u308b\u652f\u5e97\u540d\u3092\u3059\u3079\u3066\u30ea\u30b9\u30c8\u3057\u3066\u3002...",
+      "symmetric_kl": 7.956142902374268,
+      "kl_base_to_proj": 8.407197952270508,
+      "kl_proj_to_base": 7.505087852478027,
+      "mean_abs_delta": 2.5867137908935547,
+      "base_top1_token": "\u6771",
+      "proj_top1_token": "To",
+      "top1_match": false,
+      "base_margin": 0.5859375,
+      "proj_margin": 0.625,
+      "sql_logprob_deltas": {
+        "SELECT": 2.1472482681274414,
+        "FROM": 1.5300607681274414,
+        "WHERE": -0.3693532943725586,
+        "ORDER": -0.952362060546875,
+        "INSERT": -6.153532981872559,
+        "UPDATE": -7.154998779296875
       }
     }
   ]

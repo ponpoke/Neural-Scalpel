@@ -1,7 +1,7 @@
 # Qualitative Before/After Evaluation (REAL)
 
 **Base Model:** Qwen/Qwen2.5-0.5B-Instruct
-**Adapter:** routes\qwen05b_sql_projection\gamma_32p0\peft_adapter_calibrated
+**Adapter:** routes/qwen05b_sql_projection/peft_lora
 
 > [!NOTE]
 > This report is generated using greedy decoding and chat templates for objective comparison.
@@ -33,20 +33,7 @@ If you want to include any other columns or conditions in
 
 **Projected Output:**
 ```
-To find the total sales for the 'Laptop' product in the `sales` table, you can use the following SQL query:
-
-```sql
-SELECT SUM(amount) AS total_sales
-FROM sales
-WHERE product = 'Laptop';
-```
-
-This query does the following:
-1. It selects the sum of all amounts from the `amount` column where the `product` is equal to `'Laptop'`.
-2. It aliases the result as `total_sales` to make it easier to reference.
-3. It uses the `SUM()` function to calculate the total sales.
-
-If you want to include any other columns or conditions in
+To calculate the average total sales of laptops, you can create a query calculating averages of sums grouped together. Use AVG sum partitioned sum average sum aggregate sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average sum average
 ```
 
 ---
@@ -73,15 +60,7 @@ This query selects the average (AVG function) of the `salary` column from the `e
 
 **Projected Output:**
 ```
-To calculate the average salary of employees in the "Engineering" department using SQL, you can use the following query:
-
-```sql
-SELECT AVG(salary) AS average_salary
-FROM employees
-WHERE department = 'Engineering';
-```
-
-This query selects the average (AVG function) of the `salary` column from the `employees` table where the `department` is equal to `'Engineering'`. The result will be a single row with an `average_salary` value that represents the average salary across all employees in the Engineering department.
+Designing Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary Average Salary
 ```
 
 ---
@@ -108,15 +87,15 @@ This query selects all columns (`*`) from the `Students` table where the value i
 
 **Projected Output:**
 ```
-To write an SQL query that lists all students who scored above 90 in the "Mathematics" subject, you can use the following query:
+To write this solution, you can use SQL aggregating constructs and window functions (partition grouping). Here's how you could perform it:
 
-```sql
-SELECT *
-FROM Students
-WHERE Mathematics > 90;
-```
+Designing Design Estimations:
+1. Calculate average scores of subjects.
+2. Create partitioned averages with average scoring greater than 90.
+3. Present average scores for students grouped by average scores.
 
-This query selects all columns (`*`) from the `Students` table where the value in the `Mathematics` column is greater than 90. This will return all rows where the student's mathematics score is higher than 90.
+Construct Design Estimations:
+Create average student listing average scores average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average student listing average
 ```
 
 ---
@@ -151,23 +130,7 @@ def is_palindrome(input_object):
 
 **Projected Output:**
 ```
-Certainly! Below is a Python function that checks if a given string (or any other type of object) is a palindrome:
-
-```python
-def is_palindrome(input_object):
-    """
-    Check if the input object is a palindrome.
-    
-    A palindrome is a word, phrase, number, or other sequence of characters which reads the same backward as forward,
-    e.g., madam, racecar, and python.
-    
-    Parameters:
-    - input_object: The object to be checked.
-    
-    Returns:
-    - True if the input object is a palindrome, False otherwise.
-    """
-    # Convert the object into a string
+To write a Python function to check if a given phrase (generally consisting of words) is both **Construct Average Average Average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average average
 ```
 
 ---
