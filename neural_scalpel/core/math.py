@@ -789,5 +789,64 @@ def router_logic_preservation_mapping(
     # In reality, this requires evaluating the routing probability distribution.
     return pca_guided_subspace_injection(source_gate, target_gate)
 
+def solve_ridge(X: torch.Tensor, Y: torch.Tensor, alpha: float = 1.0) -> torch.Tensor:
+    """
+    Solves for W in the equation X @ W = Y using Ridge Regression (L2 regularization).
+    
+    Args:
+        X (torch.Tensor): Input activations of shape (n_samples, d_in).
+        Y (torch.Tensor): Target activations/deltas of shape (n_samples, d_out).
+        alpha (float): L2 regularization strength.
+        
+    Returns:
+        W (torch.Tensor): The solved weight matrix of shape (d_in, d_out).
+    """
+    # X: (n, d_in), Y: (n, d_out)
+    n, d_in = X.shape
+    device = X.device
+    dtype = X.dtype
+    
+    # Use float64 for stability during matrix inversion
+    X_f64 = X.to(torch.float64)
+    Y_f64 = Y.to(torch.float64)
+    
+    # (X.T @ X + alpha * I) @ W = X.T @ Y
+    XTX = torch.matmul(X_f64.t(), X_f64)
+    reg = alpha * torch.eye(d_in, device=device, dtype=torch.float64)
+    
+    # Solve via Cholesky or pseudo-inverse
+    W_f64 = torch.linalg.solve(XTX + reg, torch.matmul(X_f64.t(), Y_f64))
+    
+    return W_f64.to(dtype)
+
+def low_rank_decompose_for_peft(W: torch.Tensor, rank: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Decomposes a full-rank delta matrix W into low-rank matrices A and B using SVD.
+    A: (rank, d_in), B: (d_out, rank) such that W approx A.T @ B.T.
+    Matches the PEFT/LoRA weight format for linear layers.
+    """
+    # W: (d_in, d_out)
+    # We want W approx A^T @ B^T
+    # SVD: W = U S V^T
+    # W_r = U_r S_r V_r^T = (U_r sqrt(S_r)) (sqrt(S_r) V_r^T)
+    # A^T = U_r sqrt(S_r) -> A = (U_r sqrt(S_r))^T = sqrt(S_r) U_r^T
+    # B^T = sqrt(S_r) V_r^T -> B = (sqrt(S_r) V_r^T)^T = V_r sqrt(S_r)
+    
+    U, S, Vh = torch.linalg.svd(W.to(torch.float64), full_matrices=False)
+    
+    # Truncate to rank
+    U_r = U[:, :rank]
+    S_r = S[:rank]
+    Vh_r = Vh[:rank, :]
+    
+    sqrtS = torch.sqrt(S_r)
+    
+    # A: (rank, d_in)
+    A = (sqrtS[:, None] * U_r.T).to(W.dtype)
+    # B: (d_out, rank) -> Vh_r is (rank, d_out), so Vh_r.T is (d_out, rank)
+    B = (Vh_r.T * sqrtS[None, :]).to(W.dtype)
+    
+    return A, B
+
 if __name__ == "__main__":
     print("Task Vector Projection Core Algorithms Loaded Successfully.")
