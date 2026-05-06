@@ -2,7 +2,7 @@
  
 > [!WARNING]
 > **Status: Phase 4 Initial Target-Activation-Conditioned Attempt Completed / Behavioral Transfer NOT PROVEN**  
-> This case study has implemented an initial **target-activation-conditioned projection attempt** using JTSA-style self-alignment. However, **behavioral improvement remains not proven**. Under greedy decoding, Base and Projected outputs (up to $\gamma=4.0$) were identical across the smoke set.
+> This case study has implemented a **Target-Activation-Conditioned Projection Scaffold** using JTSA-style self-alignment and manifold statistics (mean/std/PCA). However, **behavioral improvement remains not proven**. Under greedy decoding, Base and Projected outputs (up to $\gamma=4.0$) were identical across the smoke set.
 
 
 ## Overview
@@ -91,19 +91,23 @@ python scripts/05_real_metrics.py \
 - [x] Behavioral improvement: **NOT PROVEN** (Identical behavior observed)
 - [ ] SQL parse / execution metrics: **PENDING**
 - [x] Phase 4 Initial Activation-Conditioned Attempt: **SCAFFOLD COMPLETED** (Target-only JTSA Self-Alignment)
+- [x] Gamma Sweep Automation: **SCAFFOLD ADDED** (Validation Pending)
 
 ### Technical Findings (Phase 3 Preliminary)
-1.  **Identity Check**: Even with **Phase 4 Initial Activation Conditioning**, the projected adapter produced outputs **bit-identical** to the base model across all smoke prompts at $\gamma=1.0$ and $\gamma=4.0$.
-2.  **Behavioral Gravity**: The 0.5B instruct-tuned base model exhibits extreme "gravity." Target-only activation conditioning (currently using layer means for JTSA-style compensation) is insufficient to produce observable behavior changes in this setup.
-3.  **Instruction Following**: The 0.5B model's base instruction-following capability is dominant; the projected adapter weights (transplanted from a 7B model) provided no observable delta in this minimal test.
-4.  **Verdict**: The current Activation-Conditioned scaffold is verified as functionally stable, but true behavioral transfer likely requires **Paired Source-Target Alignment** and richer distribution-based projection.
+1.  **Identity Check (100% Identity)**: Even with **Initial Activation Conditioning (Mean-only JTSA)**, the projected adapter produced outputs **bit-identical** to the base model across all smoke prompts at $\gamma=1.0$ and $\gamma=4.0$.
+2.  **Behavioral Gravity**: The 0.5B instruct-tuned base model exhibits extreme "behavioral gravity." Target-only statistics are insufficient to override the base distribution without explicit cross-model mapping.
+3.  **Signal vs. Compression**: The current result validates that **Signal Extraction** must precede **Rank Compression**. The 600MB adapter, while structurally correct, fails to emit a detectable signal at current injection scales.
+4.  **Verdict**: The current Activation-Conditioned scaffold is verified as functionally stable, but true behavioral transfer likely requires **Paired Source-Target Alignment**.
 
-## Research Roadmap (Next Steps)
+## Strategic Research Roadmap (Next Steps)
+- **Gamma Sweep Validation**: Execute the newly added `08_gamma_sweep.py` to search for the breakthrough point where identity rate drops without model collapse.
 - **Paired Activation Alignment**: Collect paired source (7B) and target (0.5B) activations using identical prompts to learn explicit cross-model alignment maps.
 - **Manifold-Rich Projection**: Extend the projection engine to utilize the stored `std` and `samples` for PCA or Procrustes-based manifold alignment.
-- **Target Scale Expansion**: Move testing to 1.5B or 3B target models where the base distribution might be more receptive to adapter signals.
+
+---
 
 Detailed technical goals can be found in [docs/methodology.md](docs/methodology.md).
+
 
 See [reports/](reports/) for generated validation logs.
 

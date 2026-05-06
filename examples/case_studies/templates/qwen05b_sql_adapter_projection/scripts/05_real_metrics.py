@@ -18,12 +18,16 @@ def calculate_metrics(results):
         "base": {
             "sql_signal": 0,
             "repetition_failure": 0,
-            "avg_length": 0
+            "avg_length": 0,
+            "empty_outputs": 0,
+            "max_length_hits": 0
         },
         "projected": {
             "sql_signal": 0,
             "repetition_failure": 0,
-            "avg_length": 0
+            "avg_length": 0,
+            "empty_outputs": 0,
+            "max_length_hits": 0
         },
         "exact_same_count_raw": 0,
         "exact_same_count_normalized": 0
@@ -41,30 +45,44 @@ def calculate_metrics(results):
         if normalize_text(base_out) == normalize_text(proj_out):
             metrics["exact_same_count_normalized"] += 1
 
-        # Base
-        metrics["base"]["avg_length"] += len(base_out)
-        if any(kw in base_out.upper() for kw in sql_keywords):
-            metrics["base"]["sql_signal"] += 1
-        lines = base_out.split("\n")
-        if len(lines) > 5 and len(set(lines)) < len(lines) * 0.5:
-            metrics["base"]["repetition_failure"] += 1
-
-        # Projected
-        metrics["projected"]["avg_length"] += len(proj_out)
-        if any(kw in proj_out.upper() for kw in sql_keywords):
-            metrics["projected"]["sql_signal"] += 1
-        lines = proj_out.split("\n")
-        if len(lines) > 5 and len(set(lines)) < len(lines) * 0.5:
-            metrics["projected"]["repetition_failure"] += 1
+        # Process Base & Projected
+        for key, output in [("base", base_out), ("projected", proj_out)]:
+            metrics[key]["avg_length"] += len(output)
+            
+            # SQL signal
+            if any(kw in output.upper() for kw in sql_keywords):
+                metrics[key]["sql_signal"] += 1
+            
+            # Repetition
+            lines = output.split("\n")
+            if len(lines) > 5 and len(set(lines)) < len(lines) * 0.5:
+                metrics[key]["repetition_failure"] += 1
+            
+            # Empty / Collapse
+            if len(output.strip()) == 0:
+                metrics[key]["empty_outputs"] += 1
+                
+            # Max length hit (Heuristic: usually ends with no period or stops mid-sentence)
+            # Since we know max_new_tokens=128 in eval script, we can check if length is near a token limit,
+            # but here we use a simpler heuristic for 'smoke'
+            if len(output) > 500: # Heuristic for 'hitting some limit' in this specific smoke set
+                metrics[key]["max_length_hits"] += 1
 
     # Normalize rates
     for key in ["base", "projected"]:
         metrics[key]["sql_signal_rate"] = metrics[key]["sql_signal"] / n
         metrics[key]["repetition_rate"] = metrics[key]["repetition_failure"] / n
+        metrics[key]["empty_output_rate"] = metrics[key]["empty_outputs"] / n
+        metrics[key]["max_length_hit_rate"] = metrics[key]["max_length_hits"] / n
         metrics[key]["avg_length"] = metrics[key]["avg_length"] / n
 
     metrics["exact_same_rate_raw"] = metrics["exact_same_count_raw"] / n
     metrics["exact_same_rate_normalized"] = metrics["exact_same_count_normalized"] / n
+    
+    # Divergence Detection
+    if metrics["exact_same_rate_raw"] < 0.9:
+        metrics["behavioral_improvement"] = "DIVERGED (Evidence of Signal)"
+    
     return metrics
 
 def main():
@@ -100,11 +118,13 @@ def main():
         
         f.write(f"| Basic SQL Signal (Heuristic) | {metrics['base']['sql_signal_rate']:.0%} | {metrics['projected']['sql_signal_rate']:.0%} | {metrics['projected']['sql_signal_rate'] - metrics['base']['sql_signal_rate']:+.0%} |\n")
         f.write(f"| Observed Repetition Rate | {metrics['base']['repetition_rate']:.0%} | {metrics['projected']['repetition_rate']:.0%} | {metrics['projected']['repetition_rate'] - metrics['base']['repetition_rate']:+.0%} |\n")
+        f.write(f"| Empty Output Rate | {metrics['base']['empty_output_rate']:.0%} | {metrics['projected']['empty_output_rate']:.0%} | {metrics['projected']['empty_output_rate'] - metrics['base']['empty_output_rate']:+.0%} |\n")
         f.write(f"| Avg Output Length | {metrics['base']['avg_length']:.0f} | {metrics['projected']['avg_length']:.0f} | {metrics['projected']['avg_length'] - metrics['base']['avg_length']:+.1f} |\n")
         
         f.write(f"\n**Identity Rates (Base vs Projected):**\n")
         f.write(f"- Exact Bit-Identical: {metrics['exact_same_rate_raw']:.1%}\n")
         f.write(f"- Normalized (Whitespace-Insensitive): {metrics['exact_same_rate_normalized']:.1%}\n")
+        f.write(f"- **Behavioral Status**: {metrics['behavioral_improvement']}\n")
 
     print(f"Markdown report saved to {report_md}")
 

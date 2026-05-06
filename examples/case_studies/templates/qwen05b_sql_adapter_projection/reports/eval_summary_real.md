@@ -18,9 +18,9 @@ Evaluated on 4 curated prompts.
 # Observed Failure Cases (REAL)
 
 > [!NOTE]
-> These are observed failure modes from the current 4-prompt greedy smoke test.
+> These are observed failure modes from the current Phase 4 initial target-activation-conditioned projection attempt.
 
 - **No observable adapter effect:** Base and Projected outputs were identical across the 4-prompt greedy smoke set at multiple scales ($\gamma=1.0, 4.0$).
-- **Behavioral transfer not detected:** The current initial scaffold (target-only calibration / mean-only JTSA) did not measurably change SQL/Coding outputs under greedy decoding.
-- **Target-only calibration limit:** Current alignment is a target-only self-alignment attempt and does not yet use paired source-target representation mapping.
-- **SQL improvement not proven:** SQL outputs were already reasonable from the base model, and the projected adapter did not improve them in the smoke set.
+- **Behavioral transfer not detected:** The projected calibrated adapter did not produce measurable SQL/Coding behavior change under greedy decoding.
+- **Target-only calibration limit:** The current calibration uses target activations only and does not learn a paired source-target representation map.
+- **Mean-only conditioning limit:** Although mean/std/samples/PCA are stored, the current projection pass uses only the per-layer mean for JTSA-style conditioning. Manifold-rich alignment remains future work.
