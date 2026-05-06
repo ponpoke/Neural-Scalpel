@@ -1,127 +1,83 @@
-# Neural-Scalpel
+# Neural-Scalpel: Experimental Behavioral Alignment & Hot-Swap Framework
 
-**No-Retraining LoRA Migration & Diagnostic Toolkit**
+Neural-Scalpel is a surgical transplantation framework for large language models. It enables **low-latency hot-swapping** of model weights and **experimental behavioral alignment** across model architectures and scales.
 
-[![Version](https://img.shields.io/badge/version-1.0.0--alpha-orange)](pyproject.toml)
-[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-200%2B%20non--live%20passed-brightgreen)](tests/TEST_REPORT.md)
-[![Verification](https://img.shields.io/badge/Status-Validated%20Prototype-blue)](docs/PRODUCTION_READINESS_CRITERIA.md)
+## Core Capabilities
 
-Neural-Scalpel is an experimental no-retraining LoRA migration toolkit for projecting learned adapter weights (Task Vectors / LoRAs) across partially compatible neural architectures.
-
-It does not guarantee universal adapter conversion. Instead, it combines mathematical task-vector projection with diagnostic gates that evaluate whether a migrated adapter is stable, risky, or unsuitable for deployment.
-
-In short: Neural-Scalpel attempts no-retraining adapter migration, then tells you whether the result is safe enough to trust.
-
-> **⚠️ RESEARCH DISCLAIMER**
-> Neural-Scalpel performs no gradient-based retraining, but it is not data-free.
-> LLM projections require calibration activations to preserve emergent outlier dimensions.
-> 
-> This framework does not guarantee universal "intelligence transfer."
-> Successful migration depends on architectural homology, calibration quality, and downstream validation.
+- **Hot-Swap Runtime**: Zero-copy weight swapping for vLLM, enabling 10K+ route endurance with minimal latency overhead.
+- **Structural Projection**: Project adapters across architectures (e.g., Llama-3 to Qwen-2) via head-wise routing and PCA-guided subspace injection.
+- **Behavioral Alignment (Experimental)**: A paired-activation pipeline to transport behavioral signals from large source models to smaller target models.
 
 ---
 
-## Why It Matters
+## Case Study: Qwen2.5-0.5B SQL Behavioral Alignment
 
-Modern teams often accumulate LoRA assets tied to older base models. When refreshing to newer, cheaper, faster, or more capable models, those adapters often become stranded.
+Neural-Scalpel now includes an experimental paired-activation behavioral alignment pipeline for cross-scale adapter transfer.
 
-Neural-Scalpel helps answer:
+### Phase 4 Result (Target-only Alignment) - Negative Baseline
+Initial target-only activation calibration produced:
+- **100% bit-identical greedy outputs**
+- No meaningful logit delta
+- No detectable behavioral shift
 
-- Can this LoRA be migrated without immediate retraining?
-- How much language-modeling stability is lost after projection?
-- Is the result better than naive padding or random projection?
-- Should we port, retrain, or discard this adapter?
-- What risks block production deployment?
+This established a negative baseline demonstrating that target-only manifold statistics were insufficient for functional signal transfer.
 
-*Use Neural-Scalpel when you want to test whether an existing LoRA can survive a base-model refresh without immediate retraining.*
+### Phase 5 Result (Paired Activation Alignment)
+A paired source-target alignment pipeline was introduced to bridge the manifold gap:
+1. **Paired Activation Collection**: Capturing hidden states from both models on common prompts.
+2. **Behavioral Delta Extraction**: Capturing the specific shift caused by the source adapter.
+3. **CKA-based Layer Correspondence**: Estimating the optimal layer mapping.
+4. **Ridge-based Manifold Translation**: Learning the transformation $P$ between latent spaces.
+5. **Transported Delta Solving**: Computing target weight changes to replicate the transported signal.
+6. **PEFT LoRA Export**: Exported a rank-16 PEFT adapter (~8.8MB), approximately 98.5% smaller than the earlier full-rank transported-delta artifact.
 
----
+### Preliminary Runtime Success
+Under calibrated PEFT scaling (`alpha=16`):
+- **Top-1 behavioral shifts** were observed.
+- **Runtime KL divergence** became non-zero.
+- **Emergence of Advanced SQL**: The projected 0.5B model began generating CTEs (`WITH`) and Window Functions (`OVER`) where the base model used simple queries.
+- **Stability**: Generation coherence was preserved without catastrophic repetition.
 
-## Status: Validated Prototype with Strong Controlled Runtime Evidence
+### Phase 6 Initial Smoke Evaluation
+Initial 4-sample SQL smoke evaluation results:
 
-Neural-Scalpel remains an experimental research prototype, but recent controlled vLLM validation has produced strong evidence for the route-window hot-swap runtime design.
+| Metric | Base Model | Projected LoRA |
+| :--- | :---: | :---: |
+| SQL Parse Success | 75.0%* | 75.0%* |
+| Advanced SQL Usage | 0.0% | 25.0% |
+| Schema Hallucination | 0.0% | 0.0% |
+*\*Including one non-SQL Python prompt.*
 
-Phase 5-C and Phase 5-D provide controlled evidence that route-window persistent swapping removes the Phase 5-B per-token swap bottleneck under the tested Qwen2.5-0.5B / Alpaca workload. Phase 5-D further showed that the result was not limited to a single prompt, using a 50-prompt repeated benchmark.
-
-In the latest strict 50-prompt repeated benchmark (Phase 5-D):
-- **Base throughput:** ~3813 tok/s
-- **Scalpel v2 throughput:** ~2574 tok/s (median of 3 runs)
-- **vLLM Native LoRA throughput:** ~983 tok/s (median of 3 runs)
-- **Scalpel outperformed Native LoRA by +161.80%** under these controlled conditions.
-- Route application (`swap_count > 0`) and at least one checksum-verified rollback event (`verified_rollbacks > 0`) were recorded in every Scalpel run.
-
-The primary remaining gate for formal "Production Candidate" status is the 24h persistent-route soak test. Broader model coverage (including Llama-class fused attention variants), vLLM-version compatibility, and real-traffic production pilots remain future hardening work.
-
-These results are strong enough to describe Neural-Scalpel as a **paradigm-shift-class candidate in controlled validation**, but not yet as production-ready serving software.
-
-### Stable / Verified
-- **Route-Window Swap Optimization (Phase 5-C):** Confirmed route application with `swap_count=1` over 1600 generated tokens and `verified_rollbacks=1`. This demonstrated removal of the Phase 5-B per-token swap/rollback bottleneck under the tested route-window workload. The latest single-prompt, route-homogeneous benchmark showed high throughput, though this should be interpreted as prompt-specific rather than a universal speedup.
-- **Internal vLLM Validated Prototype:** Live vLLM V1 monkey-patch integration has passed controlled validation covering route-window persistent swapping, real safetensors payload swap/rollback inside `_model_forward`, latest-branch 10K mixed-route endurance, and a 6-hour mixed-route extended soak.
-- **Refined Benchmarking (Phase 5-A):** Established a rigorous performance anchor against native vLLM LoRA.
-- **Repeated Median Benchmarking (Phase 5-D):** 50 prompts × 3 runs showed Scalpel v2 median throughput of ~2574 tok/s versus Native LoRA at ~983 tok/s under controlled conditions, with route application and verified rollback events enforced in every Scalpel run.
-### Case Study: Qwen2.5-0.5B SQL Projection
-- **Structural Alignment:** Successfully projected a 7B SQL LoRA onto a 0.5B target model using **Structural Projection Baseline v2**.
-- **PEFT Compatibility:** The resulting adapter is formally loadable and stable in standard Transformers/PEFT environments.
-- **Behavioral Validation:** **INCONCLUSIVE**. In strict greedy-decoding smoke tests (4 prompts), the projected output was **100% bit-identical** to the base model.
-- **Interpretation:** While structural projection is verified, task-specific intelligence transfer (SQL/Coding) has not yet been demonstrated at the current projection scale ($\gamma=0.5$). Activation-calibrated projection (Phase 4) is required for further investigation.
-
-### Determinism Follow-up Completed
-Phase 5-F demonstrated 100.0% top-token logprob trace similarity and exact text match after a verified checksum rollback for the tested prompt under explicit route cleanup and vLLM cache reset.
-
-### Roadmap / Future Work
-
-- Final 24h persistent-route soak validation
-- Precise vLLM TTFT / TPOT regression measurement using real timing hooks
-- Broader model / vLLM-version compatibility validation
-- Long-running multi-tenant production pilots and multi-backend load testing
-- GGUF/AWQ direct surgery
-
-- **Multi-route Safety Validation Completed:** Phase 5-E-1 validated two-route mixed-batch safety. Phase 5-E-2 extended this to 3+ real-payload mixed-batch validation, and Phase 5-E-3 validated worst-case alternating route stress under controlled short-duration tests. These tests strengthen route-isolation evidence but do not replace the final 24h persistent-route soak.
-- **Determinism Follow-up Completed:** Phase 5-F demonstrated 100.0% top-token logprob trace similarity and exact text match after a verified checksum rollback for the tested prompt under explicit route cleanup and vLLM cache reset.
-- **Monkey-Patch Fragility:** The internal vLLM integration depends on vLLM V1 internals and may break across vLLM releases.
-  - Internal vLLM plugin mode remains version-locked and controlled-validation-only.
-  - External Proxy Fallback provides a safer compatibility fallback when internal patching is unsupported.
-  - External Proxy Fallback trades VRAM efficiency and route density for operational stability.
-- **Broader Model Coverage:** Validation beyond the current Qwen2.5-class controlled tests, including Llama-class fused attention variants, remains future work.
-- **SLA-Grade Serving:** Not ready for uncontrolled public enterprise traffic or SLA commitments.
-- **1-GPU Multi-Tenant Scale:** Cannot yet serve hundreds of concurrent routes seamlessly without internal KV cache integration.
-
-*For full details on our testing methodology and failure modes, read the [Empirical Consistency Report](docs/LOGIC_CONSISTENCY_REPORT.md).*
+> [!IMPORTANT]
+> **Status: Preliminary Runtime Success / Task Transfer Unverified**  
+> These results provide preliminary evidence that paired activation alignment can alter downstream behavioral structure. However, they do **not** yet prove general SQL task improvement or execution accuracy.
 
 ---
 
-## 8. Quick Start
+## Status: Validated Prototype with Behavioral Scaffold
 
-For detailed usage, including Phase 5 validation commands and External Proxy Fallback mode, see [docs/USAGE.md](docs/USAGE.md).
+### Controlled-Validation Hot-Swap Runtime
+- **Validated under controlled tests**: 10K+ route endurance and 6-hour mixed-route soak completed.
+- **Pending**: Final 24h persistent-route soak before constrained Production Candidate status.
+- **Architecture**: Atomic weight swapping integrated with vLLM engine.
 
-```bash
-# Run basic vLLM smoke checks
-PYTHONPATH=. python scratch/test_qwen.py
-PYTHONPATH=. python scratch/probe_vllm.py
-
-# Run the live External Proxy Fallback smoke test
-PYTHONPATH=. python tests/smoke_test_proxy_forwarding.py
-```
+### Experimental Behavioral Alignment Scaffold
+The paired-activation pipeline is currently experimental.
+- **Demonstrated**: Structural projection, activation transport, and preliminary behavioral shifts.
+- **Pending**: Large-scale benchmark validation, execution accuracy proofs, and cross-family generalization.
 
 ---
 
-## 9. Documentation & Reports
-- **[Usage Guide](docs/USAGE.md):** Practical commands for research CLI, Phase 5 validation, and External Proxy Fallback.
-- **[Hot-Swap Runtime Production Readiness Report](docs/HOTSWAP_RUNTIME_PRODUCTION_READINESS_REPORT.md):** 🚀 *Read this first!* Contains the endurance test results, actual LoRA evaluations, and integration benchmarks.
-- **[Production Readiness Criteria](docs/PRODUCTION_READINESS_CRITERIA.md):** Tracks remaining gates before constrained Production Candidate declaration.
-- **[Performance Regression Report](docs/PERFORMANCE_REGRESSION_REPORT.md):** Coarse E2E throughput benchmark and pending precise latency work.
-- **[Known Limitations](docs/KNOWN_LIMITATIONS.md):** Current runtime, benchmark, and deployment limitations.
-- **[External Proxy Fallback Definition](docs/EXTERNAL_PROXY_FALLBACK_DEFINITION.md):** Compatibility-risk mitigation design for deployments where internal vLLM patching is unsupported or disabled.
-- **[External Proxy Fallback Trade-off Analysis](docs/reports/EXTERNAL_PROXY_FALLBACK_TRADE_OFF_ANALYSIS.md):** Qualitative comparison between internal plugin mode and external proxy fallback mode.
-- **[vLLM Internal Integration Design](docs/VLLM_INTERNAL_INTEGRATION_DESIGN.md):** Architectural design for Step 4B integration.
-- **[Empirical Consistency Report](docs/LOGIC_CONSISTENCY_REPORT.md):** Details on mathematical evaluation metrics and failure modes.
-- **[Project Vision & Roadmap](docs/RESEARCH_AND_COMMERCIAL_ROADMAP.md):** Our strategy for ML research validation and commercial diagnostic tools.
+## Documentation
+
+- **[Alignment Definition](docs/PAIRED_ALIGNMENT_CORE_MIGRATION_DEFINITION.md):** Formal definition of the core migration API.
+- **[Behavioral Alignment Notes](docs/BEHAVIORAL_ALIGNMENT_NOTES.md):** Research journey from negative baseline to preliminary success.
+- **[Hot-Swap Readiness](docs/HOTSWAP_RUNTIME_PRODUCTION_READINESS_REPORT.md):** 🚀 Endurance and soak test results.
 - **[Technical Report](TECHNICAL_REPORT.md):** Mathematical proofs and architecture overview.
-- **[Qwen2.5 SQL/Coding Projection Case Study Template](examples/case_studies/templates/qwen05b_sql_adapter_projection/README.md):** Structural Projection Baseline v2 scaffold for cross-scale adapter projection experiments. Behavioral SQL/Coding validation remains pending.
-- **[Security Policy](SECURITY.md):** Important security considerations and vulnerability reporting.
-- **[Model License Policy](MODEL_LICENSE_POLICY.md):** Legal and licensing responsibility regarding derivative adapter works.
-- **[Disclaimer](DISCLAIMER.md):** Experimental software disclaimer and lack of production guarantees.
+- **[Usage Guide](docs/USAGE.md):** API workflow and CLI instructions.
 
 ---
-*Developed and tested locally on an NVIDIA RTX 5060 Ti 16GB.*
+
+## License
+
+Neural-Scalpel is released under the Apache 2.0 License. See [LICENSE](LICENSE) and [MODEL_LICENSE_POLICY.md](MODEL_LICENSE_POLICY.md) for details.

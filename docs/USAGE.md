@@ -311,3 +311,90 @@ These tests do not prove:
 - multi-GPU / multi-node safety
 
 The final constrained Production Candidate gate remains the 24h persistent-route soak.
+
+---
+
+## 12. Experimental Behavioral Alignment API
+
+Neural-Scalpel now includes an experimental paired behavioral alignment scaffold for cross-scale adapter transplantation.
+
+### Example Workflow
+
+The following Python workflow demonstrates how to align latent spaces and transport behavioral signals between two models.
+
+```python
+from neural_scalpel import (
+    align,
+    extract_behavior_delta,
+    transport_delta,
+    solve_activation_adapter,
+    export_lora,
+    validate_behavior
+)
+
+# 1. Learn source-target manifold mapping
+# Uses common calibration prompts to find translation matrix P
+mapping = align(
+    source_model=source_model,
+    target_model=target_model,
+    calibration_prompts=calib_prompts,
+    tokenizer=tokenizer,
+    source_layers=["model.layers.10.mlp.down_proj"],
+    target_layers=["model.layers.10.mlp.down_proj"]
+)
+
+# 2. Extract source behavioral delta
+# Captures the activation shift caused by the adapter in the source model
+delta = extract_behavior_delta(
+    base_model=source_model,
+    adapted_model=source_model_adapted,
+    prompts=calib_prompts,
+    tokenizer=tokenizer,
+    layers=["model.layers.10.mlp.down_proj"]
+)
+
+# 3. Transport behavioral signal
+# Projects the source delta into the target model's manifold
+transported = transport_delta(delta, mapping)
+
+# 4. Solve target activation adapter
+# Computes weight changes in the target model to replicate the signal
+solution = solve_activation_adapter(
+    target_model=target_model,
+    desired_delta=transported,
+    prompts=calib_prompts,
+    tokenizer=tokenizer,
+    target_modules=["model.layers.10.mlp.down_proj"]
+)
+
+# 5. Export PEFT-compatible LoRA
+# Compresses the solution into a low-rank adapter (e.g., rank 16)
+adapter = export_lora(solution, rank=16)
+adapter.save_pretrained("./transplanted_lora")
+
+# 6. Validate behavioral shift
+report = validate_behavior(
+    base_model=target_model,
+    adapter_path="./transplanted_lora",
+    prompts=eval_prompts,
+    tokenizer=tokenizer
+)
+print(f"Shift Rate: {report.metrics['shift_rate']:.1%}")
+```
+
+> [!NOTE]
+> Current core API assumes explicit source/target module pairing. Automatic CKA-based layer correspondence remains a future hardening item.
+
+### Current Status
+
+This API is currently in **Experimental Scaffold** status.
+
+**Validated:**
+- Paired activation collection and Ridge-based manifold translation.
+- PEFT-compatible export with 98%+ size reduction.
+- Runtime behavioral injection (measured via KL divergence and Top-1 shifts).
+
+**Not yet validated:**
+- Large-scale benchmark accuracy.
+- Arbitrary architecture generalization.
+- Production deployment at scale.

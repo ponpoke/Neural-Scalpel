@@ -67,6 +67,17 @@ To ensure technical transparency, it is critical to define what this test suite 
 
 These tests validate the structural projection helpers and metadata safety guarantees. They do **not** validate downstream SQL/Coding quality, long-form generation stability, or Neural-Scalpel runtime route application.
 
+## Part 1-C: Behavioral Alignment Core Migration
+
+| Component | Key Assertion | Result |
+| :--- | :--- | :---: |
+| **PairedActivationDataset** | Matching sample counts accepted; mismatched counts rejected | ✅ PASS |
+| **AlignmentMap Projection** | Source delta projected through learned map with expected shape/value | ✅ PASS |
+| **Ridge Alignment Map** | Simple synthetic mapping recovered with low error | ✅ PASS |
+| **LoRA Low-rank Decomposition** | PEFT-compatible A/B shapes generated | ✅ PASS |
+
+These tests validate the Core Migration Phase A/B scaffold. They do not prove task-level SQL improvement or arbitrary cross-architecture transfer.
+
 ## Part 2: Architecture Adapters (Unit Tests)
 
 | Adapter | Key Assertion | Result |
@@ -119,7 +130,7 @@ This result confirms functional application and rollback consistency, but does n
 
 The Neural-Scalpel ecosystem has passed its mathematical and structural unit tests. The core linear and non-linear approximations (JTSA/HAMA) function according to their mathematical specifications under test conditions. 
 
-The Structural Projection Baseline v2 is verified as a structural and format-compatibility baseline only. Behavioral transfer remains pending and must be evaluated with real before/after inference, SQL/Coding metrics, and failure-case analysis.
+The Structural Projection Baseline v2 is verified as a structural and format-compatibility baseline. The newer Paired Behavioral Alignment scaffold has demonstrated preliminary runtime behavioral shifts in the Qwen2.5 SQL case study, but task-level SQL capability transfer remains unverified and requires larger parse/execution evaluations.
 
 *Reminder: While the components are structurally verified, the quality of real-world cross-architecture projection depends significantly on architectural homology and calibration data.*
 

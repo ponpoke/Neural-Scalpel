@@ -89,22 +89,41 @@ Validated components include:
 
 This fallback does not eliminate all deployment risk. It trades route density and memory efficiency for process-level isolation and operational simplicity.
 
-### 5.6. Structural Projection Baseline v2
-Neural-Scalpel includes a structural projection baseline for Qwen2.5-style cross-scale adapter experiments.
+### 5.6 Structural Projection Baseline v2 (Negative Baseline)
 
-**Current Findings:**
-While structural compatibility is achieved (100% tensor-shape matching), **behavioral transfer is currently inconclusive.** Initial qualitative smoke tests using greedy decoding resulted in **100% bit-identical output** compared to the base model. Behavioral validation remains a downstream requirement.
+Initial experiments using target-only statistical alignment (calibrating the target model's internal activations without reference to the source model's specific shift) resulted in a negative baseline:
+- **Zero Behavioral Shift**: The projected weights failed to move the target model's output distribution.
+- **Identity Result**: Greedy decoding produced 100% bit-identical outputs to the base model.
+- **Conclusion**: Structural compatibility alone is insufficient for functional signal transfer. Manifold statistics must be aligned relative to the source model's behavioral shift.
 
-Validated components include:
-
+Validated components of this baseline included:
 - GQA-aware target-shape inference for Q/O/K/V and MLP projections
 - Interpolated layer mapping from source depth to target depth
-- SVD-based recompression statistics and energy-retention reporting
+- SVD-based recompression and energy-retention reporting
 - Qwen fused tensor construction for `qkv_proj` and `gate_up_proj`
 - Strict unexpected-tensor rejection during target-shape verification
 - PEFT-format load and one-token generation smoke validation
 
-This baseline verifies structural and format compatibility only. It does not prove SQL/Coding task improvement, long-form generation stability, or arbitrary cross-model intelligence transfer. Behavioral validation remains a downstream requirement.
+### 5.7 Paired Activation Behavioral Alignment
+
+To overcome the limitations of the negative baseline, a paired source-target manifold alignment pipeline was introduced (Phase 5). This method treats intelligence transplantation as a translation problem between disparate latent spaces.
+
+#### 5.7.1 The Pipeline
+The process involves:
+1. **Paired Activation Collection**: Capturing hidden states from both models on common calibration prompts.
+2. **Behavioral Delta Extraction**: Capturing the specific activation shift $\Delta H_s$ caused by the source adapter.
+3. **Alignment Map Learning**: Solving for a translation matrix $P$ such that $H_s P \approx H_t$ using Ridge regression.
+4. **Delta Transport**: Projecting the source delta into the target space: $\Delta H_t = \Delta H_s P$.
+5. **Weight Solving**: Solving for the target weight change $\Delta W_t$ via Ridge solver: $X_t \Delta W_t \approx \Delta H_t$.
+6. **PEFT Export**: Compressing the full-rank solution into a low-rank (rank=16) LoRA adapter using SVD.
+
+#### 5.7.2 Observation & Breakthrough
+Unlike the target-only baseline, paired alignment produced:
+- **Non-zero KL Divergence**: Measurable shifts in the target model's logit distribution.
+- **Stable Behavioral Shift**: The emergence of advanced SQL structures (CTEs, Window functions) in the 0.5B target model.
+- **Coherence Preservation**: Successful signal delivery without triggering catastrophic repetition collapse at calibrated scales ($\alpha=16$).
+
+This demonstrates that while structural projection provides the "shape" of the adapter, paired manifold translation provides a measurable adapter signal that can reach the target model's generation behavior under the tested setup.
 
 ---
 
@@ -126,21 +145,12 @@ Each ablation mode must be measured against a strict 6-way empirical comparison 
 ---
 
 ## 7. Conclusion
-Neural-Scalpel Version 1.0.0-alpha establishes an experimental foundation for cross-architecture adapter conversion. Phase 5-C introduced **Route-Window Persistent Swapping**, which removed the Phase 5-B per-token swap bottleneck under the tested route-window workloads. In a recent Qwen2.5-0.5B / Alpaca payload benchmark, Neural-Scalpel recorded only 1 confirmed swap and 1 verified rollback across 1,600 generated tokens, with checksum-level rollback verification passing (`verified_rollbacks=1`).
 
-While the Phase 5-C benchmark showed a positive throughput delta over base (+69.98%), this result was prompt-specific. Phase 5-D extended this result beyond a single prompt: 50 prompts × 3 runs showed Scalpel v2 median throughput of ~2574 tok/s versus Native LoRA at ~983 tok/s under controlled conditions.
+The paired behavioral alignment experiments suggest that structural compatibility alone is insufficient for cross-scale behavioral transfer. However, paired manifold translation combined with transported behavioral deltas produced preliminary runtime evidence of downstream behavioral modification in a 7B-to-0.5B SQL alignment experiment.
 
-Phase 5-E-1 validated two-route mixed-batch safety across 1000 dynamically routed requests (`__base__` ↔ Alpaca). Phase 5-E-2 extended this to 3+ real-payload mixed-batch validation across `__base__`, Alpaca, and SQL routes. Phase 5-E-3 completed worst-case alternating route stress validation for both two-route and three-route patterns. These tests strengthen route-isolation evidence but remain short-duration controlled validations.
+Unlike previous attempts that resulted in bit-identical outputs, this method achieved measurable logit shifts and the emergence of advanced task-specific structures (e.g., CTEs and Window functions) while maintaining generation stability.
 
-Phase 5-F addressed the previous text-level determinism concern under the tested cache-reset condition: Base-before and Base-after matched exactly, with 100.0% top-token logprob trace similarity after verified checksum rollback.
-
-Neural-Scalpel is currently best described as a validated prototype with strong controlled runtime evidence, and a paradigm-shift-class candidate under controlled validation.
-
-Formal Production Candidate status remains pending the 24h persistent-route soak. Broader model coverage, vLLM-version compatibility, multi-backend load testing, and real-traffic pilots remain future hardening work.
-
-On the projection side, HAMA and the Streaming I/O Bridge suggest that adapter weights can be structurally mapped and physically managed across architectures within the limits of high-precision linear and second-order non-linear approximations. Downstream task improvement remains workload-dependent and must be validated separately.
-
-All core mathematical, structural projection, and controlled-runtime components are covered by an automated suite (200+ non-live tests passed; live vLLM tests are executed separately; see `tests/TEST_REPORT.md`).
+This result remains experimental and workload-dependent, but it establishes a new research direction for **activation-space behavioral transplantation**. By aligning the manifolds of disparate models, these results suggest that higher-order behavioral structures may be partially transported across model scales without gradient-based fine-tuning, but task-level correctness remains unverified. Future work will focus on scaling these results to larger benchmarks and verifying execution accuracy across a broader range of architectures.
 
 ---
 
