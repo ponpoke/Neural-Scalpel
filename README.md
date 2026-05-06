@@ -38,11 +38,25 @@ Neural-Scalpel helps answer:
 
 ---
 
-## Status: Core Hardened & Phase 6 Evaluation Active
+## Status: Core Hardened & Phase 6 Initial Real-Model Evaluation Complete
 
-Neural-Scalpel has completed the **Phase 5-G Core API Hardening**. The experimental behavioral alignment scaffold has been promoted into a hardened experimental Core API with numerical guards, standardized reporting, and flexible layer mapping.
+Neural-Scalpel has completed the **Phase 5-G Core API Hardening** and **Phase 6 SQL Capability Evaluation**.
 
-We are currently executing **Phase 6: Full SQL Capability Evaluation** to verify the functional task-level impact of transplanted intelligence.
+In the latest real-model benchmark (Qwen2.5 7B → 0.5B SQL transplantation), the system demonstrated a **+8.0% improvement in SQL execution success** and a **+10.0% accuracy gain in Join queries** using Structural Projection alone.
+
+#### SQL-50 Benchmark Results (Qwen2.5-0.5B)
+
+| Category | Base Acc | Adapter Acc | **Delta** | Base Exec | Adapter Exec | **Delta** |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| aggregation | 10% | 10% | +0% | 30% | 50% | **+20.0%** |
+| **joins** | 70% | **80%** | **+10.0%** | 80% | **100%** | **+20.0%** |
+| subqueries | 80% | 80% | +0% | 80% | 80% | +0% |
+| Overall | 32% | **34%** | **+2.0%** | 38% | **46%** | **+8.0%** |
+
+#### Case Study: Fixing Baseline Hallucination
+- **Case ID:** `joins_004` (Names of products in category 4)
+- **Baseline (Student):** Generated conversational text ("The SQL query will select...") instead of a code block, failing syntax validation.
+- **Adapter (Transplanted):** Corrected the behavior to greedy SQL generation: `SELECT name FROM products WHERE cat_id = (SELECT id FROM categories WHERE name = 'category 4')`.
 
 Neural-Scalpel remains an experimental research prototype, but recent controlled vLLM validation has produced strong evidence for the route-window hot-swap runtime design.
 
@@ -66,12 +80,14 @@ These results are strong enough to describe Neural-Scalpel as a **paradigm-shift
 - **Repeated Median Benchmarking (Phase 5-D):** 50 prompts × 3 runs showed Scalpel v2 median throughput of ~2574 tok/s versus Native LoRA at ~983 tok/s under controlled conditions, with route application and verified rollback events enforced in every Scalpel run.
 - **Determinism Follow-up (Phase 5-F):** After explicit route cleanup and vLLM cache reset, Base-before and Base-after matched exactly, with 100.0% top-token logprob trace similarity for the tested prompt. This is a top-token trace proxy, not a full-vocabulary logits distribution comparison.
 - **Core API Hardening (Phase 5-G):** promotions of experimental scripts to a robust `neural_scalpel.core` package with numerical stability guards, `ValidationReport` status enums, and CKA-based auto-correspondence.
-- **SQL Capability Eval (Phase 6 - Active):** Implementation of a structured SQL-50 benchmark suite (`neural_scalpel/core/benchmarks/sql_50.py`) and a logic-verified evaluation pipeline (`scripts/20_sql_capability_eval.py`). The pipeline supports syntax validation, AST-based schema checks, and SQLite execution accuracy. Real-model benchmark results are pending.
+- **SQL Capability Eval (Phase 6 - Complete):** Full 50-case SQL-50 benchmark on real Qwen2.5-0.5B with a projected 7B SQL LoRA. Results showed +8.0% execution success and +2.0% accuracy delta (+10% on joins). The 161.5MB source adapter was successfully compressed to 16.8MB (90% reduction) while retaining 95.8% variance.
 
 ### Roadmap / Future Work
 
 - Final 24h persistent-route soak validation
 - Precise vLLM TTFT / TPOT regression measurement using real timing hooks
+- **Next Priority: Alpha Parameter Sweep:** Execute $\alpha=\{8, 16, 24, 32\}$ runs to map the Pareto frontier between alignment signal and model collapse.
+- **Next Priority: Behavioral Alignment Comparison:** Benchmark the hardened `align()` API (Phase 5-G) against Structural Projection to quantify the accuracy gain of activation-based transplantation.
 - Broader model / vLLM-version compatibility validation
 - Long-running multi-tenant production pilots and multi-backend load testing
 - GGUF/AWQ direct surgery

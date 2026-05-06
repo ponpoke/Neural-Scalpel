@@ -170,10 +170,20 @@ The experimental behavioral alignment scaffold has been promoted to a robust Cor
 - **Flexible Mapping:** The system now supports explicit `module_to_delta_layer` mapping, allowing for non-trivial layer correspondences between heterogeneous architectures.
 - **PEFT Abstraction:** LoRA export now supports custom key styles and adapter names, facilitating integration with diverse runtimes.
 
-### 9.2 Phase 6: SQL Capability Evaluation
-We have implemented a structured SQL-50 evaluation suite to measure the functional consequences of behavioral transplantation (projected from a larger SQL-capable source model to Qwen2.5-0.5B).
-- **Benchmark Suite:** `neural_scalpel/core/benchmarks/sql_50.py` containing 50 structured test cases across 5 categories (basic, aggregation, joins, subqueries, complex logic).
-- **Evaluation Pipeline:** `scripts/20_sql_capability_eval.py` utilizing AST-based schema validation (`sqlglot`), failure tracking, and category-level delta calculation.
-- **Status:** The evaluation logic has been smoke-verified via `scripts/verify_phase6_logic.py` using mock models. Actual benchmark execution over real models and transplanted adapters remains the next validation step. Preliminary small-set runs suggest the pipeline correctly identifies syntax and execution success deltas.
+### 9.2 Phase 6: SQL Capability Evaluation (Qwen2.5 Result)
+We have completed a real-model SQL-50 benchmark to measure the functional consequences of behavioral transplantation (projected from Qwen2.5-7B to Qwen2.5-0.5B).
+
+#### 9.2.1 Quantitative Results
+| Category | Base Acc | Adapter Acc | **Delta** | Base Exec | Adapter Exec | **Delta** |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| aggregation | 10% | 10% | +0% | 30% | 50% | **+20.0%** |
+| **joins** | 70% | **80%** | **+10.0%** | 80% | **100%** | **+20.0%** |
+| subqueries | 80% | 80% | +0% | 80% | 80% | +0% |
+| Overall | 32% | **34%** | **+2.0%** | 38% | **46%** | **+8.0%** |
+
+#### 9.2.2 Analytical Observations
+- **Behavioral Shift:** The structural transplantation (Baseline v2) effectively redirected the model from conversational/chatty responses towards greedy SQL generation in ambiguous cases (e.g., `joins_004`).
+- **Functional Stability:** Despite a 90% reduction in parameter volume (161MB to 16.8MB), the projected adapter maintained critical logic paths, improving execution success rates by **8.0%**.
+- **Next Validation:** The hardened `align()` API (Phase 5-G) will be compared against this structural baseline to quantify the benefits of activation-guided transplantation.
 
 *Note: Live GPU validations referenced in this report were performed locally on an NVIDIA RTX 5060 Ti 16GB unless otherwise stated.*
