@@ -2,7 +2,7 @@
 
 **No-Retraining LoRA Migration & Diagnostic Toolkit**
 
-[![Version](https://img.shields.io/badge/version-2.2.0-blue)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-2.3.0-blue)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-200%2B%20non--live%20passed-brightgreen)](tests/TEST_REPORT.md)
 [![Verification](https://img.shields.io/badge/Status-Validated%20Prototype-blue)](docs/PRODUCTION_READINESS_CRITERIA.md)
@@ -38,21 +38,23 @@ Neural-Scalpel helps answer:
 
 ---
 
-## Status: Adapter Transfer Diagnostic v2.2.0
+## Status: Adapter Transfer Diagnostic v2.3.0 (Automation Support)
 
-Neural-Scalpel now provides a **diagnostic-first CLI workflow** for no-retraining adapter migration:
+Neural-Scalpel now provides a **comprehensive diagnostic-to-publishing workflow**:
 
 1. `diagnose-adapter`: Multi-stage structural and behavioral feasibility check.
 2. `project-adapter`: Experimental Structural Projection of weight deltas.
 3. `evaluate-projected`: Target-side benchmarking and behavioral delta analysis.
-4. **`safe-project`**: Unified orchestrator for the complete end-to-end pipeline.
+4. `safe-project`: Unified orchestrator for the complete end-to-end pipeline.
+5. **`generate-report`**: Automated creation of detailed scientific analysis reports.
+6. **`generate-model-card`**: Automated generation of Hugging Face compatible Model Cards.
 
 The framework classifies adapters as `PROJECTION_CANDIDATE`, runs structural projection, evaluates student-side behavior, and promotes successful runs to `RELEASE_READY`.
 
 > [!NOTE]
 > Neural-Scalpel remains a research toolkit. `RELEASE_READY` means validated as a research artifact on the selected benchmark, not production deployment readiness.
 
-### Recent Accomplishments: Core Hardened & v2.2 Orchestration
+### Recent Accomplishments: Diagnostic Workflow & Publishing Automation
 Neural-Scalpel has completed the **Phase 5-G Core API Hardening** and **Phase 6 Initial Real-Model SQL-50 Evaluation**.
 
 In the latest real-model benchmark (Qwen2.5 7B → 0.5B SQL transplantation), we observed systematic performance changes in execution success, accuracy, and syntax validity as a function of the adapter scaling factor ($\alpha$). This confirmed the structural adapter's scale sensitivity and identified an initial balanced setting.
@@ -149,11 +151,11 @@ Structural Projection is not a guaranteed adapter improvement method. It behaves
 
 Passing the **Source Adapter Quality Gate** is a necessary upstream signal, but it is not a guarantee of target-side improvement. **Target evaluation is always required before any release.**
 
-### Recommended Workflow (v2.2.0)
+### Recommended Workflow (v2.3.0)
 1. **Run `safe-project`** for the full end-to-end pipeline (Diagnose -> Project -> Evaluate).
-2. **Inspect `diagnostic_report.json`** to understand the 7-stage gate results.
-3. **Verify** whether the final verdict is `RELEASE_READY`.
-4. **Publish** only if target evaluation confirms functional improvement.
+2. **Generate Report** using `generate-report` to summarize scientific findings.
+3. **Prepare Model Card** using `generate-model-card` for Hugging Face upload.
+4. **Verify & Publish** only if target evaluation confirms functional improvement.
 
 > [!WARNING]
 > While `safe-project` provides a unified UX, the underlying **Structural Projection backend is still experimental**. Always review the spectral and norm-based health signals in the report.
