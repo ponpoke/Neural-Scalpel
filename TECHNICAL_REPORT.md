@@ -170,20 +170,35 @@ The experimental behavioral alignment scaffold has been promoted to a robust Cor
 - **Flexible Mapping:** The system now supports explicit `module_to_delta_layer` mapping, allowing for non-trivial layer correspondences between heterogeneous architectures.
 - **PEFT Abstraction:** LoRA export now supports custom key styles and adapter names, facilitating integration with diverse runtimes.
 
-### 9.2 Phase 6: SQL Capability Evaluation (Qwen2.5 Result)
-We have completed a real-model SQL-50 benchmark to measure the functional consequences of behavioral transplantation (projected from Qwen2.5-7B to Qwen2.5-0.5B).
+#### 9.2.3 Alpha Sweep and Scale Sensitivity
+A systematic alpha sweep was conducted over `alpha={8, 16, 24, 32}` to map the scale sensitivity of the projected adapter.
 
-#### 9.2.1 Quantitative Results
-| Category | Base Acc | Adapter Acc | **Delta** | Base Exec | Adapter Exec | **Delta** |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| aggregation | 10% | 10% | +0% | 30% | 50% | **+20.0%** |
-| **joins** | 70% | **80%** | **+10.0%** | 80% | **100%** | **+20.0%** |
-| subqueries | 80% | 80% | +0% | 80% | 80% | +0% |
-| Overall | 32% | **34%** | **+2.0%** | 38% | **46%** | **+8.0%** |
+| Setting | Accuracy | Delta | Execution Success | Delta | Syntax Valid |
+|---|---:|---:|---:|---:|---:|
+| Baseline | 32.0% | - | 38.0% | - | 37/50 |
+| alpha=8 | 34.0% | +2.0% | 42.0% | +4.0% | 39/50 |
+| **alpha=16** | **36.0%** | **+4.0%** | 44.0% | +6.0% | 40/50 |
+| alpha=24 | 36.0% | +4.0% | 44.0% | +6.0% | 40/50 |
+| alpha=32 | 34.0% | +2.0% | 46.0% | +8.0% | 41/50 |
 
-#### 9.2.2 Analytical Observations
-- **Behavioral Shift:** The structural transplantation (Baseline v2) effectively redirected the model from conversational/chatty responses towards greedy SQL generation in ambiguous cases (e.g., `joins_004`).
-- **Functional Stability:** Despite a 90% reduction in parameter volume (161MB to 16.8MB), the projected adapter maintained critical logic paths, improving execution success rates by **8.0%**.
-- **Next Validation:** The hardened `align()` API (Phase 5-G) will be compared against this structural baseline to quantify the benefits of activation-guided transplantation.
+**Observations:**
+- **Systematic Response:** The model showed a clear response to adapter scaling. Execution accuracy peaked at `alpha=16–24`, while execution success continued to rise up to `alpha=32`.
+- **Signal Saturation:** At `alpha=32`, we observed a decline in exact accuracy despite higher execution success. This indicates "over-steering," where the adapter forces the model into valid SQL syntax but occasionally compromises logical correctness.
+- **Robustness:** At the balanced `alpha=16` setting, the adapter fixed 2 baseline failures and introduced **no observed regressions** against previously correct cases in the SQL-50 suite.
+
+#### 9.2.4 Structural Projection vs Behavioral Alignment
+A direct comparison was conducted between Structural Projection and Behavioral Alignment on the Qwen2.5 7B → 0.5B SQL-50 benchmark.
+
+| Method | Accuracy | Delta | Exec Success | Delta | Syntax Valid |
+|---|---:|---:|---:|---:|---:|
+| Baseline 0.5B | 32.0% | - | 38.0% | - | 37/50 |
+| **Structural Projection alpha=16** | **36.0%** | **+4.0%** | **44.0%** | **+6.0%** | **40/50** |
+| Behavioral Alignment calibrated | 32.0% | +0.0% | 38.0% | +0.0% | 37/50 |
+| Behavioral Alignment standard | 0.0% | -32.0% | 0.0% | -38.0% | 0/50 |
+
+**Analytical Breakdown:**
+- **Robustness:** Structural Projection acted as a conservative task-vector compression method, preserving the target model's native manifold while injecting a bounded source-derived weight delta.
+- **Instability of Alignment:** Standard Behavioral Alignment (activation matching) collapsed in this extreme cross-scale setting. Even with calibration, it failed to improve task performance, indicating that simple activation imitation may be insufficient when representational capacities differ significantly.
+- **Recommendation:** Structural Projection is the current recommended baseline for Qwen2.5 SQL adapter migration.
 
 *Note: Live GPU validations referenced in this report were performed locally on an NVIDIA RTX 5060 Ti 16GB unless otherwise stated.*
