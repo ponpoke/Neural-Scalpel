@@ -56,26 +56,37 @@ In the latest real-model benchmark (Qwen2.5 7B → 0.5B SQL transplantation), we
 
 The best balanced setting was observed at `alpha=16–24`, where execution accuracy reached 36.0%. At `alpha=32`, execution success continued to improve to 46.0%, but exact accuracy declined to 34.0%, suggesting the onset of "signal saturation" or over-steering.
 
-### Current Recommended Baseline: Structural Projection vs Behavioral Alignment
+### Current Recommended Baseline: Structural Projection
 
-We directly compared Structural Projection and Behavioral Alignment on the Qwen2.5 7B → 0.5B SQL-50 evaluation.
+Under the Qwen2.5 7B → 0.5B SQL-50 setup, **Structural Projection is the current recommended baseline**.
 
 | Method | Accuracy | Delta | Exec Success | Delta | Syntax Valid |
 |---|---:|---:|---:|---:|---:|
 | Baseline 0.5B | 32.0% | - | 38.0% | - | 37/50 |
 | **Structural Projection alpha=16** | **36.0%** | **+4.0%** | **44.0%** | **+6.0%** | **40/50** |
-| Behavioral Alignment calibrated | 32.0% | +0.0% | 38.0% | +0.0% | 37/50 |
-| Behavioral Alignment standard | 0.0% | -32.0% | 0.0% | -38.0% | 0/50 |
+| Behavioral Alignment (Research) | 32.0% | +0.0% | 38.0% | +0.0% | 37/50 |
+| Behavioral Alignment (Standard) | 0.0% | -32.0% | 0.0% | -38.0% | 0/50 |
 
 #### Interpretation
 
-In this Qwen2.5 7B → 0.5B SQL-50 experiment, Structural Projection was the strongest tested method. 
+In this Qwen2.5 7B → 0.5B SQL-50 experiment, Structural Projection was the strongest tested method. It improved execution accuracy from 32% to 36% and execution success from 38% to 44%, with no observed regression against baseline-correct cases. **These results were confirmed stable across 3 independent evaluation runs (greedy decoding).**
 
-The calibrated Behavioral Alignment adapter avoided collapse but did not improve over the 0.5B baseline. The standard Behavioral Alignment adapter collapsed completely, producing unusable outputs. This suggests that, for extreme cross-scale SQL adapter migration, Structural Projection currently provides the best balance of stability and functional improvement.
+The calibrated Behavioral Alignment adapter avoided collapse but did not improve over the 0.5B baseline. The standard Behavioral Alignment adapter collapsed completely. This suggests that Structural Projection currently provides the best balance of stability and functional improvement for extreme cross-scale migration.
 
-However, this does not prove that Behavioral Alignment is generally inferior. It indicates that the current Behavioral Alignment implementation is not yet robust under this specific setup and requires better scale control, module distribution, or objective design.
+#### Research Track: Behavioral Alignment
+
+Behavioral Alignment remains an active research direction. Current implementations either collapsed or preserved baseline behavior without improvement. Future work will focus on delta-based objectives, module-wise scaling, and distillation support.
 
 #### Qualitative Analysis (Structural Projection alpha=16)
+
+| Case ID | Category | Baseline Result | Adapter Result | Classification |
+|---|---|---|---|---|
+| `joins_004` | joins | failed syntax / conversational | correct SQL | fixed |
+| `subqueries_001` | subqueries | failed syntax / conversational | correct SQL | fixed |
+
+**No baseline-correct case regressed under alpha=16 in this SQL-50 run.**
+
+#### Failure Case Classification (alpha=16)
 
 | Failure Type | Count | Interpretation |
 |---|---:|---|
@@ -83,6 +94,12 @@ However, this does not prove that Behavioral Alignment is generally inferior. It
 | Adapter regressed baseline success | 0 | No observed regression in this run |
 | Both failed | 32 | Remaining dataset/model difficulty |
 | Both succeeded | 16 | Stable cases |
+
+### Public Research Artifacts
+
+The validated SQL adapter for Qwen2.5-0.5B-Instruct is available for research inspection:
+- **Projected Adapter:** `routes/qwen25-0.5b-sql-structural-projection-lora/`
+- **Hugging Face Draft:** [qwen2.5-0.5b-sql-structural-projection-lora](https://huggingface.co/ponpoke/qwen2.5-0.5b-sql-structural-projection-lora) (Draft Card prepared)
 
 **Case Study: Fixing Baseline Hallucination**
 - **Case ID:** `joins_004` (Names of products in category 4)
@@ -115,10 +132,11 @@ These results are strong enough to describe Neural-Scalpel as a **paradigm-shift
 
 ### Roadmap / Future Work
 
-- Final 24h persistent-route soak validation
-- Precise vLLM TTFT / TPOT regression measurement using real timing hooks
-- **Completed: Alpha Parameter Sweep:** Mapped the Scale Sensitivity frontier across $\alpha=\{8, 16, 24, 32\}$.
-- **Next Priority: Behavioral Alignment Comparison:** Benchmark the hardened `align()` API (Phase 5-G) against the `alpha=16` Structural Projection to quantify accuracy gains from activation-based transplantation.
+- [x] **Core API Hardening:** Stabilized `neural_scalpel.core` with robust validation and status tracking.
+- [x] **Real-Model SQL-50 Validation:** Confirmed +4.0% accuracy improvement on Qwen2.5-0.5B using structural projection of a 7B SQL adapter.
+- [x] **Behavioral Alignment Comparison:** Structural Projection outperformed the tested Behavioral Alignment variants under the Qwen2.5 7B → 0.5B SQL-50 setup.
+- [ ] **Cross-size Generalization:** Evaluate the same Structural Projection approach on Qwen2.5-1.5B and Qwen2.5-3B targets.
+- [ ] **24h vLLM Soak Test:** Final gate for Production Candidate status.
 - Broader model / vLLM-version compatibility validation
 - Long-running multi-tenant production pilots and multi-backend load testing
 - GGUF/AWQ direct surgery

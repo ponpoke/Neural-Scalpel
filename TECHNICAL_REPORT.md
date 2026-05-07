@@ -186,19 +186,19 @@ A systematic alpha sweep was conducted over `alpha={8, 16, 24, 32}` to map the s
 - **Signal Saturation:** At `alpha=32`, we observed a decline in exact accuracy despite higher execution success. This indicates "over-steering," where the adapter forces the model into valid SQL syntax but occasionally compromises logical correctness.
 - **Robustness:** At the balanced `alpha=16` setting, the adapter fixed 2 baseline failures and introduced **no observed regressions** against previously correct cases in the SQL-50 suite.
 
-#### 9.2.4 Structural Projection vs Behavioral Alignment
+#### 9.2.4 Structural Projection vs Behavioral Alignment (Research Track)
 A direct comparison was conducted between Structural Projection and Behavioral Alignment on the Qwen2.5 7B → 0.5B SQL-50 benchmark.
 
 | Method | Accuracy | Delta | Exec Success | Delta | Syntax Valid |
 |---|---:|---:|---:|---:|---:|
 | Baseline 0.5B | 32.0% | - | 38.0% | - | 37/50 |
 | **Structural Projection alpha=16** | **36.0%** | **+4.0%** | **44.0%** | **+6.0%** | **40/50** |
-| Behavioral Alignment calibrated | 32.0% | +0.0% | 38.0% | +0.0% | 37/50 |
-| Behavioral Alignment standard | 0.0% | -32.0% | 0.0% | -38.0% | 0/50 |
+| Behavioral Alignment (Research) | 32.0% | +0.0% | 38.0% | +0.0% | 37/50 |
+| Behavioral Alignment (Standard) | 0.0% | -32.0% | 0.0% | -38.0% | 0/50 |
 
 **Analytical Breakdown:**
 - **Robustness:** Structural Projection acted as a conservative task-vector compression method, preserving the target model's native manifold while injecting a bounded source-derived weight delta.
-- **Instability of Alignment:** Standard Behavioral Alignment (activation matching) collapsed in this extreme cross-scale setting. Even with calibration, it failed to improve task performance, indicating that simple activation imitation may be insufficient when representational capacities differ significantly.
-- **Recommendation:** Structural Projection is the current recommended baseline for Qwen2.5 SQL adapter migration.
+- **Research Path (Alignment):** Standard Behavioral Alignment (activation matching) collapsed in this extreme cross-scale setting. Even with calibration, it failed to improve task performance. This indicates that Behavioral Alignment requires more sophisticated regularization or objective functions to handle extreme model capacity gaps.
+- **Recommendation:** Structural Projection is the current recommended baseline for Qwen2.5 7B → 0.5B SQL adapter migration.
 
 *Note: Live GPU validations referenced in this report were performed locally on an NVIDIA RTX 5060 Ti 16GB unless otherwise stated.*
