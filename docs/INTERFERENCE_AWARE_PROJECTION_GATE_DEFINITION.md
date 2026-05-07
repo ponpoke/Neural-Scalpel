@@ -34,10 +34,18 @@ A script that:
 4. Iterates until a "Non-destructive improvement" is found.
 
 ## 4. Success Criteria
-- **Baseline Integrity**: Zero regressions on identified Sentinel cases.
-- **Net Accuracy**: > 24.0% (SQL-50) on Qwen2.5-Coder-0.5B-Instruct.
-- **Stability**: Syntax Valid > 20/50 even at effective alpha > 8.
+
+### Minimum Success (Safe Gate)
+- **Sentinel Integrity**: Zero regressions on identified Sentinel cases (e.g., `joins_007` remains PASS).
+- **Parity**: Accuracy and Exec/Syntax rates remain at or above Baseline levels.
+- **Robustness**: Syntax Valid remains >= Baseline (19/50) even after delta application.
+
+### Strong Success (Positive Transfer)
+- **Improvement**: Accuracy > Baseline (24.0%).
+- **Knowledge Exchange**: Fixed cases > Regressed cases.
+- **Stability**: Net improvement in Exec Success Rate without degrading structural syntax.
 
 ---
-**Lead Architect**: Antigravity (Google DeepMind)
+**Lead Maintainer**: ponpoke / Neural-Scalpel Project
+**Status**: Design Draft
 **Target Release**: v2.10-beta

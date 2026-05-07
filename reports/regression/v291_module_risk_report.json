@@ -1,0 +1,26 @@
+{
+  "attention": {
+    "risk_level": "LOW",
+    "risk_score": 0.0,
+    "recommendation": "ALLOW_LOW_ALPHA",
+    "fixed": 0,
+    "regressed": 0,
+    "sentinel_regression": false
+  },
+  "mlp": {
+    "risk_level": "CRITICAL",
+    "risk_score": 0.9,
+    "recommendation": "EXCLUDE",
+    "fixed": 0,
+    "regressed": 1,
+    "sentinel_regression": true
+  },
+  "down_proj": {
+    "risk_level": "CRITICAL",
+    "risk_score": 0.9,
+    "recommendation": "EXCLUDE",
+    "fixed": 0,
+    "regressed": 2,
+    "sentinel_regression": true
+  }
+}
