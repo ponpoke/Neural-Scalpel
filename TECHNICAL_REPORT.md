@@ -211,4 +211,41 @@ This was especially visible in the 7B teacher case, where applying the source SQ
 
 This makes source adapter quality a critical upstream variable.
 
+### Positive Teacher Validation and Source Adapter Quality Gate
+
+Following the negative-teacher result observed with the previous Qwen2.5-7B SQL LoRA, we evaluated a higher-quality source adapter on the Qwen2.5-Coder family.
+
+The source adapter first passed a source-quality gate: it improved the Qwen2.5-Coder-7B teacher from 62.0% to 78.0% execution accuracy on the SQL-50 benchmark.
+
+We then structurally projected the same source delta into smaller Qwen2.5-Coder targets.
+
+| Target Model | Role | Base Acc | Adapter Acc | Delta | Interpretation |
+|---|---|---:|---:|---:|---|
+| Qwen2.5-Coder-7B | Teacher | 62.0% | 78.0% | +16.0% | Positive source adapter |
+| Qwen2.5-Coder-3B | Student | 66.0% | 72.0% | +6.0% | Positive transfer |
+| Qwen2.5-Coder-1.5B | Student | 38.0% | 44.0% | +6.0% | Positive transfer |
+| Qwen2.5-Coder-0.5B | Student | 24.0% | 28.0% | +4.0% | Positive transfer |
+
+These results support the Source Adapter Quality Gate hypothesis: Structural Projection is more likely to produce positive downstream effects when the source adapter itself improves its own base model on the target benchmark.
+
+This contrasts with the earlier negative-teacher result, where the source adapter degraded the 7B baseline and projected adapters showed mixed or interfering behavior across target sizes.
+
+Together, the two experiments suggest that Structural Projection should be treated as a transfer-and-diagnostic mechanism. It can propagate useful task-vector components, but it can also propagate harmful or interfering components if the source adapter is weak.
+
+## Final Takeaway
+
+The combined negative-teacher and positive-teacher experiments show that Structural Projection is not a guaranteed adapter improvement method.
+
+Instead, it behaves as a source-delta transfer mechanism.
+
+If the source adapter improves its own base model, the projected adapter is more likely to produce positive downstream effects across compatible target models. If the source adapter degrades its own base model, projection may transfer the interference as well.
+
+Therefore, the recommended workflow is:
+
+1. Evaluate the source adapter on its own base model.
+2. Accept it only if it passes the Source Adapter Quality Gate.
+3. Project it into target models.
+4. Run downstream validation before release.
+
+
 *Note: Live GPU validations referenced in this report were performed locally on an NVIDIA RTX 5060 Ti 16GB unless otherwise stated.*
