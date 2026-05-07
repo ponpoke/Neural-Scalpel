@@ -982,5 +982,16 @@ def hessian_aware_manifold_alignment(
         s_list.append(torch.tensor(1.0, device=A.device))
     return torch.stack(A_trans_list, dim=1).reshape(N, d), torch.stack(R_list), torch.stack(s_list)
 
+def factorize_to_lora(W_delta: torch.Tensor, rank: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Factorizes a delta matrix back into LoRA A and B components via SVD (v2.8)."""
+    U, S, Vh = torch.linalg.svd(W_delta.float(), full_matrices=False)
+    U_r = U[:, :rank]
+    S_r = S[:rank]
+    Vh_r = Vh[:rank, :]
+    sqrtS = torch.sqrt(S_r)
+    A = (sqrtS[:, None] * Vh_r).to(W_delta.dtype)
+    B = (U_r * sqrtS[None, :]).to(W_delta.dtype)
+    return A, B
+
 if __name__ == "__main__":
     print("Task Vector Projection Core Algorithms Loaded Successfully.")

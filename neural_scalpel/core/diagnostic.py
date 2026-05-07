@@ -1,9 +1,10 @@
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Union
 import json
 import torch
 import math
+import re
 import os
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Any, Union
 from pathlib import Path
 
 @dataclass
@@ -23,12 +24,19 @@ class DeltaHealthResult:
     verdict: str = "PENDING"
     global_frobenius_norm: float = 0.0
     module_norms: Dict[str, float] = field(default_factory=dict)
-    # Advanced Metrics (v2.6)
+    
+    # Advanced Metrics (v2.6 Hardened)
     spectral_entropy: float = 0.0
+    normalized_spectral_entropy: float = 0.0
     effective_rank: float = 0.0
-    concentration_score: float = 0.0 # 0.0 to 1.0
+    normalized_effective_rank: float = 0.0
+    concentration_score: float = 0.0
     layer_wise_entropy: float = 0.0
+    
+    # Layer Traceability (v2.7)
     outliers: List[str] = field(default_factory=list)
+    applied_scales: Dict[str, float] = field(default_factory=dict)
+    
     reasons: List[str] = field(default_factory=list)
 
 @dataclass
@@ -66,10 +74,11 @@ class ReleaseDecision:
     recommendation: str = ""
     reasons: List[str] = field(default_factory=list)
     required_artifacts: List[str] = field(default_factory=list)
+    suggested_projection_mode: str = "linear"
 
 @dataclass
 class AdapterTransferDiagnosticReport:
-    """The ultimate multi-stage diagnostic report for Neural-Scalpel v2.6."""
+    """Hardened multi-stage diagnostic report for Neural-Scalpel v2.6+."""
     schema_version: str = "adapter_transfer_diagnostic.v2.6"
     run_id: str = ""
     timestamp: str = ""
@@ -122,7 +131,7 @@ class AdapterTransferDiagnosticReport:
         return report
 
     def finalize_release_decision(self):
-        """Unified multi-stage logic for release determination."""
+        """Unified multi-stage logic for release determination based on health-aware strategy."""
         reasons = []
         source_verdict = self.source_quality_gate.get("verdict", "INCONCLUSIVE")
         source_status = self.source_quality_gate.get("gate_status", "FAIL")
@@ -133,30 +142,35 @@ class AdapterTransferDiagnosticReport:
         artifacts = ["diagnostic_report.json"]
         
         if source_verdict == "POSITIVE_TEACHER" and source_status == "PASS":
-            if health_verdict in ["HEALTHY_DELTA", "MODERATELY_CONCENTRATED"]:
-                if feasibility_status == "FEASIBLE":
-                    if target_eval_verdict == "POSITIVE_TARGET_TRANSFER":
-                        self.release_decision_gate.verdict = "RELEASE_READY"
-                        self.release_decision_gate.recommendation = "PUBLISH_WITH_FULL_BENCHMARKS"
-                        reasons.append("End-to-end success: Improved performance on target model.")
-                        artifacts += ["target_evaluation_results.json", "projected_adapter/", "README.md"]
-                    elif target_eval_verdict == "PENDING":
-                        self.release_decision_gate.verdict = "PROJECTION_CANDIDATE"
-                        self.release_decision_gate.recommendation = "PROCEED_TO_TARGET_EVALUATION"
-                        reasons.append("Source quality and health confirmed. Spectral entropy suggests stable transfer.")
-                        artifacts += ["projection_metadata.json"]
-                    else:
-                        self.release_decision_gate.verdict = "RESEARCH_ONLY"
-                        reasons.append(f"Source good, but target evaluation result is {target_eval_verdict}.")
+            if health_verdict == "HEALTHY_DELTA":
+                self.release_decision_gate.suggested_projection_mode = "linear"
+            elif health_verdict == "MODERATELY_CONCENTRATED":
+                self.release_decision_gate.suggested_projection_mode = "piecewise"
+                reasons.append("Moderate concentration detected. Adaptive scaling enabled.")
+            elif health_verdict == "LOW_SPECTRAL_ENTROPY":
+                self.release_decision_gate.suggested_projection_mode = "piecewise"
+                reasons.append("Low spectral entropy detected. Using conservative piecewise mode.")
+            elif health_verdict == "CRITICALLY_CONCENTRATED":
+                 self.release_decision_gate.verdict = "RESEARCH_ONLY"
+                 reasons.append("Critically concentrated layers detected. Transplantation risk high.")
+                 return
+
+            if feasibility_status == "FEASIBLE":
+                if target_eval_verdict == "POSITIVE_TARGET_TRANSFER":
+                    self.release_decision_gate.verdict = "RELEASE_READY"
+                    self.release_decision_gate.recommendation = "PUBLISH_WITH_FULL_BENCHMARKS"
+                    reasons.append("End-to-end success: Improved performance on target model.")
+                    artifacts += ["target_evaluation_results.json", "projected_adapter/", "README.md"]
+                elif target_eval_verdict == "PENDING":
+                    self.release_decision_gate.verdict = "PROJECTION_CANDIDATE"
+                    self.release_decision_gate.recommendation = "PROCEED_TO_TARGET_EVALUATION"
+                    artifacts += ["projection_metadata.json"]
                 else:
-                    self.release_decision_gate.verdict = "SOURCE_READY"
-                    self.release_decision_gate.recommendation = "CHECK_ARCHITECTURE_COMPATIBILITY"
-                    reasons.append("High-quality source but structural projection is infeasible.")
+                    self.release_decision_gate.verdict = "RESEARCH_ONLY"
+                    reasons.append(f"Source good, but target evaluation result is {target_eval_verdict}.")
             else:
-                self.release_decision_gate.verdict = "RESEARCH_ONLY"
-                reasons.append(f"Unhealthy delta distribution detected: {health_verdict}.")
-                for r in self.delta_health_gate.reasons:
-                    reasons.append(f"Health Detail: {r}")
+                self.release_decision_gate.verdict = "SOURCE_READY"
+                reasons.append("Structural projection is infeasible due to architecture mismatch.")
         else:
             self.release_decision_gate.verdict = "INCONCLUSIVE"
             reasons.append("Primary source quality gate not satisfied.")
@@ -165,7 +179,7 @@ class AdapterTransferDiagnosticReport:
         self.release_decision_gate.required_artifacts = sorted(list(set(artifacts)))
 
 class DeltaHealthAnalyzer:
-    """Advanced Spectral Delta Health Analysis (v2.6)."""
+    """Hardened Spectral Delta Health Analysis (v2.6)."""
     @staticmethod
     def analyze(model) -> DeltaHealthResult:
         result = DeltaHealthResult()
@@ -173,17 +187,19 @@ class DeltaHealthAnalyzer:
         module_norms = {}
         layer_norms = {}
         
+        # Regex for precise layer extraction (v2.6)
+        layer_pattern = re.compile(r"(?:layers|h|blocks)\.(\d+)\.")
+
         for name, param in model.named_parameters():
             if "lora_" in name:
                 n = torch.norm(param.data.float()).item()
                 module_norms[name] = n
                 total_sq_norm += n**2
-                parts = name.split(".")
-                for i, p in enumerate(parts):
-                    if p.isdigit():
-                        layer_idx = int(p)
-                        layer_norms[layer_idx] = layer_norms.get(layer_idx, 0.0) + n**2
-                        break
+                
+                m = layer_pattern.search(name)
+                if m:
+                    layer_idx = int(m.group(1))
+                    layer_norms[layer_idx] = layer_norms.get(layer_idx, 0.0) + n**2
 
         result.global_frobenius_norm = total_sq_norm**0.5
         result.module_norms = module_norms
@@ -193,7 +209,7 @@ class DeltaHealthAnalyzer:
             result.reasons.append("No adapter weights found.")
             return result
 
-        # Spectral Analysis
+        # Normalized Spectral Analysis (v2.6)
         all_singular_values = []
         params = dict(model.named_parameters())
         for name, param in params.items():
@@ -208,19 +224,28 @@ class DeltaHealthAnalyzer:
 
         if all_singular_values:
             s_tensor = torch.tensor(all_singular_values)
-            s_norm = s_tensor / s_tensor.sum()
+            s_norm = s_tensor / (s_tensor.sum() + 1e-10)
             entropy = -torch.sum(s_norm * torch.log(s_norm + 1e-10)).item()
+            num_components = len(s_norm)
+            
             result.spectral_entropy = entropy
-            result.effective_rank = torch.exp(torch.tensor(entropy)).item()
+            result.normalized_spectral_entropy = entropy / math.log(num_components) if num_components > 1 else 0.0
+            
+            er = torch.exp(torch.tensor(entropy)).item()
+            result.effective_rank = er
+            result.normalized_effective_rank = er / num_components if num_components > 0 else 0.0
 
         if layer_norms:
             layer_vals = torch.tensor(list(layer_norms.values()))
-            layer_probs = layer_vals / layer_vals.sum()
+            total_layer_val = layer_vals.sum()
+            layer_probs = layer_vals / (total_layer_val + 1e-10)
             result.layer_wise_entropy = -torch.sum(layer_probs * torch.log(layer_probs + 1e-10)).item()
-            max_layer_contribution = (layer_vals.max() / layer_vals.sum()).item()
-            result.concentration_score = max_layer_contribution
-            if max_layer_contribution > 0.5:
-                result.outliers.append(f"Layer {torch.argmax(layer_vals).item()} (>{max_layer_contribution:.1%})")
+            
+            max_val, max_idx = torch.max(layer_vals, dim=0)
+            result.concentration_score = (max_val / (total_layer_val + 1e-10)).item()
+            
+            if result.concentration_score > 0.4:
+                result.outliers.append(f"Layer {list(layer_norms.keys())[max_idx.item()]} ({result.concentration_score:.1%})")
 
         reasons = []
         if result.global_frobenius_norm > 800.0:
@@ -232,12 +257,12 @@ class DeltaHealthAnalyzer:
         elif result.concentration_score > 0.7:
             result.verdict = "CRITICALLY_CONCENTRATED"
             reasons.append(f"Single layer dominates {result.concentration_score:.1%} of delta.")
-        elif result.spectral_entropy < 0.5:
+        elif result.normalized_spectral_entropy < 0.4:
             result.verdict = "LOW_SPECTRAL_ENTROPY"
-            reasons.append("Delta energy is concentrated in too few singular components.")
+            reasons.append(f"Spectral energy distribution too sparse (H_norm={result.normalized_spectral_entropy:.2f}).")
         else:
             result.verdict = "HEALTHY_DELTA" if result.concentration_score <= 0.3 else "MODERATELY_CONCENTRATED"
-            reasons.append("Delta energy is well-distributed.")
+            reasons.append("Delta energy is sufficiently distributed.")
 
         result.reasons = reasons
         return result

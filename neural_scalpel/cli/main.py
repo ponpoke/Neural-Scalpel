@@ -90,7 +90,8 @@ def port_lora(args):
 
     adapter = get_adapter(source_arch, target_arch, source_info, target_info, 
                           delta_health=getattr(args, "delta_health", None),
-                          projection_mode=getattr(args, "projection_mode", "linear"))
+                          projection_mode=getattr(args, "projection_mode", "linear"),
+                          scaling_config=getattr(args, "scaling_config", None))
     if hasattr(adapter, "routing_matrix") and routing_matrix is not None:
         adapter.routing_matrix = routing_matrix
 
@@ -126,8 +127,14 @@ def port_lora(args):
             print(f"  Surgery on {key}...")
             new_key = adapter.map_key(key)
             new_tensor = adapter.project_tensor(key, tensor)
-            # Write immediately and discard from memory
-            output_bridge.write_layer(new_key, new_tensor)
+            
+            if new_tensor is not None:
+                if isinstance(new_tensor, dict):
+                    # For pair-aware projection returning multiple tensors
+                    for k, v in new_tensor.items():
+                        output_bridge.write_layer(k, v)
+                else:
+                    output_bridge.write_layer(new_key, new_tensor)
 
             # Manual memory reclamation
             del tensor
