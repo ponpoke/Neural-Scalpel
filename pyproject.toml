@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neural-scalpel"
-version = "1.0.0"
+version = "2.2.0"
 description = "A mathematical framework for cross-architecture intelligence transplantation."
 license = {text = "Apache-2.0"}
 authors = [

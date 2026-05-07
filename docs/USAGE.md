@@ -67,18 +67,18 @@ neural-scalpel project-adapter \
 
 ---
 
-## 4. Target Evaluation (v2.1 Preview)
+## 4. Target Evaluation Gate (v2.1)
 
-Once projected, evaluate the adapter on the target model. 
-
-> [!NOTE]
-> v2.0.1 `evaluate-projected` provides target-side accuracy only. Full baseline comparison and automated `RELEASE_READY` gate integration are coming in v2.1.
+Once projected, evaluate the adapter on the target model. Use the `--report` option to integrate results and finalize the release decision.
 
 ```bash
 neural-scalpel evaluate-projected \
     --target Qwen/Qwen2.5-Coder-0.5B-Instruct \
     --adapter ./qwen25-05b-sql-projected \
     --benchmark sql_50 \
+    --report reports/diagnostics/qwen_coder_dpo_to_05b/diagnostic_report.json \
+    --positive-delta-threshold 0.0 \
+    --max-regression-rate 0.05 \
     --output reports/target_eval/sql_results.json
 ```
 
