@@ -58,7 +58,7 @@ def test_package_release_logic(tmp_path):
     
     # Check metadata content
     meta = json.loads((output_dir / "projection_metadata.json").read_text())
-    assert meta["framework"] == "Neural-Scalpel v2.4.0"
+    assert meta["framework"] == "Neural-Scalpel v2.9.0"
     assert meta["diagnostic_verdict"] == "RELEASE_READY"
     assert meta["target_model"] == "tgt"
-    assert "CITATION.cff" in meta["contents"]
+    assert "CITATION.cff" in meta["integrity_hashes"]

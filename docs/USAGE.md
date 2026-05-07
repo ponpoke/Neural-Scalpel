@@ -1,135 +1,114 @@
-# Neural-Scalpel Usage Guide
+# Neural-Scalpel Usage Guide (v2.9)
 
-This guide provides practical examples for the multi-stage diagnostic and transplantation workflow.
-
-## 1. Installation
-Install the package in editable mode with CLI dependencies:
-```bash
-pip install -e .[cli]
-```
+Neural-Scalpel provides a robust CLI for cross-architecture intelligence transplantation.
 
 ---
 
-## 2. Adapter Transfer Diagnostic CLI
-Run the 7-stage diagnostic pipeline to evaluate a source adapter. This generates a `diagnostic_report.json`.
+## 1. Safe-Project Pipeline (Recommended)
 
-```bash
-neural-scalpel diagnose-adapter \
-    --source-base Qwen/Qwen2.5-Coder-7B-Instruct \
-    --source-adapter jk200201/qwen2.5-coder-7b-sql-dpo \
-    --target Qwen/Qwen2.5-Coder-0.5B-Instruct \
-    --output-dir reports/diagnostics/qwen_coder_sql
-```
-
----
-
-## 3. LoRA Projection (Experimental)
-Project source adapter weights into the target architecture. 
-
-```bash
-neural-scalpel project-adapter \
-    --source-adapter jk200201/qwen2.5-coder-7b-sql-dpo \
-    --target Qwen/Qwen2.5-Coder-0.5B-Instruct \
-    --rank 16 \
-    --alpha 16 \
-    --output ./qwen25-05b-sql-projected
-```
-
----
-
-## 4. Target Evaluation Gate
-Evaluate the projected adapter on the target model benchmarks. Use `--report` to integrate results and finalize the release decision.
-
-```bash
-neural-scalpel evaluate-projected \
-    --target Qwen/Qwen2.5-Coder-0.5B-Instruct \
-    --adapter ./qwen25-05b-sql-projected \
-    --benchmark sql_50 \
-    --report reports/diagnostics/qwen_coder_sql/diagnostic_report.json \
-    --output reports/target_eval/eval_results.json
-```
-
----
-
-## 5. Safe-Project Orchestrator (v2.2)
-**Recommended Workflow:** Run the entire pipeline (Diagnose -> Project -> Evaluate) in a single command.
+The most secure way to perform transplantation. It runs diagnostics, applies adaptive scaling, and evaluates the result in one automated flow.
 
 ```bash
 neural-scalpel safe-project \
-    --source-base Qwen/Qwen2.5-Coder-7B-Instruct \
-    --source-adapter jk200201/qwen2.5-coder-7b-sql-dpo \
-    --target Qwen/Qwen2.5-Coder-0.5B-Instruct \
-    --benchmark sql_50 \
-    --rank 16 \
-    --alpha 16 \
-    --output-dir runs/qwen_sql_transfer
+  --source-base Qwen/Qwen2.5-Coder-7B \
+  --source-adapter ./source_lora \
+  --target Qwen/Qwen2.5-Coder-0.5B \
+  --benchmark sql_50 \
+  --output-dir runs/my_release \
+  --projection-mode piecewise
 ```
 
 ---
 
-## 6. Automation & Publishing (v2.3)
-Generate human-readable reports and model cards for the results.
+## 2. Advanced Structural Projection
 
-### Generate Scientific Report
+Use this for fine-grained control over the weight projection process.
+
 ```bash
-neural-scalpel generate-report \
-    --run-dir runs/qwen_sql_transfer \
-    --output reports/final_analysis.md
+neural-scalpel project-adapter \
+  --source-adapter ./path/to/source_lora \
+  --target Qwen/Qwen2.5-Coder-0.5B \
+  --output ./projected_adapter \
+  --rank 16 \
+  --alpha 16 \
+  --projection-mode piecewise
 ```
 
-### Generate Model Card
+### Projection Modes (`--projection-mode`)
+- `linear` (Default): Standard Procrustes alignment.
+- `piecewise`: (v2.8) Energy-aware splitting. Best for preserving high-level reasoning.
+- `kernel`: (v2.9) Kernel Orthogonal Procrustes (KOP) for non-linear manifold alignment.
+- `jacobian`: (v2.9) Jacobian Tangent Space Alignment (JTSA) to compensate for activation distortion.
+
+---
+
+## 3. Delta Health Diagnostics (v2.6+)
+
+Analyze the "health" and spectral properties of your adapter.
+
 ```bash
-neural-scalpel generate-model-card \
-    --run-dir runs/qwen_sql_transfer \
-    --output ./qwen25-05b-sql-projected/README.md
+neural-scalpel diagnose-adapter \
+  --source ./source_lora \
+  --target Qwen/Qwen2.5-Coder-0.5B \
+  --output ./reports
 ```
+
+### Key Metrics
+- **Spectral Entropy**: Distribution of intelligence across singular components.
+- **Effective Rank**: Real information density of the delta weights.
+- **Concentration Score**: Detects if single layers dominate the adapter (Risk of instability).
 
 ---
 
-## 7. The Python API
-For fine-grained control over the math engine:
-```python
-import torch
-from neural_scalpel.core.math import adaptive_variance_preserving_sparsity
+## 4. Evaluation of Projected Adapters
 
-# Extract knowledge core
-tau_sparse = adaptive_variance_preserving_sparsity(W_tuned, W_base, variance_preservation=0.99)
-```
+Evaluate a projected adapter against a benchmark.
 
----
-
-## 8. Semantic Routers (`.scalpel_route`)
-Load and verify signed route manifests programmatically:
-```python
-from neural_scalpel.router.manager import ScalpelRouteManager
-manager = ScalpelRouteManager(route_dir="./routes")
-matrices = manager.verify_and_load_route(filepath="./routes/my_route.scalpel_route", ...)
-```
-
----
-
-## 9. Real Weights Verification
 ```bash
-python examples/verify_real_safetensors.py
+neural-scalpel evaluate-projected \
+  --target Qwen/Qwen2.5-Coder-0.5B \
+  --adapter ./projected_adapter \
+  --benchmark sql_50
 ```
 
 ---
 
-## 10. Release Packaging (v2.4)
-Gather all weights, reports, and metadata into a single distribution folder for Hugging Face or Zenodo.
+## 5. Report & Model Card Automation (v2.3+)
+
+Generate human-readable reports and standardized model cards for Hugging Face.
+
+```bash
+neural-scalpel generate-report --report-path ./runs/my_release/diagnostic_report.json
+neural-scalpel generate-model-card --report-path ./runs/my_release/diagnostic_report.json
+```
+
+---
+
+## 6. Release Packaging (v2.4+)
+
+Bundle weights, reports, and metadata into a single, distribution-ready folder.
 
 ```bash
 neural-scalpel package-release \
-    --run-dir runs/qwen_sql_transfer \
-    --adapter-dir ./qwen25-05b-sql-projected \
-    --output-dir release_package/
+  --run-dir ./runs/my_release \
+  --adapter-dir ./runs/my_release/projected_adapter \
+  --output-dir ./release/v1.0.0
 ```
 
 ---
 
-## 11. Package Validation (v2.5)
-Verify that a release package is authentic, intact, and consistent with its diagnostic reports.
+## 7. Integrity Validation (v2.5+)
+
+Verify the authenticity and integrity of a release package before deployment.
 
 ```bash
-neural-scalpel package-validate --package-dir ./release_package
+neural-scalpel package-validate --package-dir ./release/v1.0.0
 ```
+
+---
+
+## 8. Adaptive Scaling (v2.7+)
+
+Neural-Scalpel automatically modulates layer-wise alpha based on health data:
+- **Dampening**: Auto-applied to outlier/unstable layers.
+- **Boosting**: Applied to high-signal layers to maximize transfer efficiency.

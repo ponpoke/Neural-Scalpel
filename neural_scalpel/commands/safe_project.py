@@ -12,7 +12,7 @@ class SimpleArgs:
 
 def run_safe_project(args):
     print(f"\n" + "="*60)
-    print(f" Neural-Scalpel Safe-Project Orchestrator (v2.2)")
+    print(f" Neural-Scalpel Safe-Project Orchestrator (v2.9)")
     print(f"="*60 + "\n")
 
     # Step 1: Diagnose
@@ -29,14 +29,16 @@ def run_safe_project(args):
         return
 
     # Step 2: Project
-    print(f"\n[*] Stage 2: Structural Weight Projection...")
+    print(f"\n[*] Stage 2: Structural Weight Projection (Mode: {args.projection_mode})...")
     projected_path = Path(args.output_dir) / "projected_adapter"
     project_args = SimpleArgs(
         source_adapter=args.source_adapter,
         target_model=args.target_model,
         output=str(projected_path),
         rank=args.rank,
-        alpha=args.alpha
+        alpha=args.alpha,
+        delta_health=report.delta_health_gate,
+        projection_mode=args.projection_mode
     )
     run_project(project_args)
 
@@ -80,6 +82,8 @@ def add_safe_project_parser(subparsers):
     # Projection Args
     parser.add_argument("--rank", type=int, default=16, help="Target rank")
     parser.add_argument("--alpha", type=int, default=16, help="Target alpha")
+    parser.add_argument("--projection-mode", choices=["linear", "piecewise", "kernel", "jacobian"],
+                        default="linear", help="Projection strategy")
     
     # Eval Thresholds
     parser.add_argument("--positive-delta-threshold", type=float, default=0.0)

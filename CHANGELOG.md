@@ -1,6 +1,10 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [v2.5.0] - 2026-05-07
+### Added
+- **Package Validation**: Automated integrity checks for release packages.
+- **Integrity Hashes**: SHA256 validation for all adapter artifacts.
+- **Hardened CLI**: Process exits with code 1 on validation failure.
 
 ## [2.4.0] - 2026-05-07
 ### Added
@@ -24,3 +28,4 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **Hardened Core Migration API**: Modularized AVPS, rSVD, and alignment engines into a reusable library.
 - **Numerical Guards**: Added NaN/Inf detection and layer mapping validation.
+

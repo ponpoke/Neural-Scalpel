@@ -848,5 +848,139 @@ def low_rank_decompose_for_peft(W: torch.Tensor, rank: int) -> Tuple[torch.Tenso
     
     return A, B
 
+def piecewise_svd_projection(
+    W_delta: torch.Tensor,
+    r_target: int,
+    high_energy_ratio: float = 0.3,
+    mid_energy_ratio: float = 0.5,
+    high_scale: float = 1.0,
+    mid_scale: float = 0.9,
+    low_scale: float = 0.0
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Piecewise Component Projection (v2.8)
+    Splits the delta weight into different energy components via SVD.
+    """
+    U, S, Vh = torch.linalg.svd(W_delta.float(), full_matrices=False)
+    num_s = len(S)
+    k_high = max(1, int(num_s * high_energy_ratio))
+    k_mid = max(1, int(num_s * mid_energy_ratio))
+    S_new = S.clone()
+    S_new[:k_high] *= high_scale
+    S_new[k_high:k_high+k_mid] *= mid_scale
+    S_new[k_high+k_mid:] *= low_scale
+    U_trunc = U[:, :r_target]
+    S_trunc = S_new[:r_target]
+    Vh_trunc = Vh[:r_target, :]
+    return U_trunc, S_trunc, Vh_trunc
+
+def kernel_orthogonal_procrustes(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    num_heads: int,
+    sigma: float = 1.0,
+    n_components: int = 100
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Kernel Orthogonal Procrustes (KOP) with Nyström Approximation (v2.9)."""
+    N, d = A.shape
+    head_dim = d // num_heads
+    A_heads = A.view(N, num_heads, head_dim)
+    B_heads = B.view(N, num_heads, head_dim)
+    R_list, s_list, A_trans_list = [], [], []
+    for i in range(num_heads):
+        A_i, B_i = A_heads[:, i, :], B_heads[:, i, :]
+        indices = torch.randperm(N)[:min(n_components, N)]
+        landmarks = A_i[indices]
+        dist = torch.cdist(A_i, landmarks) ** 2
+        K_am = torch.exp(-dist / (2 * sigma ** 2))
+        dist_mm = torch.cdist(landmarks, landmarks) ** 2
+        K_mm = torch.exp(-dist_mm / (2 * sigma ** 2)) + 1e-6 * torch.eye(len(indices), device=A.device)
+        L, Q = torch.linalg.eigh(K_mm)
+        K_mm_inv_half = Q @ torch.diag(1.0 / torch.sqrt(torch.clamp(L, min=1e-7))) @ Q.t()
+        Phi_A = torch.matmul(K_am, K_mm_inv_half)
+        Phi_B = torch.matmul(torch.matmul(B_i, torch.linalg.pinv(B_i)), Phi_A)
+        U, S, Vh = torch.linalg.svd(torch.matmul(Phi_A.t(), Phi_B), full_matrices=False)
+        R_k = torch.matmul(U, Vh)
+        Phi_A_trans = torch.matmul(Phi_A, R_k)
+        W_reconstruct = torch.matmul(torch.linalg.pinv(Phi_A), B_i)
+        A_trans_list.append(torch.matmul(Phi_A_trans, W_reconstruct))
+        R_list.append(R_k)
+        s_list.append(torch.tensor(1.0, device=A.device))
+    A_transformed = torch.stack(A_trans_list, dim=1).reshape(N, d)
+    return A_transformed, torch.stack(R_list), torch.stack(s_list)
+
+def swiglu_jacobian(x: torch.Tensor) -> torch.Tensor:
+    """Calculates the diagonal Jacobian of the SiLU/Swish component of SwiGLU."""
+    sig = torch.sigmoid(x)
+    return sig * (1 + x * (1 - sig))
+
+def geglu_jacobian(x: torch.Tensor) -> torch.Tensor:
+    """Calculates the diagonal Jacobian of the GELU component of GeGLU."""
+    return 0.5 * (1 + torch.erf(x / math.sqrt(2))) + (x / math.sqrt(2 * math.pi)) * torch.exp(-0.5 * x**2)
+
+def swiglu_hessian(x: torch.Tensor) -> torch.Tensor:
+    """Calculates the diagonal Hessian (2nd derivative) of the SiLU/Swish component."""
+    sig = torch.sigmoid(x)
+    return sig * (1 - sig) * (2 + x * (1 - 2 * sig))
+
+def geglu_hessian(x: torch.Tensor) -> torch.Tensor:
+    """Calculates the diagonal Hessian of the GELU component."""
+    return (2 - x**2) / math.sqrt(2 * math.pi) * torch.exp(-0.5 * x**2)
+
+def jacobian_tangent_space_alignment(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    num_heads: int,
+    activation_type: str = "swiglu",
+    activation_states: Optional[torch.Tensor] = None
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Jacobian Tangent Space Alignment (JTSA) (v2.9)."""
+    N, d = A.shape
+    head_dim = d // num_heads
+    A_heads, B_heads = A.view(N, num_heads, head_dim), B.view(N, num_heads, head_dim)
+    state_heads = activation_states.view(N, num_heads, head_dim) if activation_states is not None else None
+    j_func = swiglu_jacobian if activation_type == "swiglu" else geglu_jacobian
+    R_list, s_list, A_trans_list = [], [], []
+    for i in range(num_heads):
+        A_i, B_i = A_heads[:, i, :], B_heads[:, i, :]
+        state = state_heads[:, i, :] if state_heads is not None else B_i / (torch.norm(B_i, dim=0, keepdim=True) + 1e-6)
+        J = j_func(state)
+        M = torch.matmul((J * A_i).t(), B_i)
+        U, S, Vh = torch.linalg.svd(M, full_matrices=False)
+        R = torch.matmul(U, Vh)
+        A_trans_list.append(torch.matmul(A_i, R))
+        R_list.append(R)
+        s_list.append(torch.tensor(1.0, device=A.device))
+    return torch.stack(A_trans_list, dim=1).reshape(N, d), torch.stack(R_list), torch.stack(s_list)
+
+def hessian_aware_manifold_alignment(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    num_heads: int,
+    activation_type: str = "swiglu",
+    alpha: float = 0.5,
+    activation_states: Optional[torch.Tensor] = None
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Hessian-Aware Manifold Alignment (HAMA) (v2.9)."""
+    N, d = A.shape
+    head_dim = d // num_heads
+    A_heads, B_heads = A.view(N, num_heads, head_dim), B.view(N, num_heads, head_dim)
+    state_heads = activation_states.view(N, num_heads, head_dim) if activation_states is not None else None
+    j_func = swiglu_jacobian if activation_type == "swiglu" else geglu_jacobian
+    h_func = swiglu_hessian if activation_type == "swiglu" else geglu_hessian
+    R_list, s_list, A_trans_list = [], [], []
+    for i in range(num_heads):
+        A_i, B_i = A_heads[:, i, :], B_heads[:, i, :]
+        state = state_heads[:, i, :] if state_heads is not None else B_i / (torch.norm(B_i, dim=0, keepdim=True) + 1e-6)
+        J, H = j_func(state), h_func(state)
+        curvature_factor = J + 0.5 * alpha * H * state
+        M = torch.matmul((curvature_factor * A_i).t(), B_i)
+        U, S, Vh = torch.linalg.svd(M, full_matrices=False)
+        R = torch.matmul(U, Vh)
+        A_trans_list.append(torch.matmul(A_i, R))
+        R_list.append(R)
+        s_list.append(torch.tensor(1.0, device=A.device))
+    return torch.stack(A_trans_list, dim=1).reshape(N, d), torch.stack(R_list), torch.stack(s_list)
+
 if __name__ == "__main__":
     print("Task Vector Projection Core Algorithms Loaded Successfully.")

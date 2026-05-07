@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Union
 import json
 import torch
+import math
 import os
 from pathlib import Path
 
@@ -22,9 +23,13 @@ class DeltaHealthResult:
     verdict: str = "PENDING"
     global_frobenius_norm: float = 0.0
     module_norms: Dict[str, float] = field(default_factory=dict)
-    layer_distribution_entropy: float = 0.0
-    effective_rank_mean: float = 0.0
+    # Advanced Metrics (v2.6)
+    spectral_entropy: float = 0.0
+    effective_rank: float = 0.0
+    concentration_score: float = 0.0 # 0.0 to 1.0
+    layer_wise_entropy: float = 0.0
     outliers: List[str] = field(default_factory=list)
+    reasons: List[str] = field(default_factory=list)
 
 @dataclass
 class CompatibilityResult:
@@ -64,19 +69,18 @@ class ReleaseDecision:
 
 @dataclass
 class AdapterTransferDiagnosticReport:
-    """The ultimate multi-stage diagnostic report for Neural-Scalpel v2.1."""
-    schema_version: str = "adapter_transfer_diagnostic.v2.1"
+    """The ultimate multi-stage diagnostic report for Neural-Scalpel v2.6."""
+    schema_version: str = "adapter_transfer_diagnostic.v2.6"
     run_id: str = ""
     timestamp: str = ""
     
-    # Target Info (Optional for source-only diagnostic)
     source_base_model: str = ""
     source_adapter: str = ""
     target_model: Optional[str] = None
     
     # Stages
     metadata_gate: MetadataGateResult = field(default_factory=MetadataGateResult)
-    source_quality_gate: Dict[str, Any] = field(default_factory=dict) # v1.1 structure
+    source_quality_gate: Dict[str, Any] = field(default_factory=dict)
     delta_health_gate: DeltaHealthResult = field(default_factory=DeltaHealthResult)
     compatibility_gate: CompatibilityResult = field(default_factory=CompatibilityResult)
     feasibility_gate: FeasibilityResult = field(default_factory=FeasibilityResult)
@@ -107,7 +111,6 @@ class AdapterTransferDiagnosticReport:
             target_model=data.get("target_model")
         )
         
-        # Restore gates with fallback to default factory if missing
         if "metadata_gate" in data: report.metadata_gate = MetadataGateResult(**data["metadata_gate"])
         if "source_quality_gate" in data: report.source_quality_gate = data["source_quality_gate"]
         if "delta_health_gate" in data: report.delta_health_gate = DeltaHealthResult(**data["delta_health_gate"])
@@ -121,46 +124,39 @@ class AdapterTransferDiagnosticReport:
     def finalize_release_decision(self):
         """Unified multi-stage logic for release determination."""
         reasons = []
-        
-        # 1. Source Quality Check
         source_verdict = self.source_quality_gate.get("verdict", "INCONCLUSIVE")
         source_status = self.source_quality_gate.get("gate_status", "FAIL")
-        
-        # 2. Health and Feasibility
         health_verdict = self.delta_health_gate.verdict
         feasibility_status = self.feasibility_gate.verdict
-        
-        # 3. Target Eval
         target_eval_verdict = self.target_evaluation_gate.verdict
         
-        # Artifact list management
         artifacts = ["diagnostic_report.json"]
         
-        # Decision Logic: Renamed to reflect strict pipeline
         if source_verdict == "POSITIVE_TEACHER" and source_status == "PASS":
-            if health_verdict == "HEALTHY_DELTA":
+            if health_verdict in ["HEALTHY_DELTA", "MODERATELY_CONCENTRATED"]:
                 if feasibility_status == "FEASIBLE":
                     if target_eval_verdict == "POSITIVE_TARGET_TRANSFER":
                         self.release_decision_gate.verdict = "RELEASE_READY"
                         self.release_decision_gate.recommendation = "PUBLISH_WITH_FULL_BENCHMARKS"
                         reasons.append("End-to-end success: Improved performance on target model.")
-                        artifacts += ["target_evaluation_results.json", "projected_adapter/", "model_card.md"]
+                        artifacts += ["target_evaluation_results.json", "projected_adapter/", "README.md"]
                     elif target_eval_verdict == "PENDING":
                         self.release_decision_gate.verdict = "PROJECTION_CANDIDATE"
                         self.release_decision_gate.recommendation = "PROCEED_TO_TARGET_EVALUATION"
-                        reasons.append("Source quality and feasibility confirmed. Awaiting target evaluation.")
+                        reasons.append("Source quality and health confirmed. Spectral entropy suggests stable transfer.")
                         artifacts += ["projection_metadata.json"]
                     else:
                         self.release_decision_gate.verdict = "RESEARCH_ONLY"
-                        self.release_decision_gate.recommendation = "ANALYZE_TARGET_INTERFERENCE"
                         reasons.append(f"Source good, but target evaluation result is {target_eval_verdict}.")
                 else:
                     self.release_decision_gate.verdict = "SOURCE_READY"
                     self.release_decision_gate.recommendation = "CHECK_ARCHITECTURE_COMPATIBILITY"
-                    reasons.append("High-quality source adapter but structural projection is technically pending/failed.")
+                    reasons.append("High-quality source but structural projection is infeasible.")
             else:
                 self.release_decision_gate.verdict = "RESEARCH_ONLY"
-                reasons.append(f"Source good, but delta health is {health_verdict}.")
+                reasons.append(f"Unhealthy delta distribution detected: {health_verdict}.")
+                for r in self.delta_health_gate.reasons:
+                    reasons.append(f"Health Detail: {r}")
         else:
             self.release_decision_gate.verdict = "INCONCLUSIVE"
             reasons.append("Primary source quality gate not satisfied.")
@@ -169,27 +165,79 @@ class AdapterTransferDiagnosticReport:
         self.release_decision_gate.required_artifacts = sorted(list(set(artifacts)))
 
 class DeltaHealthAnalyzer:
-    """Analyzes LoRA weights for Stage 2 (Delta Health Gate)."""
+    """Advanced Spectral Delta Health Analysis (v2.6)."""
     @staticmethod
     def analyze(model) -> DeltaHealthResult:
         result = DeltaHealthResult()
-        total_norm = 0.0
-        norms = {}
+        total_sq_norm = 0.0
+        module_norms = {}
+        layer_norms = {}
         
         for name, param in model.named_parameters():
             if "lora_" in name:
                 n = torch.norm(param.data.float()).item()
-                norms[name] = n
-                total_norm += n**2
+                module_norms[name] = n
+                total_sq_norm += n**2
+                parts = name.split(".")
+                for i, p in enumerate(parts):
+                    if p.isdigit():
+                        layer_idx = int(p)
+                        layer_norms[layer_idx] = layer_norms.get(layer_idx, 0.0) + n**2
+                        break
+
+        result.global_frobenius_norm = total_sq_norm**0.5
+        result.module_norms = module_norms
         
-        result.global_frobenius_norm = total_norm**0.5
-        result.module_norms = norms
-        
-        if result.global_frobenius_norm > 500.0:
-            result.verdict = "OVERPOWERED_DELTA"
-        elif result.global_frobenius_norm < 0.01:
+        if result.global_frobenius_norm == 0:
             result.verdict = "LOW_SIGNAL_DELTA"
+            result.reasons.append("No adapter weights found.")
+            return result
+
+        # Spectral Analysis
+        all_singular_values = []
+        params = dict(model.named_parameters())
+        for name, param in params.items():
+            if "lora_B" in name:
+                b_weight = param.data.float()
+                a_name = name.replace("lora_B", "lora_A")
+                if a_name in params:
+                    a_weight = params[a_name].data.float()
+                    delta_w = b_weight @ a_weight
+                    s = torch.linalg.svdvals(delta_w)
+                    all_singular_values.extend(s.tolist())
+
+        if all_singular_values:
+            s_tensor = torch.tensor(all_singular_values)
+            s_norm = s_tensor / s_tensor.sum()
+            entropy = -torch.sum(s_norm * torch.log(s_norm + 1e-10)).item()
+            result.spectral_entropy = entropy
+            result.effective_rank = torch.exp(torch.tensor(entropy)).item()
+
+        if layer_norms:
+            layer_vals = torch.tensor(list(layer_norms.values()))
+            layer_probs = layer_vals / layer_vals.sum()
+            result.layer_wise_entropy = -torch.sum(layer_probs * torch.log(layer_probs + 1e-10)).item()
+            max_layer_contribution = (layer_vals.max() / layer_vals.sum()).item()
+            result.concentration_score = max_layer_contribution
+            if max_layer_contribution > 0.5:
+                result.outliers.append(f"Layer {torch.argmax(layer_vals).item()} (>{max_layer_contribution:.1%})")
+
+        reasons = []
+        if result.global_frobenius_norm > 800.0:
+            result.verdict = "OVERPOWERED_DELTA"
+            reasons.append("Global norm exceeds safety threshold.")
+        elif result.global_frobenius_norm < 0.05:
+            result.verdict = "LOW_SIGNAL_DELTA"
+            reasons.append("Delta magnitude is too low.")
+        elif result.concentration_score > 0.7:
+            result.verdict = "CRITICALLY_CONCENTRATED"
+            reasons.append(f"Single layer dominates {result.concentration_score:.1%} of delta.")
+        elif result.spectral_entropy < 0.5:
+            result.verdict = "LOW_SPECTRAL_ENTROPY"
+            reasons.append("Delta energy is concentrated in too few singular components.")
         else:
-            result.verdict = "HEALTHY_DELTA"
-            
+            result.verdict = "HEALTHY_DELTA" if result.concentration_score <= 0.3 else "MODERATELY_CONCENTRATED"
+            reasons.append("Delta energy is well-distributed.")
+
+        result.reasons = reasons
         return result

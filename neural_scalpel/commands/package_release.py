@@ -87,7 +87,7 @@ def run_package_release(args):
         
     decision = report_data.get("release_decision_gate", {})
     pub_meta = {
-        "framework": "Neural-Scalpel v2.5.0",
+        "framework": "Neural-Scalpel v2.9.0",
         "distribution_type": "Projected-PEFT-Adapter",
         "source_adapter": report_data.get("source_adapter"),
         "target_model": report_data.get("target_model"),

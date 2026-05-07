@@ -88,7 +88,9 @@ def port_lora(args):
     if args.routing_path and os.path.exists(args.routing_path):
         routing_matrix = torch.load(args.routing_path, weights_only=True)
 
-    adapter = get_adapter(source_arch, target_arch, source_info, target_info)
+    adapter = get_adapter(source_arch, target_arch, source_info, target_info, 
+                          delta_health=getattr(args, "delta_health", None),
+                          projection_mode=getattr(args, "projection_mode", "linear"))
     if hasattr(adapter, "routing_matrix") and routing_matrix is not None:
         adapter.routing_matrix = routing_matrix
 

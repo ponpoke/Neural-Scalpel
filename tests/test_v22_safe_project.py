@@ -14,6 +14,7 @@ class MockArgs:
         self.positive_delta_threshold = 0.0
         self.max_regression_rate = 0.05
         self.force = False
+        self.projection_mode = "linear"
         for k, v in kwargs.items():
             setattr(self, k, v)
 
