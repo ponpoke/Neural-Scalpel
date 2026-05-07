@@ -6,6 +6,7 @@ from neural_scalpel.commands.evaluate_projected import add_evaluate_projected_pa
 from neural_scalpel.commands.safe_project import add_safe_project_parser
 from neural_scalpel.commands.generate_report import add_generate_report_parser
 from neural_scalpel.commands.generate_model_card import add_generate_model_card_parser
+from neural_scalpel.commands.package_release import add_package_release_parser
 
 def main():
     parser = argparse.ArgumentParser(
@@ -21,6 +22,7 @@ def main():
     add_safe_project_parser(subparsers)
     add_generate_report_parser(subparsers)
     add_generate_model_card_parser(subparsers)
+    add_package_release_parser(subparsers)
 
     args = parser.parse_args()
     

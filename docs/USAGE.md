@@ -112,3 +112,15 @@ matrices = manager.verify_and_load_route(filepath="./routes/my_route.scalpel_rou
 ```bash
 python examples/verify_real_safetensors.py
 ```
+
+---
+
+## 10. Release Packaging (v2.4)
+Gather all weights, reports, and metadata into a single distribution folder for Hugging Face or Zenodo.
+
+```bash
+neural-scalpel package-release \
+    --run-dir runs/qwen_sql_transfer \
+    --adapter-dir ./qwen25-05b-sql-projected \
+    --output-dir release_package/
+```
