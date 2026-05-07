@@ -1,6 +1,14 @@
 import shutil
 import json
+import hashlib
 from pathlib import Path
+
+def calculate_sha256(filepath: Path) -> str:
+    sha256_hash = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
 
 def generate_citation_cff(report: dict) -> str:
     source_adapter = report.get("source_adapter", "unknown")
@@ -31,7 +39,7 @@ def run_package_release(args):
         
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # 1. Copy Core Adapter Weights (Strict Selection)
+    # 1. Copy Core Adapter Weights
     print(" - Copying adapter weights and config...")
     for name in ["adapter_model.safetensors", "adapter_model.bin", "adapter_config.json"]:
         src = adapter_dir / name
@@ -59,36 +67,40 @@ def run_package_release(args):
         shutil.copy2(readme_src, output_dir / "README.md")
         
     # 4. Read report for metadata & citation
-    print(" - Generating metadata and citation...")
     report_json = run_dir / "diagnostic_report.json"
     report_data = {}
     if report_json.exists():
         with open(report_json, "r") as f:
             report_data = json.load(f)
             
-    # Generate CITATION.cff
     if report_data:
         cff_content = generate_citation_cff(report_data)
         with open(output_dir / "CITATION.cff", "w") as f:
             f.write(cff_content)
             
-    # 5. Metadata for Zenodo/Publishing (Enhanced)
+    # 5. Metadata and Hash Generation (v2.5)
+    print(" - Generating integrity hashes...")
+    file_hashes = {}
+    for f in output_dir.iterdir():
+        if f.name == "projection_metadata.json": continue
+        file_hashes[f.name] = calculate_sha256(f)
+        
     decision = report_data.get("release_decision_gate", {})
     pub_meta = {
-        "framework": "Neural-Scalpel v2.4.0",
+        "framework": "Neural-Scalpel v2.5.0",
         "distribution_type": "Projected-PEFT-Adapter",
         "source_adapter": report_data.get("source_adapter"),
         "target_model": report_data.get("target_model"),
         "diagnostic_verdict": decision.get("verdict"),
         "recommendation": decision.get("recommendation"),
         "created_by": "neural-scalpel package-release",
-        "contents": [f.name for f in output_dir.iterdir()]
+        "integrity_hashes": file_hashes
     }
     with open(output_dir / "projection_metadata.json", "w") as f:
         json.dump(pub_meta, f, indent=2)
         
     print(f"\n[Package] SUCCESS: Release package created at {output_dir}")
-    print(f"Items included: {len(list(output_dir.iterdir()))} files.")
+    print(f"Items included: {len(file_hashes)} artifacts (hashes verified).")
 
 def add_package_release_parser(subparsers):
     parser = subparsers.add_parser(

@@ -124,3 +124,12 @@ neural-scalpel package-release \
     --adapter-dir ./qwen25-05b-sql-projected \
     --output-dir release_package/
 ```
+
+---
+
+## 11. Package Validation (v2.5)
+Verify that a release package is authentic, intact, and consistent with its diagnostic reports.
+
+```bash
+neural-scalpel package-validate --package-dir ./release_package
+```
