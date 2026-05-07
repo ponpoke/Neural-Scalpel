@@ -188,7 +188,7 @@ def port_lora(args):
     adapter_config = {
         "peft_type": "LORA",
         "r": detected_r,
-        "lora_alpha": detected_r * 2, # standard heuristic
+        "lora_alpha": getattr(args, "alpha", detected_r * 2),
         "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
         "base_model_name_or_path": args.target
     }
