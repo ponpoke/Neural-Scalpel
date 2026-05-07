@@ -248,4 +248,36 @@ Therefore, the recommended workflow is:
 4. Run downstream validation before release.
 
 
-*Note: Live GPU validations referenced in this report were performed locally on an NVIDIA RTX 5060 Ti 16GB unless otherwise stated.*
+---
+
+## 10. Multi-Stage Adapter Transfer Diagnostic Pipeline (v2.0.1)
+
+To ensure scientific rigor in adapter transplantation, Neural-Scalpel v2.0.1 introduces a hardened, automated diagnostic pipeline. This system moves beyond simple accuracy checks to a multi-stage validation scaffold that flags risks before transplantation.
+
+### 10.1 The Seven Stages of Diagnostic Gating
+
+1.  **Stage 0: Metadata Gate:** Validates LoRA configurations (rank, alpha, target modules) and license compatibility. Supports automated retrieval from HuggingFace Hub.
+2.  **Stage 1: Source Quality Gate (Hardened):** Evaluates the source adapter on its own base model using full v1.1 metrics, including execution success, syntax validity, and regression rate analysis (Fixed vs. Regressed).
+3.  **Stage 2: Delta Health Gate:** Analyzes the Frobenius norm and weight distribution of LoRA parameters to detect model collapse or "overpowered" deltas.
+    > Note: Delta Health v2.0.1 is primarily norm-based. Spectral diagnostics, effective-rank analysis, and layer-distribution entropy are planned future hardening items.
+4.  **Stage 3: Compatibility Gate:** Verifies architectural alignment, including hidden dimension ratios, layer counts, and exact tokenizer vocabulary matching.
+5.  **Stage 4: Feasibility Gate:** Conducts a structural feasibility check, verifying GQA (Grouped Query Attention) awareness and interpolated layer mapping requirements.
+    > Note: Stage 4 currently performs config-level feasibility checks. Full tensor-level projection verification remains a future hardening target.
+6.  **Stage 5: Target Evaluation Gate:** Benchmarks the projected adapter on the target model. This is the final gate required for a "Production" verdict.
+7.  **Stage 6: Release Decision Gate:** A unified decision engine that aggregates results from all previous stages to issue a final verdict.
+
+### 10.2 Strict Verdict Hierarchy
+
+The system enforces a conservative decision tree to prevent the release of unvalidated or low-quality adapters:
+
+*   **`PROJECTION_CANDIDATE`**: Assigned when source quality and feasibility are confirmed, but target model benchmarking is pending. This is the standard "Safe-to-Proceed" state for research.
+*   **`RELEASE_READY`**: Reserved strictly for adapters that have passed Stage 5 (Target Evaluation) with positive performance deltas.
+*   **`RESEARCH_ONLY` / `SOURCE_READY`**: Assigned when structural or performance risks are detected, limiting usage to experimental environments.
+
+### 10.3 Summary of Qwen2.5-Coder Evaluation (v2.0.1)
+
+The hardened pipeline was validated using the `jk200201/qwen2.5-coder-7b-sql-dpo` adapter. The system successfully identified it as a **`PROJECTION_CANDIDATE`** with a Source Quality delta of **+16.0%** and confirmed 100% tokenizer compatibility with the Qwen2.5-0.5B target.
+
+---
+
+*Note: Live GPU and CPU-based validations referenced in this report were performed locally on an NVIDIA RTX 5060 Ti 16GB.*

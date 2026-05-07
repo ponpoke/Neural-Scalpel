@@ -95,11 +95,7 @@ Behavioral Alignment remains an active research direction. Current implementatio
 | Both failed | 32 | Remaining dataset/model difficulty |
 | Both succeeded | 16 | Stable cases |
 
-### Public Research Artifacts
-
-The validated SQL adapter for Qwen2.5-0.5B-Instruct is available for research inspection:
-- **Projected Adapter:** `routes/qwen25-0.5b-sql-structural-projection-lora/`
-- **Hugging Face Draft:** [qwen2.5-0.5b-sql-structural-projection-lora](https://huggingface.co/ponpoke/qwen2.5-0.5b-sql-structural-projection-lora) (Draft Card prepared)
+- **Released Adapter:** [qwen2.5-0.5b-instruct-sql-structural-projection-lora](https://huggingface.co/ponpoke/qwen2.5-0.5b-instruct-sql-structural-projection-lora)
 
 **Case Study: Fixing Baseline Hallucination**
 - **Case ID:** `joins_004` (Names of products in category 4)
@@ -117,7 +113,7 @@ In the latest strict 50-prompt repeated benchmark (Phase 5-D):
 - **Scalpel outperformed Native LoRA by +161.80%** under these controlled conditions.
 - Route application (`swap_count > 0`) and at least one checksum-verified rollback event (`verified_rollbacks > 0`) were recorded in every Scalpel run.
 
-The primary remaining gate for formal "Production Candidate" status is the 24h persistent-route soak test. Broader model coverage (including Llama-class fused attention variants), vLLM-version compatibility, and real-traffic production pilots remain future hardening work.
+The full 24h persistent-route soak test remains the primary remaining gate for formal "Production Candidate" status. Broader model coverage (including Llama-class fused attention variants), vLLM-version compatibility, and real-traffic production pilots remain future hardening work.
 
 These results are strong enough to describe Neural-Scalpel as a **paradigm-shift-class candidate in controlled validation**, but not yet as production-ready serving software.
 
@@ -129,19 +125,23 @@ These results are strong enough to describe Neural-Scalpel as a **paradigm-shift
 - **Determinism Follow-up (Phase 5-F):** After explicit route cleanup and vLLM cache reset, Base-before and Base-after matched exactly, with 100.0% top-token logprob trace similarity for the tested prompt. This is a top-token trace proxy, not a full-vocabulary logits distribution comparison.
 - **Core API Hardening (Phase 5-G):** promotions of experimental scripts to a robust `neural_scalpel.core` package with numerical stability guards, `ValidationReport` status enums, and CKA-based auto-correspondence.
 - **SQL Capability Eval (Phase 6 - Complete):** Full 50-case SQL-50 benchmark on real Qwen2.5 targets with a projected 7B SQL LoRA.
-    - **Complementarity Hypothesis:** Structural Projection helps when the student has a task deficit, but can interfere when the student is already strong.
-    - **Positive Teacher Validation:** Using a high-gain teacher (+16% SQL DPO) resulted in consistent gains (+4% to +6%) across all tested student sizes (0.5B, 1.5B, 3B).
-    - **Source Adapter Quality Gate:** Established that successful projection is highly dependent on whether the source adapter improves its own base model.
+- **Adapter Transfer Diagnostic System v2.0.1 (Hardened Scaffold):** Implemented a rigorous 7-stage automated diagnostic pipeline (Metadata, Source Quality, Delta Health, Compatibility, Feasibility, Target Eval, Release Decision).
+    - **Scientific Release Logic:** Adapters are now classified as `PROJECTION_CANDIDATE` until target evaluation is passed, preventing premature `RELEASE_READY` claims.
+    - **Automated Gatekeeping:** Restored and hardened v1.1 metrics (regression rates, syntax validity) into the v2.0 pipeline.
+    - **Structural Feasibility:** Added config-level verification for architecture compatibility (GQA, tokenizer match, layer mapping).
 
 ## Final Takeaway
 
-Structural Projection is not a guaranteed adapter improvement method. It behaves as a **source-delta transfer mechanism**. If the source adapter improves its own base model (Passing the Source Adapter Quality Gate), the projected adapter is likely to produce positive downstream effects. If the source adapter is weak, it may transfer interference.
+Structural Projection is not a guaranteed adapter improvement method. It behaves as a **source-delta transfer mechanism**.
 
-### Recommended Workflow
-1. **Evaluate** source adapter on its own base model.
-2. **Accept** only if it passes the Quality Gate.
-3. **Project** into target models.
-4. **Validate** before release.
+Passing the **Source Adapter Quality Gate** is a necessary upstream signal, but it is not a guarantee of target-side improvement. If the source adapter is weak, it may transfer interference. **Target evaluation is always required before any release.**
+
+### Recommended Workflow (v2.0.1)
+1. **Diagnose** the source adapter using the multi-stage diagnostic pipeline.
+2. **Verify** that the source adapter passes the `Source Quality Gate` (+16% delta in the case of Qwen2.5-Coder-7B-SQL).
+3. **Analyze** the `PROJECTION_CANDIDATE` report to ensure structural feasibility.
+4. **Project** into target models.
+5. **Validate** the target model performance to achieve `RELEASE_READY` status.
 
 ### Roadmap / Future Work
 
@@ -149,7 +149,8 @@ Structural Projection is not a guaranteed adapter improvement method. It behaves
 - [x] **Real-Model SQL-50 Validation:** Confirmed +4.0% accuracy improvement on Qwen2.5-0.5B using structural projection of a 7B SQL adapter.
 - [x] **Behavioral Alignment Comparison:** Structural Projection outperformed the tested Behavioral Alignment variants under the Qwen2.5 7B → 0.5B SQL-50 setup.
 - [x] **Cross-size Generalization:** Evaluated Qwen2.5-0.5B, 1.5B, and 3B targets, supporting the Complementarity Hypothesis.
-- [x] **24h vLLM Soak Test:** Final gate for Production Candidate status (Mock-validated via 10K endurance).
+- [ ] **24h vLLM Soak Test:** Final gate for constrained Production Candidate status. 10K endurance and shorter controlled tests are completed, but the full 24h persistent-route soak remains pending.
+
 - Broader model / vLLM-version compatibility validation
 - Long-running multi-tenant production pilots and multi-backend load testing
 - GGUF/AWQ direct surgery

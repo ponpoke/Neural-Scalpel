@@ -20,38 +20,38 @@ pip install -e .[cli,experimental]
 
 ---
 
-## 2. Diagnostic CLI Usage
+## 2. Adapter Transfer Diagnostic (v2.0.1)
 
-The primary interface for Neural-Scalpel evaluates the portability and risk of migrating a LoRA between architectures.
+The primary interface for Neural-Scalpel is the multi-stage diagnostic pipeline. This evaluates the portability, quality, and structural risk of migrating a LoRA between architectures.
 
-### Example 1: Generate a LoRA Portability Feasibility Report
 ```bash
-neural-scalpel diagnose \
-  --source ./my-llama3-lora \
-  --target Qwen/Qwen2.5-0.5B-Instruct \
-  --calibrate ./calibration_samples.pt \
-  --eval ./eval_corpus.txt \
-  --output ./reports/diagnostics_report.md
+python scripts/adapter_transfer_diagnostic.py \
+  --source_base_model Qwen/Qwen2.5-Coder-7B-Instruct \
+  --source_adapter jk200201/qwen2.5-coder-7b-sql-dpo \
+  --target_model Qwen/Qwen2.5-Coder-0.5B-Instruct \
+  --benchmark sql_50 \
+  --output_dir reports/diagnostics/qwen_coder_dpo_to_05b
 ```
 
-### Example 2: Run an Executable Ablation Study
-To empirically validate the structural components (e.g., AVPS, WDR, JTSA), you can run the full ablation test:
-```bash
-neural-scalpel diagnose \
-  --source ./my-lora \
-  --target Qwen/Qwen2.5-0.5B-Instruct \
-  --calibrate ./calibration_samples.pt \
-  --ablation all \
-  --output ./reports
-```
+### Understanding Diagnostic Verdicts
+
+The diagnostic pipeline issues a final verdict in `diagnostic_report.json`:
+
+| Verdict | Meaning | Recommended Action |
+|---|---|---|
+| **`PROJECTION_CANDIDATE`** | Source is high-quality and architecture is compatible. | Proceed to structural projection and target evaluation. |
+| **`RELEASE_READY`** | End-to-end success confirmed on the target benchmark. | Publish as a validated research artifact; deployment still requires environment-specific validation. |
+| **`SOURCE_READY`** | Source is good, but target compatibility is unknown or failed. | Check architecture mapping/GQA settings. |
+| **`RESEARCH_ONLY`** | High regression rate or unstable delta detected. | Do not use for production; analyze failure modes. |
+
+> [!IMPORTANT]
+> `PROJECTION_CANDIDATE` is not a release verdict. It means the adapter is eligible for projection and target-side evaluation. `RELEASE_READY` requires positive target benchmark results.
 
 ---
 
-## 3. Experimental CLI Usage (Porting)
+## 3. LoRA Projection (Experimental CLI)
 
-For experimental users who have reviewed the diagnostic report and wish to perform the actual projection, the `port` command is available.
-
-### Example: Porting a Llama-3 LoRA to Qwen-2 (Safetensors)
+For users who have reviewed the diagnostic report and wish to perform the actual projection, the `port` command is available.
 
 ```bash
 neural-scalpel port \
