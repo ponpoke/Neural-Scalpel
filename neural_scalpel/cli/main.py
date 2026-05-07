@@ -136,6 +136,26 @@ def port_lora(args):
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
+    # [v2.9.1 Hardening] Module Inclusion Filtering
+    include_modules = getattr(args, "include_modules", None)
+    if isinstance(include_modules, str):
+        include_modules = [m.strip() for m in include_modules.split(",")]
+    
+    def should_include_key(key):
+        if not include_modules:
+            return True
+        if "lora_" not in key:
+            return True
+        return any(m in key for m in include_modules)
+
+    actually_projected_modules = set()
+    standard_modules = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+
+    def record_projected_modules_from_key(k: str):
+        for m in standard_modules:
+            if m in k:
+                actually_projected_modules.add(m)
+
     # Open the incremental writer
     output_bridge.open_writer(output_path)
     
@@ -145,6 +165,9 @@ def port_lora(args):
         
         print(f"[IO] Starting streaming iterator from {source_path}...")
         for key, tensor in source_bridge.iter_layers(source_path):
+            if not should_include_key(key):
+                continue
+                
             print(f"  Surgery on {key}...")
             new_key = adapter.map_key(key)
             new_tensor = adapter.project_tensor(key, tensor)
@@ -153,8 +176,10 @@ def port_lora(args):
                 if isinstance(new_tensor, dict):
                     # For pair-aware projection returning multiple tensors
                     for k, v in new_tensor.items():
+                        record_projected_modules_from_key(k)
                         output_bridge.write_layer(k, v)
                 else:
+                    record_projected_modules_from_key(new_key)
                     output_bridge.write_layer(new_key, new_tensor)
 
             # Manual memory reclamation
@@ -182,13 +207,18 @@ def port_lora(args):
             }
 
         for key, tensor in state_dict.items():
+            if not should_include_key(key):
+                continue
+
             new_key = adapter.map_key(key)
             new_tensor = adapter.project_tensor(key, tensor)
             if new_tensor is not None:
                 if isinstance(new_tensor, dict):
                     for k, v in new_tensor.items():
+                        record_projected_modules_from_key(k)
                         output_bridge.write_layer(k, v)
                 else:
+                    record_projected_modules_from_key(new_key)
                     output_bridge.write_layer(new_key, new_tensor)
         
         adapter.finalize()
@@ -218,11 +248,19 @@ def port_lora(args):
     # Save adapter_config.json
     # v2.9 Hardening: Ensure 'r' reflects the TARGET rank (args.rank), not the source rank.
     target_r = getattr(args, "rank", detected_r)
+    
+    # Dynamic target modules based on what was actually projected
+    # [v2.9.1 Hardening] Use deterministic order
+    if actually_projected_modules:
+        target_modules = [m for m in standard_modules if m in actually_projected_modules]
+    else:
+        target_modules = standard_modules
+
     adapter_config = {
         "peft_type": "LORA",
         "r": target_r,
         "lora_alpha": getattr(args, "alpha", target_r * 2),
-        "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        "target_modules": target_modules,
         "base_model_name_or_path": args.target
     }
     
@@ -232,6 +270,7 @@ def port_lora(args):
         
     print(f"\n[SUCCESS] Transplanted LoRA saved to: {output_path}")
     print(f"Config saved to: {config_path}")
+    print(f"Included modules (verified output keys): {target_modules}")
     print(f"You can now load this directory directly using peft.PeftModel.from_pretrained()")
 
 
@@ -319,6 +358,7 @@ def main():
     port_parser.add_argument("--piecewise-modules", type=str, help="Comma-separated modules for piecewise projection")
     port_parser.add_argument("--piecewise-layers", type=str, help="Comma-separated layer indices for piecewise projection")
     port_parser.add_argument("--piecewise-max-layers", type=int, help="Maximum number of layers to use piecewise projection")
+    port_parser.add_argument("--include-modules", type=str, help="Comma-separated modules to include in projection (e.g. 'q_proj,v_proj')")
     
     # 'route' command (Layer 3)
     route_parser = subparsers.add_parser("route", help="Create a domain-specific .scalpel_route mapping file")
