@@ -31,19 +31,25 @@ def run_safe_project(args):
         print(f"Recommendation: {report.release_decision_gate.recommendation}")
         return
 
-    # Determine mode: User-specified takes precedence, otherwise use suggested
-    # Note: args.projection_mode has a default of 'linear' in the parser. 
-    # To check if user EXPLICITLY set it, we might need a different default or check raw args.
-    # For now, if mode is linear (default), we try to upgrade to suggested piecewise if needed.
+    # Determine mode: User-specified takes precedence (if not default), otherwise use suggested
+    # Hardening (v2.9.1): Improved automatic mode adoption
     effective_mode = args.projection_mode
-    if effective_mode == "linear" and suggested_mode == "piecewise":
-        print(f"[*] Upgrading to suggested mode: piecewise (due to Health Verdict)")
-        effective_mode = "piecewise"
+    if suggested_mode != "linear" and effective_mode == "linear":
+        print(f"[*] Diagnostic recommendation: {suggested_mode}")
+        if suggested_mode in ["kernel", "jacobian"]:
+            print(f"[!] WARNING: Suggested mode '{suggested_mode}' is EXPERIMENTAL.")
+            print(f"    Proceeding with research-grade alignment logic.")
+        else:
+            print(f"[*] Upgrading projection strategy to: {suggested_mode}")
+        effective_mode = suggested_mode
+    elif effective_mode != "linear" and effective_mode != suggested_mode:
+        print(f"[!] Manual override: Using '{effective_mode}' instead of suggested '{suggested_mode}'.")
 
     # Step 2: Project
     print(f"\n[*] Stage 2: Structural Weight Projection (Mode: {effective_mode})...")
     projected_path = Path(args.output_dir) / "projected_adapter"
     project_args = SimpleArgs(
+        source_base_model=getattr(args, "source_base_model", None),
         source_adapter=args.source_adapter,
         target_model=args.target_model,
         output=str(projected_path),
@@ -51,7 +57,10 @@ def run_safe_project(args):
         alpha=args.alpha,
         delta_health=report.delta_health_gate,
         projection_mode=effective_mode,
-        adaptive_scaling_config=getattr(args, "adaptive_scaling_config", None)
+        adaptive_scaling_config=getattr(args, "adaptive_scaling_config", None),
+        piecewise_modules=getattr(args, "piecewise_modules", None),
+        piecewise_layers=getattr(args, "piecewise_layers", None),
+        piecewise_max_layers=getattr(args, "piecewise_max_layers", None)
     )
     run_project(project_args)
 
@@ -98,6 +107,14 @@ def add_safe_project_parser(subparsers):
     parser.add_argument("--projection-mode", choices=["linear", "piecewise", "kernel", "jacobian"],
                         default="linear", help="Projection strategy")
     parser.add_argument("--adaptive-scaling-config", help="Path to scaling JSON config")
+    
+    # Piecewise constraints (v2.9.1)
+    parser.add_argument("--piecewise-modules", type=str,
+                        help="Comma-separated modules for piecewise (e.g. 'up_proj,down_proj')")
+    parser.add_argument("--piecewise-layers", type=str,
+                        help="Comma-separated layer indices for piecewise")
+    parser.add_argument("--piecewise-max-layers", type=int,
+                        help="Maximum number of layers to use piecewise projection")
     
     # Eval Thresholds
     parser.add_argument("--positive-delta-threshold", type=float, default=0.0)

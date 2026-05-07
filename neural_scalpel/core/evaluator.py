@@ -128,7 +128,18 @@ class SQLCapabilityEvaluator:
         
         if best_start != -1:
             sql_snippet = text_clean[best_start:]
-            # Look for semicolon
+            
+            # Look for common stop sequences in base models
+            stop_patterns = ["\nSQL:", "\nTABLE:", "\nOUTPUT:", "\n\n", "```"]
+            min_stop = len(sql_snippet)
+            for pattern in stop_patterns:
+                idx = sql_snippet.upper().find(pattern)
+                if idx != -1 and idx < min_stop:
+                    min_stop = idx
+            
+            sql_snippet = sql_snippet[:min_stop].strip()
+
+            # Look for semicolon within the snippet
             semi_idx = sql_snippet.find(";")
             if semi_idx != -1:
                 return sql_snippet[:semi_idx+1].strip()

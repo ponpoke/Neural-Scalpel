@@ -18,6 +18,7 @@ class MetadataGateResult:
     target_modules: List[str] = field(default_factory=list)
     license: str = "UNKNOWN"
     warnings: List[str] = field(default_factory=list)
+    experimental_features: List[str] = field(default_factory=list) # v2.9
 
 @dataclass
 class DeltaHealthResult:
@@ -78,8 +79,8 @@ class ReleaseDecision:
 
 @dataclass
 class AdapterTransferDiagnosticReport:
-    """Hardened multi-stage diagnostic report for Neural-Scalpel v2.6+."""
-    schema_version: str = "adapter_transfer_diagnostic.v2.6"
+    """Hardened multi-stage diagnostic report for Neural-Scalpel v2.9+."""
+    schema_version: str = "adapter_transfer_diagnostic.v2.9-unreleased"
     run_id: str = ""
     timestamp: str = ""
     
@@ -152,7 +153,8 @@ class AdapterTransferDiagnosticReport:
                 reasons.append("Low spectral entropy detected. Using conservative piecewise mode.")
             elif health_verdict == "CRITICALLY_CONCENTRATED":
                  self.release_decision_gate.verdict = "RESEARCH_ONLY"
-                 reasons.append("Critically concentrated layers detected. Transplantation risk high.")
+                 self.release_decision_gate.suggested_projection_mode = "jacobian" # Research suggestion
+                 reasons.append("Critically concentrated layers detected. Transplantation risk high. Experimental Jacobian alignment suggested.")
                  return
 
             if feasibility_status == "FEASIBLE":
