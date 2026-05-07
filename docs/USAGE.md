@@ -4,8 +4,6 @@
 
 Welcome to the **Neural-Scalpel** documentation. This toolkit provides experimental methods to approximate and project learned weight deltas (Task Vectors / LoRAs) from one neural architecture to another.
 
-This guide covers basic CLI usage and provides an overview of the Python API for research purposes.
-
 ---
 
 ## 1. Installation
@@ -25,13 +23,17 @@ pip install -e .[cli,experimental]
 The primary interface for Neural-Scalpel is the multi-stage diagnostic pipeline. This evaluates the portability, quality, and structural risk of migrating a LoRA between architectures.
 
 ```bash
-python scripts/adapter_transfer_diagnostic.py \
-  --source_base_model Qwen/Qwen2.5-Coder-7B-Instruct \
-  --source_adapter jk200201/qwen2.5-coder-7b-sql-dpo \
-  --target_model Qwen/Qwen2.5-Coder-0.5B-Instruct \
+# Using the official CLI
+neural-scalpel diagnose-adapter \
+  --source-base Qwen/Qwen2.5-Coder-7B-Instruct \
+  --source-adapter jk200201/qwen2.5-coder-7b-sql-dpo \
+  --target Qwen/Qwen2.5-Coder-0.5B-Instruct \
   --benchmark sql_50 \
-  --output_dir reports/diagnostics/qwen_coder_dpo_to_05b
+  --output-dir reports/diagnostics/qwen_coder_dpo_to_05b
 ```
+
+> [!NOTE]
+> `diagnose-adapter` currently runs source quality evaluation on CPU for stability. For large 7B+ models, this may be slow. GPU execution support is planned for a future release.
 
 ### Understanding Diagnostic Verdicts
 
@@ -49,33 +51,49 @@ The diagnostic pipeline issues a final verdict in `diagnostic_report.json`:
 
 ---
 
-## 3. LoRA Projection (Experimental CLI)
+## 3. LoRA Projection (Experimental Wrapper)
 
-For users who have reviewed the diagnostic report and wish to perform the actual projection, the `port` command is available.
+For users who have reviewed the diagnostic report and wish to perform the actual projection, use the `project-adapter` command. This is currently an experimental wrapper for the Structural Projection engine.
 
 ```bash
-neural-scalpel port \
-    --source ./my-llama3-lora \
-    --target Qwen/Qwen2-7B \
-    --output ./qwen2-ported-lora
+neural-scalpel project-adapter \
+    --source-base Qwen/Qwen2.5-Coder-7B-Instruct \
+    --source-adapter jk200201/qwen2.5-coder-7b-sql-dpo \
+    --target Qwen/Qwen2.5-Coder-0.5B-Instruct \
+    --rank 16 \
+    --alpha 16 \
+    --output ./qwen25-05b-sql-projected
 ```
 
 ---
 
-## 4. The Python API (Core Math Engine)
+## 4. Target Evaluation (v2.1 Preview)
+
+Once projected, evaluate the adapter on the target model. 
+
+> [!NOTE]
+> v2.0.1 `evaluate-projected` provides target-side accuracy only. Full baseline comparison and automated `RELEASE_READY` gate integration are coming in v2.1.
+
+```bash
+neural-scalpel evaluate-projected \
+    --target Qwen/Qwen2.5-Coder-0.5B-Instruct \
+    --adapter ./qwen25-05b-sql-projected \
+    --benchmark sql_50 \
+    --output reports/target_eval/sql_results.json
+```
+
+---
+
+## 5. The Python API (Core Math Engine)
 
 If you are a researcher or want fine-grained control over the math, you can bypass the CLI and use the `neural_scalpel.core.math` package directly. 
-
-Here is how to invoke the **Adaptive Variance-Preserving Sparsity (AVPS)** and the **Head-wise Orthogonal Procrustes** algorithms manually.
 
 ```python
 import torch
 from neural_scalpel.core.math import (
     adaptive_variance_preserving_sparsity,
     adaptive_rsvd_bootstrap,
-    head_wise_orthogonal_procrustes,
-    quantization_aware_procrustes, # Enterprise Feature
-    expert_wise_procrustes # Enterprise Feature
+    head_wise_orthogonal_procrustes
 )
 
 # 1. Extract the sparse knowledge core (AVPS preserves 99% variance)
@@ -89,7 +107,6 @@ tau_dense = tau_sparse.to_dense()
 U, S, V = adaptive_rsvd_bootstrap(tau_dense, epsilon=1e-2)
 
 # 3. Align architectures using semantic anchors
-# Standard Procrustes (FP16/BF16 models)
 A_aligned, _, R_matrices, s_factors = head_wise_orthogonal_procrustes(
     A=A_anchor, B=B_anchor, num_heads=28
 )
@@ -97,7 +114,7 @@ A_aligned, _, R_matrices, s_factors = head_wise_orthogonal_procrustes(
 
 ---
 
-## 5. Semantic Routers (`.scalpel_route`)
+## 6. Semantic Routers (`.scalpel_route`)
 
 In the current research preview, `.scalpel_route` files are used for signed route manifests and evaluation payload metadata.
 
@@ -107,7 +124,6 @@ from neural_scalpel.router.manager import ScalpelRouteManager
 
 manager = ScalpelRouteManager(route_dir="./routes")
 
-# The manager verifies both strict SHA-256 hashes AND cryptographic HMAC signatures
 matrices = manager.verify_and_load_route(
     filepath="./routes/Meta-Llama-3-8B-to-Qwen2-7B-coding.scalpel_route",
     current_source_id="meta-llama/Meta-Llama-3-8B",
@@ -118,283 +134,15 @@ matrices = manager.verify_and_load_route(
 
 ---
 
-## 6. Experimental: VRAM Hot-Swap
+## 7. Experimental: VRAM Hot-Swap
 
 For advanced enterprise use cases, the `experimental.hot_swap` module provides threading locks and Perplexity (PPL) guardrails.
 
-*Warning: This feature is highly experimental and currently tailored for single-GPU setups.*
-
 ---
 
-## 7. Real Weights Verification
+## 8. Real Weights Verification
 To verify the I/O pipeline on actual production weights (Layer 2 adapters):
 
 ```bash
 python examples/verify_real_safetensors.py
 ```
-
----
-
-## 8. Validated vLLM Smoke Checks
-
-### Qwen load smoke
-```bash
-PYTHONPATH=. python scratch/test_qwen.py
-```
-
-### vLLM engine probe
-```bash
-PYTHONPATH=. python scratch/probe_vllm.py
-```
-
-### Prepare an evaluation-only projected Alpaca payload
-```bash
-PYTHONPATH=. python scripts/prepare_actual_lora_payload.py \
-  --lora_id onurerkan/qwen2.5-0.5b-alpaca-lora-demo \
-  --output_dir routes/actual_loras \
-  --target-model Qwen/Qwen2.5-0.5B
-```
-
----
-
-## 9. Phase 5 Controlled Runtime Validation
-
-These commands reproduce the controlled runtime validation used for the current validated prototype status.
-
-> Note: These tests require a working vLLM environment, CUDA-capable GPU, and prepared evaluation payloads. They are not required for basic CLI usage.
-
-### Phase 5-D: Repeated Median Benchmark
-
-```bash
-PYTHONPATH=. python scripts/run_phase_5d_median.py \
-  --runs 3 \
-  --prompts 50 \
-  --output reports/phase_5d_repeated_median.json
-```
-
-Expected interpretation:
-* Scalpel v2 median throughput is compared against Base and Native LoRA.
-* `swap_count > 0` confirms route application.
-* `verified_rollbacks > 0` confirms checksum-verified rollback events.
-
-### Phase 5-E-2: 3+ route mixed-batch safety
-
-> **Requirement:** Requires prepared Alpaca and SQL route payloads/manifests under the expected `routes/actual_loras` paths, or equivalent script arguments.
-
-```bash
-PYTHONPATH=. python scripts/run_phase_5e_3plus_mixed_batch.py \
-  --requests 1000 \
-  --max-tokens 16 \
-  --output reports/phase_5e_3plus_mixed_batch.json
-```
-
-Expected pass criteria:
-* at least three routes are requested
-* `route_violations == 0`
-* `quarantine_events == 0`
-* `worker_is_healthy == true`
-
-### Phase 5-E-3: Worst-case alternating route stress
-
-Two-route alternation:
-```bash
-PYTHONPATH=. python scripts/run_phase_5e_alternating.py \
-  --requests 1000 \
-  --routes __base__,qwen2.5-0.5b-alpaca-lora-demo \
-  --output reports/phase_5e_alternating_2route.json
-```
-
-Three-route alternation:
-```bash
-PYTHONPATH=. python scripts/run_phase_5e_alternating.py \
-  --requests 1000 \
-  --routes __base__,qwen2.5-0.5b-alpaca-lora-demo,qwen2.5-coder-0.5b-instruct_text_to_sql_lora_newdataset \
-  --output reports/phase_5e_alternating_3route.json
-```
-
-> **Requirement:** Requires prepared route payloads/manifests for Alpaca and SQL routes.
-
----
-
-## 10. External Proxy Fallback
-
-External Proxy Fallback is a compatibility-risk mitigation path for environments where the internal vLLM plugin is unavailable, unsupported, or disabled.
-
-### Serving mode selection
-
-Use `SCALPEL_SERVING_MODE` to choose the serving path:
-
-```bash
-export SCALPEL_SERVING_MODE=internal        # use internal vLLM plugin; fail closed if incompatible
-export SCALPEL_SERVING_MODE=external_proxy  # force external proxy mode
-export SCALPEL_SERVING_MODE=auto            # internal if compatible, otherwise external proxy if configured
-export SCALPEL_SERVING_MODE=fail_closed     # refuse to serve; reserved 'native_lora' currently fails closed here
-```
-
-Current modes:
-
-| Mode | Status | Behavior |
-| :--- | :--- | :--- |
-| `internal` | controlled validation | uses internal vLLM route-window plugin |
-| `external_proxy` | implemented / smoke-validated | forwards to external backend URLs |
-| `auto` | implemented | falls back to external proxy when internal compatibility fails |
-| `fail_closed` | implemented | refuses to start |
-
-### Backend Registry
-
-`BackendRegistry` only resolves `route_id -> backend_url`. It does **not** replace the main Neural-Scalpel `RouteRegistry`, which remains responsible for route existence, tenant authorization, revocation, and quarantine checks.
-
-```python
-from neural_scalpel.serving.backend_registry import BackendRegistry
-
-registry = BackendRegistry()
-registry.register_backend(
-    "qwen2.5-0.5b-alpaca-lora-demo",
-    "http://127.0.0.1:8001/v1/completions",
-)
-```
-
-### Server integration
-
-`create_app()` accepts an optional `ServingEngine`.
-
-```python
-from neural_scalpel.serving.server import create_app
-
-# The engine handles the actual forwarding logic
-app = create_app(
-    runtime=runtime,
-    registry=route_registry,
-    engine=engine,
-)
-```
-
-### Live proxy smoke test
-
-```bash
-PYTHONPATH=. python tests/smoke_test_proxy_forwarding.py
-```
-
-Expected result:
-```text
-PASS: Live proxy forwarding to local HTTP backend verified.
-```
-
----
-
-## 11. Interpreting Validation Reports
-
-### What counts as strong runtime evidence?
-
-#### Internal Plugin Evidence:
-- `swap_count > 0`: route application occurred
-- `rollback_count > 0`: rollback path executed
-- `verified_rollbacks > 0`: checksum-verified rollback events occurred
-- `route_violations == 0`: no mixed-route scheduling violation was observed
-- `quarantine_events == 0`: no worker quarantine occurred
-- `worker_is_healthy == true`: runtime remained healthy
-
-#### External Proxy Evidence:
-- `backend_url` resolved correctly: route-to-backend mapping worked
-- HTTP request reached the expected backend endpoint and returned successfully
-- Unhealthy backends were correctly tracked and rejected
-- Route policy checks in `RouteRegistry` still passed before forwarding
-
-### What these tests do not prove
-
-These tests do not prove:
-- universal adapter quality improvement
-- dataset-level task improvement
-- production readiness
-- SLA-grade reliability
-- compatibility with arbitrary vLLM versions
-- multi-GPU / multi-node safety
-
-The final constrained Production Candidate gate remains the 24h persistent-route soak.
-
----
-
-## 12. Experimental Behavioral Alignment API
-
-Neural-Scalpel now includes an experimental paired behavioral alignment scaffold for cross-scale adapter transplantation.
-
-### Example Workflow
-
-The following Python workflow demonstrates how to align latent spaces and transport behavioral signals between two models.
-
-```python
-from neural_scalpel import (
-    align,
-    extract_behavior_delta,
-    transport_delta,
-    solve_activation_adapter,
-    export_lora,
-    validate_behavior
-)
-
-# 1. Learn source-target manifold mapping
-# Uses common calibration prompts to find translation matrix P
-mapping = align(
-    source_model=source_model,
-    target_model=target_model,
-    calibration_prompts=calib_prompts,
-    tokenizer=tokenizer,
-    source_layers=["model.layers.10.mlp.down_proj"],
-    target_layers=["model.layers.10.mlp.down_proj"]
-)
-
-# 2. Extract source behavioral delta
-# Captures the activation shift caused by the adapter in the source model
-delta = extract_behavior_delta(
-    base_model=source_model,
-    adapted_model=source_model_adapted,
-    prompts=calib_prompts,
-    tokenizer=tokenizer,
-    layers=["model.layers.10.mlp.down_proj"]
-)
-
-# 3. Transport behavioral signal
-# Projects the source delta into the target model's manifold
-transported = transport_delta(delta, mapping)
-
-# 4. Solve target activation adapter
-# Computes weight changes in the target model to replicate the signal
-solution = solve_activation_adapter(
-    target_model=target_model,
-    desired_delta=transported,
-    prompts=calib_prompts,
-    tokenizer=tokenizer,
-    target_modules=["model.layers.10.mlp.down_proj"]
-)
-
-# 5. Export PEFT-compatible LoRA
-# Compresses the solution into a low-rank adapter (e.g., rank 16)
-adapter = export_lora(solution, rank=16)
-adapter.save_pretrained("./transplanted_lora")
-
-# 6. Validate behavioral shift
-report = validate_behavior(
-    base_model=target_model,
-    adapter_path="./transplanted_lora",
-    prompts=eval_prompts,
-    tokenizer=tokenizer
-)
-print(f"Shift Rate: {report.metrics['shift_rate']:.1%}")
-```
-
-> [!NOTE]
-> Current core API assumes explicit source/target module pairing. Automatic CKA-based layer correspondence remains a future hardening item.
-
-### Current Status
-
-This API is currently in **Experimental Scaffold** status.
-
-**Validated:**
-- Paired activation collection and Ridge-based manifold translation.
-- PEFT-compatible export with 98%+ size reduction.
-- Runtime behavioral injection (measured via KL divergence and Top-1 shifts).
-
-**Not yet validated:**
-- Large-scale benchmark accuracy.
-- Arbitrary architecture generalization.
-- Production deployment at scale.
