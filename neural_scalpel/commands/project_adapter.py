@@ -30,7 +30,8 @@ def run_project(args):
         def __init__(self, source, target, output, rank, alpha, routing_path=None, 
                      delta_health=None, projection_mode="linear", scaling_config=None,
                      piecewise_modules=None, piecewise_layers=None, piecewise_max_layers=None,
-                     source_base_model=None, allow_dummy_fallback=False, include_modules=None):
+                     source_base_model=None, allow_dummy_fallback=False, include_modules=None,
+                     module_alpha_map=None):
             self.source = source
             self.target = target
             self.output = output
@@ -46,6 +47,7 @@ def run_project(args):
             self.source_base_model = source_base_model
             self.allow_dummy_fallback = allow_dummy_fallback
             self.include_modules = include_modules
+            self.module_alpha_map = module_alpha_map
             
     if not getattr(args, "source_base_model", None):
         print(f"[WARNING] --source-base was not provided. Falling back to source adapter '{args.source_adapter}' for config resolution. This may be unreliable.")
@@ -69,7 +71,8 @@ def run_project(args):
         piecewise_max_layers=getattr(args, "piecewise_max_layers", None),
         source_base_model=getattr(args, "source_base_model", None),
         allow_dummy_fallback=getattr(args, "allow_dummy_fallback", False),
-        include_modules=getattr(args, "include_modules", None)
+        include_modules=getattr(args, "include_modules", None),
+        module_alpha_map=getattr(args, "module_alpha_map", None)
     )
     port_lora(legacy_args)
 
@@ -108,5 +111,7 @@ def add_project_adapter_parser(subparsers):
                         help="Maximum number of layers to use piecewise projection")
     parser.add_argument("--include-modules", type=str,
                         help="Comma-separated modules to include (e.g. 'q_proj,v_proj')")
+    parser.add_argument("--module-alpha-map", type=str,
+                        help="Comma-separated module=alpha mappings (e.g. 'q_proj=8,down_proj=1')")
 
     parser.set_defaults(func=run_project)

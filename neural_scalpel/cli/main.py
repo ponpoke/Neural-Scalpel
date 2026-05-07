@@ -141,12 +141,65 @@ def port_lora(args):
     if isinstance(include_modules, str):
         include_modules = [m.strip() for m in include_modules.split(",")]
     
+    # [v2.10] Module Alpha Map Parsing
+    module_alpha_map = {}
+    raw_alpha_map = getattr(args, "module_alpha_map", None)
+    if raw_alpha_map:
+        try:
+            for item in raw_alpha_map.split(","):
+                m_name, m_alpha = item.split("=")
+                module_alpha_map[m_name.strip()] = float(m_alpha.strip())
+            print(f"[v2.10] Using Module Alpha Map: {module_alpha_map}")
+        except Exception as e:
+            print(f"[!] Warning: Failed to parse --module-alpha-map '{raw_alpha_map}': {e}")
+
+    standard_modules = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+
+    def apply_module_alpha_scaling(key, new_key, new_tensor):
+        if new_tensor is None:
+            return None
+            
+        current_module = None
+        for mod_candidate in standard_modules:
+            if mod_candidate in key:
+                current_module = mod_candidate
+                break
+        
+        if current_module and current_module in module_alpha_map:
+            target_alpha = module_alpha_map[current_module]
+            reference_alpha = getattr(args, "alpha", 16)
+            if target_alpha != reference_alpha:
+                scale_factor = target_alpha / reference_alpha
+                if isinstance(new_tensor, dict):
+                    for k in new_tensor:
+                        if "lora_B" in k: # Convention: scale B
+                            new_tensor[k] = new_tensor[k] * scale_factor
+                elif "lora_B" in new_key:
+                    new_tensor = new_tensor * scale_factor
+                print(f"    [v2.10] Scaled {current_module} by {scale_factor:.4f} (target alpha={target_alpha})")
+        return new_tensor
+    
+    def get_module_from_key(k: str):
+        for m in standard_modules:
+            if m in k:
+                return m
+        return None
+
     def should_include_key(key):
-        if not include_modules:
-            return True
         if "lora_" not in key:
             return True
-        return any(m in key for m in include_modules)
+            
+        m = get_module_from_key(key)
+        
+        # 1. Standard exclusion by --include-modules
+        if include_modules and not any(mod in key for mod in include_modules):
+            return False
+            
+        # 2. Strict Gating: alpha=0 means exclusion
+        if m and m in module_alpha_map and module_alpha_map[m] <= 0:
+            return False
+            
+        return True
 
     actually_projected_modules = set()
     standard_modules = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
@@ -171,6 +224,9 @@ def port_lora(args):
             print(f"  Surgery on {key}...")
             new_key = adapter.map_key(key)
             new_tensor = adapter.project_tensor(key, tensor)
+            
+            # [v2.10] Apply module-specific alpha scaling
+            new_tensor = apply_module_alpha_scaling(key, new_key, new_tensor)
             
             if new_tensor is not None:
                 if isinstance(new_tensor, dict):
@@ -212,6 +268,10 @@ def port_lora(args):
 
             new_key = adapter.map_key(key)
             new_tensor = adapter.project_tensor(key, tensor)
+            
+            # [v2.10] Apply module-specific alpha scaling (fallback path)
+            new_tensor = apply_module_alpha_scaling(key, new_key, new_tensor)
+            
             if new_tensor is not None:
                 if isinstance(new_tensor, dict):
                     for k, v in new_tensor.items():
@@ -267,6 +327,21 @@ def port_lora(args):
     config_path = os.path.join(output_dir if output_dir else ".", "adapter_config.json")
     with open(config_path, "w") as f:
         json.dump(adapter_config, f, indent=4)
+        
+    # [v2.10] Save Projection Metadata
+    from datetime import datetime, timezone
+    metadata_path = os.path.join(output_dir if output_dir else ".", "projection_metadata.json")
+    projection_metadata = {
+        "source_adapter": args.source,
+        "target_model": args.target,
+        "global_alpha": getattr(args, "alpha", 16),
+        "module_alpha_map": module_alpha_map,
+        "zero_alpha_modules_excluded": True,
+        "rank": target_r,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    with open(metadata_path, "w") as f:
+        json.dump(projection_metadata, f, indent=4)
         
     print(f"\n[SUCCESS] Transplanted LoRA saved to: {output_path}")
     print(f"Config saved to: {config_path}")
@@ -359,6 +434,7 @@ def main():
     port_parser.add_argument("--piecewise-layers", type=str, help="Comma-separated layer indices for piecewise projection")
     port_parser.add_argument("--piecewise-max-layers", type=int, help="Maximum number of layers to use piecewise projection")
     port_parser.add_argument("--include-modules", type=str, help="Comma-separated modules to include in projection (e.g. 'q_proj,v_proj')")
+    port_parser.add_argument("--module-alpha-map", type=str, help="Comma-separated module=alpha mappings (e.g. 'q_proj=8,down_proj=1')")
     
     # 'route' command (Layer 3)
     route_parser = subparsers.add_parser("route", help="Create a domain-specific .scalpel_route mapping file")
