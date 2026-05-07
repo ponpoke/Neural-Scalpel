@@ -2,6 +2,7 @@ import argparse
 import os
 import torch
 import json
+import warnings
 from transformers import AutoConfig
 from safetensors.torch import save_file, load_file
 
@@ -62,6 +63,7 @@ def detect_architecture(path_or_name: str) -> str:
     return "llama" # Default fallback
 
 def port_lora(args):
+    warnings.warn("[DEPRECATED] 'port' command is legacy. Use 'project-adapter' instead.", DeprecationWarning)
     print(f"Starting Concept-Projector (Neural-Scalpel) Transplantation Pipeline")
     print(f"Source LoRA: {args.source}")
     print(f"Target Base: {args.target}")
@@ -139,6 +141,8 @@ def port_lora(args):
             # Manual memory reclamation
             del tensor
             del new_tensor
+        
+        adapter.finalize()
     except Exception as e:
         print(f"Streaming Surgery failed or not supported: {e}. Falling back to legacy load-all logic.")
         try:
@@ -157,7 +161,14 @@ def port_lora(args):
         for key, tensor in state_dict.items():
             new_key = adapter.map_key(key)
             new_tensor = adapter.project_tensor(key, tensor)
-            output_bridge.write_layer(new_key, new_tensor)
+            if new_tensor is not None:
+                if isinstance(new_tensor, dict):
+                    for k, v in new_tensor.items():
+                        output_bridge.write_layer(k, v)
+                else:
+                    output_bridge.write_layer(new_key, new_tensor)
+        
+        adapter.finalize()
 
     finally:
         output_bridge.close_writer()
@@ -194,6 +205,7 @@ def port_lora(args):
 
 
 def create_route_cli(args):
+    warnings.warn("[DEPRECATED] 'route' command is legacy. Routing is now handled internally.", DeprecationWarning)
     print("\n[Layer 3: Semantic Router] Generating `.scalpel_route` manifest...")
     manager = ScalpelRouteManager(route_dir=args.output)
     
@@ -211,6 +223,7 @@ def create_route_cli(args):
     print("[SUCCESS] Semantic route generated with strict SHA-256 validation.")
 
 def hotswap_cli(args):
+    warnings.warn("[DEPRECATED] 'hotswap' command is experimental and legacy.", DeprecationWarning)
     print("\n[Layer 4: Experimental VRAM Hot-Swap] Initializing...")
     
     # Create a mock live model for the CLI demonstration
@@ -244,6 +257,7 @@ def hotswap_cli(args):
 
 
 def diagnose_cli(args):
+    warnings.warn("[DEPRECATED] 'diagnose' command is legacy. Use 'diagnose-adapter' instead.", DeprecationWarning)
     print("\n[Layer 5: Diagnostic Suite] Generating Portability Feasibility Report...")
     import sys
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))

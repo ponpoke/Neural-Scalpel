@@ -1,4 +1,5 @@
 import os
+import json
 from pathlib import Path
 from neural_scalpel.core.diagnostic_runner import DiagnosticRunner
 from neural_scalpel.commands.project_adapter import run_project
@@ -21,15 +22,26 @@ def run_safe_project(args):
     report_path = Path(args.output_dir) / "diagnostic_report.json"
     
     verdict = report.release_decision_gate.verdict
+    suggested_mode = report.release_decision_gate.suggested_projection_mode
     print(f"\n[Diag] Diagnostic Verdict: {verdict}")
+    print(f"[Diag] Suggested Projection Mode: {suggested_mode}")
     
     if verdict not in ["PROJECTION_CANDIDATE", "RELEASE_READY"] and not args.force:
         print(f"\n[Aborting] Safe-Project stopped. Verdict is {verdict}.")
         print(f"Recommendation: {report.release_decision_gate.recommendation}")
         return
 
+    # Determine mode: User-specified takes precedence, otherwise use suggested
+    # Note: args.projection_mode has a default of 'linear' in the parser. 
+    # To check if user EXPLICITLY set it, we might need a different default or check raw args.
+    # For now, if mode is linear (default), we try to upgrade to suggested piecewise if needed.
+    effective_mode = args.projection_mode
+    if effective_mode == "linear" and suggested_mode == "piecewise":
+        print(f"[*] Upgrading to suggested mode: piecewise (due to Health Verdict)")
+        effective_mode = "piecewise"
+
     # Step 2: Project
-    print(f"\n[*] Stage 2: Structural Weight Projection (Mode: {args.projection_mode})...")
+    print(f"\n[*] Stage 2: Structural Weight Projection (Mode: {effective_mode})...")
     projected_path = Path(args.output_dir) / "projected_adapter"
     project_args = SimpleArgs(
         source_adapter=args.source_adapter,
@@ -38,7 +50,8 @@ def run_safe_project(args):
         rank=args.rank,
         alpha=args.alpha,
         delta_health=report.delta_health_gate,
-        projection_mode=args.projection_mode
+        projection_mode=effective_mode,
+        adaptive_scaling_config=getattr(args, "adaptive_scaling_config", None)
     )
     run_project(project_args)
 
@@ -84,6 +97,7 @@ def add_safe_project_parser(subparsers):
     parser.add_argument("--alpha", type=int, default=16, help="Target alpha")
     parser.add_argument("--projection-mode", choices=["linear", "piecewise", "kernel", "jacobian"],
                         default="linear", help="Projection strategy")
+    parser.add_argument("--adaptive-scaling-config", help="Path to scaling JSON config")
     
     # Eval Thresholds
     parser.add_argument("--positive-delta-threshold", type=float, default=0.0)

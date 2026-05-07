@@ -1,5 +1,16 @@
 # Changelog
 
+## [v2.9.0-unreleased]
+### Added
+- **Hardened Delta Health (v2.6)**: Implemented normalized spectral entropy and effective rank metrics with robust regex-based layer extraction.
+- **Traceable Adaptive Scaling (v2.7)**: Configurable scaling rules and per-layer scale reporting (`applied_scales`) for auditing.
+- **Pair-Aware Piecewise Projection (v2.8)**: Order-agnostic LoRA-pair buffering and delta-based SVD reconstruction for high-fidelity MLP transfer. Corrected scale application logic.
+- **Health-Aware Orchestration**: `safe-project` now automatically suggest/upgrades to `piecewise` mode based on health diagnostics.
+
+### Experimental / Research Status
+- `kernel` and `jacobian` modes are research stubs providing conservative linear fallbacks with warnings (B-1 Research Roadmap).
+- Non-linear manifold alignment remains in active research and requires calibration activations for production use.
+
 ## [v2.5.0] - 2026-05-07
 ### Added
 - **Package Validation**: Automated integrity checks for release packages.
@@ -28,4 +39,3 @@
 ### Added
 - **Hardened Core Migration API**: Modularized AVPS, rSVD, and alignment engines into a reusable library.
 - **Numerical Guards**: Added NaN/Inf detection and layer mapping validation.
-

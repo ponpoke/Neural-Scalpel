@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 
 from neural_scalpel.core.math import (
     soft_routing_head_pooling, 
-    pca_guided_subspace_injection,
     piecewise_svd_projection,
     factorize_to_lora
 )
@@ -50,11 +49,9 @@ class BaseAdapter:
         self.scaling_config = scaling_config or AdaptiveScalingConfig()
         self.layer_pattern = re.compile(r"(?:layers|h|blocks)\.(\d+)\.")
         
-        # Internal buffer for pair-aware projection (v2.8)
         self._pair_buffer = {}
 
     def get_adaptive_scale(self, key: str) -> float:
-        """Configurable Adaptive Scaling (v2.7)."""
         if not self.scaling_config.enabled or self.delta_health is None:
             return 1.0
             
@@ -64,10 +61,8 @@ class BaseAdapter:
         scale = 1.0
         if self.delta_health.verdict == "MODERATELY_CONCENTRATED":
             scale *= self.scaling_config.moderately_concentrated_scale
-            
         if hasattr(self.delta_health, "normalized_spectral_entropy") and self.delta_health.normalized_spectral_entropy < 0.5:
             scale *= self.scaling_config.low_normalized_entropy_scale
-            
         if layer_idx is not None and hasattr(self.delta_health, "outliers"):
             for outlier in self.delta_health.outliers:
                 if f"Layer {layer_idx}" in outlier:
@@ -85,6 +80,12 @@ class BaseAdapter:
     def project_tensor(self, key: str, tensor: torch.Tensor) -> Union[torch.Tensor, Dict[str, torch.Tensor], None]:
         return tensor
 
+    def finalize(self):
+        if self._pair_buffer:
+            orphans = list(self._pair_buffer.keys())
+            warnings.warn(f"Unprocessed LoRA pairs found in buffer: {orphans}. These layers were skipped. "
+                          f"Check your state_dict keys for consistency.", RuntimeWarning)
+
 class Llama3ToQwen2Adapter(BaseAdapter):
     def __init__(self, source_info: Union[Tuple, Dict], target_info: Union[Tuple, Dict], 
                  routing_matrix: torch.Tensor = None, delta_health: Any = None, 
@@ -96,53 +97,40 @@ class Llama3ToQwen2Adapter(BaseAdapter):
     def project_tensor(self, key: str, tensor: torch.Tensor) -> Union[torch.Tensor, Dict[str, torch.Tensor], None]:
         is_mlp = any(proj in key for proj in ["gate_proj", "up_proj", "down_proj"])
         
-        # v2.9 Research Stub Warning
         if self.projection_mode in ["kernel", "jacobian"] and not self._warned_experimental:
             warnings.warn(f"[EXPERIMENTAL] {self.projection_mode} mode is a research stub. Falls back to linear.", RuntimeWarning)
             self._warned_experimental = True
 
-        # v2.8 Piecewise: LoRA Pair-Aware Implementation
         if self.projection_mode == "piecewise" and is_mlp:
-            if "lora_A" in key:
-                self._pair_buffer[key.replace("lora_A", "pair")] = tensor
-                return None # Defer until B arrives
-            elif "lora_B" in key:
-                pair_key = key.replace("lora_B", "pair")
-                if pair_key not in self._pair_buffer: return tensor # Fallback
-                A = self._pair_buffer.pop(pair_key)
-                B = tensor
-                
-                # Joint Projection (v2.8 Core Logic)
+            base_key = key.replace(".lora_A.weight", "").replace(".lora_B.weight", "")
+            if base_key not in self._pair_buffer:
+                self._pair_buffer[base_key] = {}
+            
+            suffix = "A" if "lora_A" in key else "B"
+            self._pair_buffer[base_key][suffix] = tensor
+            
+            if "A" in self._pair_buffer[base_key] and "B" in self._pair_buffer[base_key]:
+                pair = self._pair_buffer.pop(base_key)
+                A, B = pair["A"], pair["B"]
                 delta = B.float() @ A.float()
                 r = A.shape[0]
                 
-                # Apply Piecewise SVD on Delta
                 U, S, Vh = piecewise_svd_projection(delta, r)
+                src_in, src_out = A.shape[1], B.shape[0]
+                if "down_proj" in key: tgt_in, tgt_out = self.target_inter, self.target_hidden
+                else: tgt_in, tgt_out = self.target_hidden, self.target_inter
                 
-                # Re-factorize to target shape
-                # Calculate target intermediate/hidden dims
-                dim = 1 # A is (r, in)
-                src_in = A.shape[1]
-                src_out = B.shape[0]
-                
-                if "down_proj" in key:
-                    tgt_in, tgt_out = self.target_inter, self.target_hidden
-                else:
-                    tgt_in, tgt_out = self.target_hidden, self.target_inter
-                
-                # Resize delta first (shape projection)
                 delta_resized = delta[:tgt_out, :tgt_in] if src_out > tgt_out or src_in > tgt_in else torch.nn.functional.pad(delta, (0, max(0, tgt_in - src_in), 0, max(0, tgt_out - src_out)))
-                
-                # Re-LoRA
                 A_new, B_new = factorize_to_lora(delta_resized, r)
                 
                 scale = self.get_adaptive_scale(key)
+                sqrt_scale = scale ** 0.5
                 return {
-                    key.replace("lora_B", "lora_A"): A_new * scale,
-                    key: B_new * scale
+                    f"{base_key}.lora_A.weight": A_new * sqrt_scale,
+                    f"{base_key}.lora_B.weight": B_new * sqrt_scale
                 }
+            return None
 
-        # Legacy / Linear path
         scale = self.get_adaptive_scale(key)
         projected = self._legacy_project(key, tensor)
         return projected * scale
@@ -178,11 +166,19 @@ class Llama3ToQwen2Adapter(BaseAdapter):
         return tensor
 
     def _project_dim(self, tensor: torch.Tensor, src_dim: int, tgt_dim: int, dim: int) -> torch.Tensor:
-        if src_dim == tgt_dim: return tensor
+        """Corrected bug (v2.8 fix): Unified variable names and ensured functional consistency."""
+        if src_dim == tgt_dim:
+            return tensor
+
         if dim == 1:
-            return tensor[:, :tgt_dim] if src_dim > tgt_dim else torch.nn.functional.pad(tensor, (0, tgt_dim - src_dim))
-        else:
-            return tensor[:tgt_dim, :] if src_dim > tgt_dim else torch.nn.functional.pad(tensor, (0, 0, 0, tgt_dim - src_dim))
+            if src_dim > tgt_dim:
+                return tensor[:, :tgt_dim]
+            return torch.nn.functional.pad(tensor, (0, tgt_dim - src_dim))
+
+        # dim == 0 (Fix: removed undefined src_out / tgt_out)
+        if src_dim > tgt_dim:
+            return tensor[:tgt_dim, :]
+        return torch.nn.functional.pad(tensor, (0, 0, 0, tgt_dim - src_dim))
 
     def _apply_srhp_on_out_features(self, tensor: torch.Tensor, r: int) -> torch.Tensor:
         if self.source_heads == self.target_heads: return tensor

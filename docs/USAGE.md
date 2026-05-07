@@ -4,7 +4,7 @@ Neural-Scalpel provides a robust CLI for cross-architecture intelligence transpl
 
 ---
 
-## 1. Safe-Project Pipeline (Recommended)
+## 1. safe-project Pipeline (Recommended)
 
 The most secure way to perform transplantation. It runs diagnostics, applies adaptive scaling, and evaluates the result in one automated flow.
 
@@ -18,9 +18,12 @@ neural-scalpel safe-project \
   --projection-mode piecewise
 ```
 
+> [!NOTE]
+> `safe-project` automatically upgrades the projection mode to `piecewise` if diagnostics detect spectral instability or concentrated layers.
+
 ---
 
-## 2. Advanced Structural Projection
+## 2. project-adapter (Advanced)
 
 Use this for fine-grained control over the weight projection process.
 
@@ -31,36 +34,37 @@ neural-scalpel project-adapter \
   --output ./projected_adapter \
   --rank 16 \
   --alpha 16 \
-  --projection-mode piecewise
+  --projection-mode piecewise \
+  --adaptive-scaling-config configs/scaling_conservative.json
 ```
 
 ### Projection Modes (`--projection-mode`)
-- `linear` (Default): Standard Procrustes alignment.
-- `piecewise`: (v2.8) Energy-aware splitting. Best for preserving high-level reasoning.
-- `kernel`: (v2.9) Kernel Orthogonal Procrustes (KOP) for non-linear manifold alignment.
-- `jacobian`: (v2.9) Jacobian Tangent Space Alignment (JTSA) to compensate for activation distortion.
+- `linear` (Default): Standard Procrustes alignment. Stable and validated.
+- `piecewise`: (v2.8) Hardened energy-aware splitting with LoRA-pair reconstruction. Best for preserving high-level reasoning.
+- `kernel`: (v2.9 Research Stub) Placeholder for future activation-based Kernel Orthogonal Procrustes.
+- `jacobian`: (v2.9 Research Stub) Placeholder for Jacobian Tangent Space Alignment.
 
 ---
 
-## 3. Delta Health Diagnostics (v2.6+)
+## 3. diagnose-adapter (v2.6+)
 
 Analyze the "health" and spectral properties of your adapter.
 
 ```bash
 neural-scalpel diagnose-adapter \
-  --source ./source_lora \
+  --source-adapter ./source_lora \
   --target Qwen/Qwen2.5-Coder-0.5B \
   --output ./reports
 ```
 
-### Key Metrics
-- **Spectral Entropy**: Distribution of intelligence across singular components.
-- **Effective Rank**: Real information density of the delta weights.
-- **Concentration Score**: Detects if single layers dominate the adapter (Risk of instability).
+### Advanced Metrics (Hardened v2.6)
+- **Normalized Spectral Entropy**: Intelligence distribution across singular components (0.0 to 1.0).
+- **Normalized Effective Rank**: Real information density relative to total rank.
+- **Concentration Score**: Detects if single layers dominate the adapter (Risk of "Robotomy").
 
 ---
 
-## 4. Evaluation of Projected Adapters
+## 4. evaluate-projected
 
 Evaluate a projected adapter against a benchmark.
 
@@ -75,7 +79,7 @@ neural-scalpel evaluate-projected \
 
 ## 5. Report & Model Card Automation (v2.3+)
 
-Generate human-readable reports and standardized model cards for Hugging Face.
+Generate human-readable scientific reports and standardized model cards for Hugging Face.
 
 ```bash
 neural-scalpel generate-report --report-path ./runs/my_release/diagnostic_report.json
@@ -84,9 +88,9 @@ neural-scalpel generate-model-card --report-path ./runs/my_release/diagnostic_re
 
 ---
 
-## 6. Release Packaging (v2.4+)
+## 6. package-release & Traceability (v2.4+)
 
-Bundle weights, reports, and metadata into a single, distribution-ready folder.
+Bundle weights and scientific evidence into a single distribution-ready folder.
 
 ```bash
 neural-scalpel package-release \
@@ -97,7 +101,7 @@ neural-scalpel package-release \
 
 ---
 
-## 7. Integrity Validation (v2.5+)
+## 7. package-validate (v2.5+)
 
 Verify the authenticity and integrity of a release package before deployment.
 
@@ -107,8 +111,9 @@ neural-scalpel package-validate --package-dir ./release/v1.0.0
 
 ---
 
-## 8. Adaptive Scaling (v2.7+)
+## 8. Adaptive Scaling & Traceability (v2.7+)
 
-Neural-Scalpel automatically modulates layer-wise alpha based on health data:
-- **Dampening**: Auto-applied to outlier/unstable layers.
-- **Boosting**: Applied to high-signal layers to maximize transfer efficiency.
+Neural-Scalpel automatically modulates layer-wise strength based on health data.
+- **Auto-Dampening**: Outlier or unstable layers are automatically scaled down to prevent performance collapse.
+- **Auditing**: You can find exactly which scales were applied in the `applied_scales` section of the diagnostic report.
+- **Configuration**: Use `--adaptive-scaling-config` to customize the dampening thresholds.
