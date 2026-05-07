@@ -111,3 +111,6 @@ routes/actual_loras/
 scratch/
 
 Thumbs.db
+
+# Case Study Repositories
+qwen2.5-0.5b-sql-structural-projection/

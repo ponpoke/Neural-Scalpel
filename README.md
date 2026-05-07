@@ -155,6 +155,13 @@ These results are strong enough to describe Neural-Scalpel as a **paradigm-shift
 
 ---
 
+## 7. Case Studies
+
+- [Qwen2.5-0.5B SQL Structural Projection](https://github.com/ponpoke/qwen2.5-0.5b-sql-structural-projection)
+  A reproducible case study projecting a Qwen2.5-7B SQL LoRA into Qwen2.5-0.5B-Instruct without gradient-based retraining. Confirmed +4.0% accuracy improvement on SQL-50 benchmark.
+
+---
+
 ## 8. Quick Start
 
 For detailed usage, including Phase 5 validation commands and External Proxy Fallback mode, see [docs/USAGE.md](docs/USAGE.md).
