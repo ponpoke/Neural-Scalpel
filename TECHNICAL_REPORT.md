@@ -201,4 +201,14 @@ A direct comparison was conducted between Structural Projection and Behavioral A
 - **Research Path (Alignment):** Standard Behavioral Alignment (activation matching) collapsed in this extreme cross-scale setting. Even with calibration, it failed to improve task performance. This indicates that Behavioral Alignment requires more sophisticated regularization or objective functions to handle extreme model capacity gaps.
 - **Recommendation:** Structural Projection is the current recommended baseline for Qwen2.5 7B → 0.5B SQL adapter migration.
 
+### Cross-Size Generalization and Complementarity Hypothesis
+
+A cross-size evaluation was conducted across Qwen2.5 target sizes. The results did not show a monotonic relationship between target model size and improvement.
+
+Instead, the results support a complementarity hypothesis: Structural Projection helps when the source adapter delta compensates for a target model deficit, but can degrade performance when the target model already solves the task better than the source adapter's induced behavior.
+
+This was especially visible in the 7B teacher case, where applying the source SQL LoRA degraded SQL-50 accuracy from 62.0% to 56.0%. Therefore, the projection process cannot be assumed to transfer only beneficial task knowledge; it can also transfer undesirable style or decision biases contained in the source adapter.
+
+This makes source adapter quality a critical upstream variable.
+
 *Note: Live GPU validations referenced in this report were performed locally on an NVIDIA RTX 5060 Ti 16GB unless otherwise stated.*
