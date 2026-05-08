@@ -57,6 +57,10 @@ Key features of the v2.11 workflow include:
 - **Case-Level Regression Analysis**: Quantifies the delta in behavioral performance (Fixed vs. Regressed) to determine an empirical Verdict (WINNER/SAFE/BOUNDARY/UNSAFE).
 - **Avoid-Band Identification**: Recognizes non-monotonic safety behavior, such as the localized failure zones observed in 0.5B models (e.g., Alpha=3.0 instability), and generates actionable safety maps with excluded scaling intervals.
 
+### 6.1 Limitations
+
+The current safety map is specific to the tested Qwen2.5-Coder 7B SQL DPO → Qwen2.5-Coder 0.5B SQL-50 setting. Avoid bands and safe alpha regions should not be assumed to transfer to other model families, tasks, decoding settings, or evaluation dtypes without re-running the safety mapping workflow.
+
 ---
 
 ## 7. Performance Metrics
