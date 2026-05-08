@@ -243,6 +243,32 @@ def port_lora(args):
             del new_tensor
         
         adapter.finalize()
+        
+        # [v2.11] Save PEFT config and Surgery Metadata
+        config_path = os.path.join(output_dir, "adapter_config.json")
+        peft_config = {
+            "peft_type": "LORA",
+            "r": getattr(args, "rank", 16),
+            "lora_alpha": getattr(args, "alpha", 16),
+            "target_modules": list(actually_projected_modules),
+            "base_model_name_or_path": args.target
+        }
+        with open(config_path, "w") as f:
+            json.dump(peft_config, f, indent=2)
+            
+        metadata_path = os.path.join(output_dir, "projection_metadata.json")
+        metadata = {
+            "global_alpha": getattr(args, "alpha", 16),
+            "module_alpha_map": module_alpha_map,
+            "source_adapter": source_adapter_path,
+            "target_base": args.target,
+            "actually_projected": list(actually_projected_modules)
+        }
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f, indent=2)
+            
+        print(f"[SUCCESS] Projected adapter saved to {output_dir}")
+
     except Exception as e:
         print(f"Streaming Surgery failed or not supported: {e}. Falling back to legacy load-all logic.")
         try:
@@ -403,65 +429,121 @@ def hotswap_cli(args):
     api.monitor_drift(args.layer, current_norm)
 
 
-def diagnose_cli(args):
-    warnings.warn("[DEPRECATED] 'diagnose' command is legacy. Use 'diagnose-adapter' instead.", DeprecationWarning)
-    print("\n[Layer 5: Diagnostic Suite] Generating Portability Feasibility Report...")
-    import sys
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-    try:
-        from verification_demo.run_migration_diagnostics import run_diagnostics
-        run_diagnostics(args)
-    except ImportError as e:
-        print(f"Error loading diagnostics: {e}")
+def evaluate_cli(args):
+    """Integrated evaluation entry point for v2.10."""
+    print(f"\n[Layer 6: Evaluation] Running benchmark: {args.benchmark}")
+    from neural_scalpel.core.evaluator import SQLCapabilityEvaluator
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from peft import PeftModel
+    
+    torch_dtype = torch.float16 if args.dtype == "float16" else torch.float32
+    
+    print(f"Loading base model: {args.target}")
+    model = AutoModelForCausalLM.from_pretrained(
+        args.target,
+        torch_dtype=torch_dtype,
+        device_map="auto",
+        trust_remote_code=True
+    )
+    tokenizer = AutoTokenizer.from_pretrained(args.target, trust_remote_code=True)
+    
+    if args.adapter:
+        print(f"Applying adapter: {args.adapter} (Merge: {getattr(args, 'merge_adapter', False)})")
+        model = PeftModel.from_pretrained(model, args.adapter)
+        if getattr(args, "merge_adapter", False):
+            model = model.merge_and_unload()
+    
+    evaluator = SQLCapabilityEvaluator(model=model, tokenizer=tokenizer)
+    
+    # Load dataset based on benchmark name
+    if args.benchmark == "sql_50":
+        import sys
+        benchmark_path = os.path.abspath("qwen2.5-0.5b-sql-structural-projection")
+        if benchmark_path not in sys.path:
+            sys.path.append(benchmark_path)
+        try:
+            from eval.sql_50_suite_definition import get_sql_50_suite
+            suite = get_sql_50_suite()
+            results = evaluator.evaluate_suite(suite)
+        except ImportError as e:
+            raise RuntimeError(f"Failed to load SQL-50 benchmark from {benchmark_path}. Ensure the directory exists. Error: {e}")
+    else:
+        raise ValueError(f"Unknown benchmark: {args.benchmark}")
+    
+    # Prepare results
+    results = {
+        "stats": results["stats"],
+        "results": results["results"],
+        "eval_metadata": {
+            "eval_dtype": args.dtype,
+            "adapter_merge": bool(getattr(args, "merge_adapter", False)),
+        }
+    }
+    
+    if args.output:
+        os.makedirs(os.path.dirname(args.output), exist_ok=True)
+        with open(args.output, "w") as f:
+            json.dump(results, f, indent=2)
+        print(f"[SUCCESS] Evaluation results saved to {args.output}")
+    
+    # Print summary metrics
+    stats = results["stats"]
+    print(f"Accuracy: {stats['execution_accuracy']:.2%}")
+    print(f"Syntax Valid: {stats['syntax_valid']}/{stats['total']}")
 
 def main():
     parser = argparse.ArgumentParser(description="Neural-Scalpel: VRAM Hot-Swap & Concept Projection CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
     
-    # 'port' command (Layer 2)
-    port_parser = subparsers.add_parser("port", help="Port a LoRA from one architecture to another")
-    port_parser.add_argument("--source", type=str, required=True, help="Path or HF ID to the source LoRA")
-    port_parser.add_argument("--source-base", dest="source_base_model", type=str, default=None, 
-                             help="Explicit source base model path or ID")
-    port_parser.add_argument("--target", type=str, required=True, help="Path or HF ID to the target base model")
-    port_parser.add_argument("--routing_path", type=str, default=None, help="Optional path to a .pt or .scalpel_route WDR matrix")
-    port_parser.add_argument("--calibrate", type=str, default=None, help="Path to a calibration dataset (.pt activations) for AWQ re-calibration")
-    port_parser.add_argument("--domain", type=str, default="general", help="Domain semantic anchor (e.g., coding, medical)")
-    port_parser.add_argument("--output", type=str, required=True, help="Output directory for the translated LoRA")
-    port_parser.add_argument("--rank", type=int, default=16, help="Target rank (default: 16)")
-    port_parser.add_argument("--alpha", type=int, default=16, help="Target alpha (default: 16)")
-    port_parser.add_argument("--piecewise-modules", type=str, help="Comma-separated modules for piecewise projection")
-    port_parser.add_argument("--piecewise-layers", type=str, help="Comma-separated layer indices for piecewise projection")
-    port_parser.add_argument("--piecewise-max-layers", type=int, help="Maximum number of layers to use piecewise projection")
-    port_parser.add_argument("--include-modules", type=str, help="Comma-separated modules to include in projection (e.g. 'q_proj,v_proj')")
-    port_parser.add_argument("--module-alpha-map", type=str, help="Comma-separated module=alpha mappings (e.g. 'q_proj=8,down_proj=1')")
-    
-    # 'route' command (Layer 3)
-    route_parser = subparsers.add_parser("route", help="Create a domain-specific .scalpel_route mapping file")
-    route_parser.add_argument("--source", type=str, required=True, help="Path or HF ID to the source architecture")
-    route_parser.add_argument("--target", type=str, required=True, help="Path or HF ID to the target architecture")
-    route_parser.add_argument("--domain", type=str, required=True, help="Domain semantic anchor (e.g., coding, medical)")
-    route_parser.add_argument("--output", type=str, default="./routes", help="Directory to save the route file")
+    # 'project-adapter' (New Standard for v2.10)
+    project_parser = subparsers.add_parser("project-adapter", help="Project a LoRA from one architecture to another")
+    # Add an alias 'port' for backward compatibility
+    subparsers.add_parser("port", help="[DEPRECATED] Use project-adapter instead")
 
-    # 'hotswap' command (Layer 4)
-    hotswap_parser = subparsers.add_parser("hotswap", help="Experimentally inject or unlearn concepts in live VRAM")
-    hotswap_parser.add_argument("--action", type=str, choices=["inject", "unlearn"], required=True, help="Action to perform")
-    hotswap_parser.add_argument("--layer", type=str, default="model.layers.0.self_attn.q_proj.weight", help="Target layer in the live model")
-    hotswap_parser.add_argument("--intensity", type=float, default=1.0, help="Intensity scalar for the task vector")
+    for p in [project_parser, subparsers.choices["port"]]:
+        p.add_argument("--source", type=str, help="Path or HF ID to the source LoRA")
+        p.add_argument("--source-adapter", type=str, help="Alias for --source")
+        p.add_argument("--source-base", dest="source_base_model", type=str, default=None, 
+                                 help="Explicit source base model path or ID")
+        p.add_argument("--target", type=str, required=True, help="Path or HF ID to the target base model")
+        p.add_argument("--output", type=str, required=True, help="Output directory for the translated LoRA")
+        p.add_argument("--rank", type=int, default=16, help="Target rank (default: 16)")
+        p.add_argument("--alpha", type=int, default=16, help="Target alpha (default: 16)")
+        p.add_argument("--module-alpha-map", type=str, help="Comma-separated module=alpha mappings (e.g. 'q_proj=4,gate_proj=0.125')")
+        p.add_argument("--piecewise-modules", type=str, help="Comma-separated modules for piecewise projection")
+        p.add_argument("--include-modules", type=str, help="Comma-separated modules to include")
+        # Add missing attributes for port_lora compatibility
+        p.add_argument("--routing_path", type=str, default=None)
+        p.add_argument("--calibrate", type=str, default=None)
+        p.add_argument("--domain", type=str, default="general")
+        p.add_argument("--piecewise-layers", type=str, default=None)
+        p.add_argument("--piecewise-max-layers", type=int, default=None)
 
-    # 'diagnose' command (Layer 5)
-    diagnose_parser = subparsers.add_parser("diagnose", help="Run a portability and risk diagnostic on a LoRA mapping")
-    diagnose_parser.add_argument("--source", type=str, required=True, help="Path or HF ID to the source LoRA")
-    diagnose_parser.add_argument("--target", type=str, required=True, help="Path or HF ID to the target base model")
-    diagnose_parser.add_argument("--calibrate", type=str, default=None, help="Path to calibration data (required for LLMs)")
-    diagnose_parser.add_argument("--eval", type=str, default=None, help="Evaluation config/data for empirical benchmarks")
-    diagnose_parser.add_argument("--ablation", type=str, default="none", help="Ablation mode to run (e.g., 'all')")
-    diagnose_parser.add_argument("--output", type=str, default="./reports", help="Output directory for the report")
+    # 'evaluate-projected' (New Standard for v2.10)
+    eval_parser = subparsers.add_parser("evaluate-projected", help="Evaluate a projected adapter")
+    eval_parser.add_argument("--target", type=str, required=True, help="Target base model ID")
+    eval_parser.add_argument("--adapter", type=str, help="Path to projected adapter (optional for baseline)")
+    eval_parser.add_argument("--benchmark", type=str, default="sql_50", help="Benchmark name")
+    eval_parser.add_argument("--output", type=str, help="Path to save JSON results")
+    eval_parser.add_argument("--dtype", type=str, default="float16", help="Precision for evaluation")
+    eval_parser.add_argument("--merge-adapter", action="store_true", help="Merge adapter weights before evaluation (default: False)")
+
+    # Legacy commands (keep for now but warn)
+    subparsers.add_parser("route", help="[DEPRECATED] Create a route manifest")
+    subparsers.add_parser("hotswap", help="[DEPRECATED] Live VRAM hotswap")
+    subparsers.add_parser("diagnose", help="[DEPRECATED] Use diagnose-adapter instead")
 
     args = parser.parse_args()
     
-    if args.command == "port":
+    if args.command in ["port", "project-adapter"]:
+        if not getattr(args, "source", None) and not getattr(args, "source_adapter", None):
+            parser.error("Either --source or --source-adapter must be provided for projection.")
+        # Map --source-adapter to --source if provided
+        if hasattr(args, "source_adapter") and args.source_adapter:
+            args.source = args.source_adapter
         port_lora(args)
+    elif args.command == "evaluate-projected":
+        evaluate_cli(args)
     elif args.command == "route":
         create_route_cli(args)
     elif args.command == "hotswap":
