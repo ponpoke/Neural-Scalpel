@@ -158,12 +158,23 @@ def port_lora(args):
     if isinstance(include_modules, str):
         include_modules = [m.strip() for m in include_modules.split(",")]
     
-    module_alpha_map = {}
+    module_alpha_map = {} # module_name -> alpha OR (module_name, layer_index) -> alpha
     if raw_alpha_map:
         try:
             for item in raw_alpha_map.split(","):
-                m_name, m_alpha = item.split("=")
-                module_alpha_map[m_name.strip()] = float(m_alpha.strip())
+                m_spec, m_alpha = item.split("=")
+                m_spec = m_spec.strip()
+                val = float(m_alpha.strip())
+                if "." in m_spec:
+                    m_name, l_range = m_spec.split(".")
+                    if "-" in l_range:
+                        start, end = map(int, l_range.split("-"))
+                        for i in range(start, end + 1):
+                            module_alpha_map[(m_name, i)] = val
+                    else:
+                        module_alpha_map[(m_name, int(l_range))] = val
+                else:
+                    module_alpha_map[m_spec] = val
             print(f"[v2.10] Using Module Alpha Map: {module_alpha_map}")
         except Exception as e:
             print(f"[!] Warning: Failed to parse --module-alpha-map '{raw_alpha_map}': {e}")
@@ -177,16 +188,34 @@ def port_lora(args):
             if mod_candidate in key:
                 current_module = mod_candidate
                 break
-        if current_module and current_module in module_alpha_map:
+        
+        if not current_module: return new_tensor
+
+        # Extract layer index if present in key (e.g. layers.0. ...)
+        layer_idx = None
+        import re
+        layer_match = re.search(r"layers\.(\d+)\.", key)
+        if layer_match:
+            layer_idx = int(layer_match.group(1))
+
+        target_alpha = None
+        # Priority 1: Layer-specific override
+        if layer_idx is not None and (current_module, layer_idx) in module_alpha_map:
+            target_alpha = module_alpha_map[(current_module, layer_idx)]
+        # Priority 2: Module-wide alpha
+        elif current_module in module_alpha_map:
             target_alpha = module_alpha_map[current_module]
-            if target_alpha != alpha:
-                scale_factor = target_alpha / alpha
-                if isinstance(new_tensor, dict):
-                    for k in new_tensor:
-                        if "lora_B" in k: new_tensor[k] = new_tensor[k] * scale_factor
-                elif "lora_B" in new_key:
-                    new_tensor = new_tensor * scale_factor
-                print(f"    [v2.10] Scaled {current_module} by {scale_factor:.4f} (target alpha={target_alpha})")
+
+        if target_alpha is not None and target_alpha != alpha:
+            scale_factor = target_alpha / alpha
+            if isinstance(new_tensor, dict):
+                for k in new_tensor:
+                    if "lora_B" in k: new_tensor[k] = new_tensor[k] * scale_factor
+            elif "lora_B" in new_key:
+                new_tensor = new_tensor * scale_factor
+            l_info = f" layer {layer_idx}" if layer_idx is not None else ""
+            print(f"    [v2.10] Scaled {current_module}{l_info} by {scale_factor:.4f} (target alpha={target_alpha})")
+        
         return new_tensor
     
     def should_include_key(key):
@@ -278,13 +307,21 @@ def port_lora(args):
     with open(config_path, "w") as f:
         json.dump(adapter_config, f, indent=4, default=lambda x: str(x))
         
+    # Normalize module_alpha_map for JSON (convert tuple keys to strings)
+    serializable_alpha_map = {}
+    for k, v in module_alpha_map.items():
+        if isinstance(k, tuple):
+            serializable_alpha_map[f"{k[0]}.{k[1]}"] = v
+        else:
+            serializable_alpha_map[str(k)] = v
+
     from datetime import datetime, timezone
     metadata_path = os.path.join(output_dir, "projection_metadata.json")
     projection_metadata = {
         "source_adapter": source_adapter_path,
         "target_model": target_base,
         "global_alpha": alpha,
-        "module_alpha_map": module_alpha_map,
+        "module_alpha_map": serializable_alpha_map,
         "rank": target_r,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }

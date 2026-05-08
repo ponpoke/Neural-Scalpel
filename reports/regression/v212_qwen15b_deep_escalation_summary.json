@@ -1,0 +1,30 @@
+{
+    "deep_mlp_0.09375": {
+        "accuracy": 0.38,
+        "fixed": 0,
+        "regressed": 0,
+        "sentinel": "PASS",
+        "verdict": "SAFE"
+    },
+    "deep_mlp_0.125": {
+        "accuracy": 0.38,
+        "fixed": 0,
+        "regressed": 0,
+        "sentinel": "PASS",
+        "verdict": "SAFE"
+    },
+    "deep_mlp_0.1875": {
+        "accuracy": 0.38,
+        "fixed": 0,
+        "regressed": 0,
+        "sentinel": "PASS",
+        "verdict": "SAFE"
+    },
+    "deep_mlp_0.25": {
+        "accuracy": 0.38,
+        "fixed": 0,
+        "regressed": 0,
+        "sentinel": "PASS",
+        "verdict": "SAFE"
+    }
+}

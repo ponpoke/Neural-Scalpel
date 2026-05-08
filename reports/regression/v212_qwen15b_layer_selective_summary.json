@@ -1,0 +1,30 @@
+{
+    "block_deep_21-27": {
+        "accuracy": 0.38,
+        "fixed": 0,
+        "regressed": 0,
+        "sentinel": "PASS",
+        "verdict": "SAFE"
+    },
+    "block_mid_deep_14-20": {
+        "accuracy": 0.36,
+        "fixed": 0,
+        "regressed": 1,
+        "sentinel": "FAIL",
+        "verdict": "UNSAFE"
+    },
+    "block_mid_early_7-13": {
+        "accuracy": 0.36,
+        "fixed": 0,
+        "regressed": 1,
+        "sentinel": "FAIL",
+        "verdict": "UNSAFE"
+    },
+    "block_shallow_0-6": {
+        "accuracy": 0.36,
+        "fixed": 0,
+        "regressed": 1,
+        "sentinel": "PASS",
+        "verdict": "UNSAFE"
+    }
+}

@@ -1,0 +1,44 @@
+{
+    "attn2.0_mlp0.01": {
+        "accuracy": 0.38,
+        "fixed": 0,
+        "regressed": 0,
+        "sentinel": "PASS",
+        "verdict": "SAFE"
+    },
+    "attn2.0_mlp0.03": {
+        "accuracy": 0.38,
+        "fixed": 0,
+        "regressed": 0,
+        "sentinel": "PASS",
+        "verdict": "SAFE"
+    },
+    "attn2.0_mlp0.0625": {
+        "accuracy": 0.38,
+        "fixed": 0,
+        "regressed": 0,
+        "sentinel": "PASS",
+        "verdict": "SAFE"
+    },
+    "attn3.0_mlp0.01": {
+        "accuracy": 0.38,
+        "fixed": 0,
+        "regressed": 0,
+        "sentinel": "PASS",
+        "verdict": "SAFE"
+    },
+    "attn3.0_mlp0.03": {
+        "accuracy": 0.38,
+        "fixed": 0,
+        "regressed": 0,
+        "sentinel": "PASS",
+        "verdict": "SAFE"
+    },
+    "attn3.0_mlp0.0625": {
+        "accuracy": 0.36,
+        "fixed": 0,
+        "regressed": 1,
+        "sentinel": "FAIL",
+        "verdict": "UNSAFE"
+    }
+}

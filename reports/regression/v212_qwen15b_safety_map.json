@@ -1,0 +1,112 @@
+{
+  "target_model": "Qwen2.5-Coder-1.5B-Instruct",
+  "diagnostic_version": "v2.12.0",
+  "attention_only": {
+    "safe_band": [1.0, 2.0, 3.0],
+    "danger_threshold": 4.0,
+    "primary_sentinel": "subqueries_004"
+  },
+  "hybrid_mlp_micro": {
+    "highest_non_regressive_global": {
+      "attn": 3.0,
+      "gate_up": 0.03,
+      "down": 0.0,
+      "accuracy": 0.38,
+      "regressions": 0
+    }
+  },
+  "layer_selective_mlp": {
+    "base_config": {
+      "attention": 3.0,
+      "gate_up_default": 0.03,
+      "down": 0.0
+    },
+    "tested_boost_configs": [
+      {
+        "block": "21-27",
+        "gate_up": 0.0625,
+        "verdict": "SAFE"
+      },
+      {
+        "block": "21-27",
+        "gate_up": 0.25,
+        "verdict": "STRUCTURAL_GAIN",
+        "observation": "Syntax Valid improved from 25 to 26. No execution regressions."
+      }
+    ],
+    "safe_blocks": ["21-27"],
+    "risk_blocks": ["7-13", "14-20"],
+    "uncertain_blocks": ["0-6"],
+    "sentinel": "subqueries_004"
+  },
+  "deep_escalation_fine_sweep": {
+    "base_config": {
+      "attention": 3.0,
+      "gate_up_default": 0.03,
+      "down": 0.0,
+      "deep_block": "21-27"
+    },
+    "tested_deep_gate_up": [0.3125, 0.375, 0.5],
+    "structural_sweet_spot": [0.3125, 0.375],
+    "overpressure_observed_at": 0.5,
+    "execution_fixed": 0
+  },
+  "tapered_synergy": {
+    "base_config": {
+      "attention": 3.0,
+      "gate_up_default": 0.03,
+      "down": 0.0,
+      "deep_21_27": 0.3125
+    },
+    "tested_mid_14_20": [0.035, 0.04, 0.045, 0.05],
+    "structural_gain_window": {
+      "mid_14_20": 0.04,
+      "syntax_valid": 26,
+      "accuracy": 0.38,
+      "regressions": 0,
+      "sentinel": "PASS"
+    },
+    "non_monotonic_failure": {
+      "mid_14_20": 0.035,
+      "accuracy": 0.36,
+      "regressions": 1,
+      "sentinel": "FAIL"
+    }
+  },
+  "manifold_harmonization": {
+    "base_config": {
+      "attention": 3.0,
+      "down": 0.0,
+      "mid_deep_14_20": 0.04,
+      "deep_21_27": 0.3125
+    },
+    "tested_shallow_mid_early": [
+      {"shallow_0_6": 0.005, "mid_early_7_13": 0.005},
+      {"shallow_0_6": 0.010, "mid_early_7_13": 0.005},
+      {"shallow_0_6": 0.010, "mid_early_7_13": 0.010},
+      {"shallow_0_6": 0.015, "mid_early_7_13": 0.010}
+    ],
+    "best_structural_configuration": {
+      "attention": 3.0,
+      "shallow_0_6": 0.010,
+      "mid_early_7_13": 0.010,
+      "mid_deep_14_20": 0.04,
+      "deep_21_27": 0.3125,
+      "syntax_valid": 26,
+      "accuracy": 0.38,
+      "fixed": 0,
+      "regressions": 0,
+      "sentinel": "PASS"
+    },
+    "conclusion": "Full-manifold tapering preserved regression-free structural gain, but did not yet produce execution-level fixes."
+  },
+  "sentinel_definition": {
+    "id": "subqueries_004",
+    "rationale": "True regression detector for 1.5B manifold."
+  },
+  "scientific_hypothesis": {
+    "shared_safety_budget": "Stability depends on combined Attn+MLP pressure.",
+    "spatial_resilience_gradient": "Resilience increases toward deep layers (21-27).",
+    "law_of_balance_hypothesis": "Observed in Phase 6: Structural stability is maintained when shallow and mid-early layers are symmetrically tuned at micro-scales."
+  }
+}

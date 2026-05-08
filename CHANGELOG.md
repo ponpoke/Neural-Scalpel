@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.12.0 - 1.5B Manifold Harmonization
+
+### Added
+- **1.5B Architecture Support**: Optimized transplantation scaffold for 28-layer models (tested on Qwen2.5-Coder-1.5B).
+- **Layer-Specific Alpha Scaling**: Added support for `module.layer=value` syntax in `module_alpha_map` for surgical injection.
+- **Manifold Harmonization**: Implemented triple-layer tapered injection profile (Shallow/Mid/Deep).
+- **Structural Gain Diagnostic**: New classification for non-regressive structural improvements (Syntax Valid improvements).
+- **Law of Balance Hypothesis**: Empirical discovery of spatial symmetry requirements in early model tiers.
+
+### Fixed
+- Fixed JSON serialization of `module_alpha_map` when using tuple-based layer keys.
+- Corrected regex-based layer extraction for models with complex internal naming schemes.
+
 ## v2.11.0 - Risk-Calibrated Safety Mapping
 
 ### Added

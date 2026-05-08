@@ -2,7 +2,7 @@
 
 **No-Retraining LoRA Migration & Diagnostic Toolkit**
 
-[![Version](https://img.shields.io/badge/version-2.11.0-blue)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-2.12.0-blue)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-200%2B%20non--live%20passed-brightgreen)](tests/TEST_REPORT.md)
 [![Verification](https://img.shields.io/badge/Status-Validated%20Prototype-blue)](docs/PRODUCTION_READINESS_CRITERIA.md)
@@ -66,17 +66,23 @@ For the first time, Neural-Scalpel achieved **True Positive Transfer** involving
 | v210_v0 (Attention-Only) | 24.0% | 0 | 0 | **PASS** | Validated |
 | v210_v1c (Hybrid-Gated) | 26.0% | 1 | 0 | **PASS** | Best-Tested |
 
-### v2.11 Evolution: Risk-Calibrated Safety Mapping (Diagnostic Infrastructure)
+### v2.12 Evolution: 1.5B Manifold Harmonization (Qwen 7B → 1.5B)
 
-Neural-Scalpel v2.11 transitions from heuristic tuning to an **Empirical Diagnostic Framework**. Rather than searching for a universal alpha constant, v2.11 enables the construction of model-specific **Safety Maps**.
+Neural-Scalpel v2.12 expands the diagnostic framework to the **28-layer architecture** of Qwen2.5-Coder-1.5B. Through six phases of investigation, we successfully mapped the spatial resilience of the 1.5B manifold.
 
-- **Non-Monotonic Safety Discovery**: Targeted sweeps revealed that safety does not follow a linear path. For example, in the Qwen2.5 7B→0.5B setup, **Alpha=3.0 was identified as a localized Failure Zone** (triggering Python hallucination), while higher (4.0) and lower (2.0) values remained safe.
-- **Automated Risk Profiling**: The system now automatically generates `safety_map.json`, categorizing alpha ranges into `SAFE`, `UNSAFE`, and `AVOID BANDS`.
-- **Reproducible Metrics**: Integrated `eval_metadata` (dtype/merge tracking) and true "Effective Delta" norm calculations for scientific traceability.
+- **The Law of Balance Hypothesis**: Discovered that structural stability (Syntax +1) across the entire 28-layer manifold is only achievable when early tiers (Shallow and Mid-Early) are symmetrically tuned at micro-scales.
+- **Extreme Deep Resilience**: Identified that the deep layers (21-27) can tolerate MLP alphas as high as **0.375** (12x the global limit) without regression, acting as a stable reservoir for transplanted knowledge.
+- **Structural Gain Validated**: Achieved a consistent **Syntax Valid: 26** (+1 improvement) across the full manifold without any observed regressions in the SQL-50 suite.
+- **Execution Activation Ceiling**: While structural improvements were achieved, execution-level fixes (Fixed > 0) remain elusive for MLP-only surgery on 1.5B, defining the next research frontier.
 
-**Current Validated Safety Map (v2.11):**
-- **Attention**: SAFE at [0.5, 1.0, 2.0, 4.0]. **AVOID BAND: [2.75, 3.25]**.
-- **MLP**: High-sensitivity. Recommended Alpha: **0.0 (Gated)** or <0.02.
+**Current Validated 1.5B Safety Map (v2.12):**
+- **Attention**: SAFE at [1.0, 2.0, 3.0]. DANGER at 4.0+.
+- **MLP (Deep 21-27)**: **Structural Sweet Spot: [0.3125, 0.375]**.
+- **MLP (Mid-Deep 14-20)**: **Synergy Window: 0.04**.
+- **MLP (Shallow/Mid-Early)**: Recommended Alpha: **0.005–0.01 (Symmetric)**.
+
+> [!IMPORTANT]
+> v2.12 demonstrates that while we can successfully "house" transplanted intelligence in a 1.5B manifold without regression, functional activation requires precise layer coordination and likely attention-layer surgery in future iterations.
 
 **Current Best Validated Configuration (v2.10):**
 `--module-alpha-map q_proj=4,k_proj=4,v_proj=4,o_proj=4,gate_proj=0.125,up_proj=0.125,down_proj=0`
@@ -159,8 +165,10 @@ Behavioral Alignment remains an active research direction. Current implementatio
 
 ## Documentation & Reports
 - **[Usage Guide](docs/USAGE.md):** Practical commands for research CLI, Phase 5 validation, and External Proxy Fallback.
-- **[v2.11 Safety Map](reports/regression/v211_safety_map.json):** Model-specific safe/unsafe alpha regions and avoid bands for Qwen2.5-Coder 7B→0.5B.
-- **[v2.11 Diagnostic Report](reports/regression/v211_diagnostic_report.md):** Full risk-calibrated safety mapping analysis.
+- **[v2.12 1.5B Final Report](reports/regression/v212_qwen15b_final_report.md):** Comprehensive mapping analysis of the Qwen-1.5B manifold and the 'Law of Balance' hypothesis.
+- **[v2.12 1.5B Safety Map](reports/regression/v212_qwen15b_safety_map.json):** Layer-selective alpha regions for stable 1.5B transplantation.
+- **[v2.11 0.5B Safety Map](reports/regression/v211_safety_map.json):** Model-specific safe/unsafe alpha regions for Qwen2.5-Coder 7B→0.5B.
+- **[v2.11 0.5B Diagnostic Report](reports/regression/v211_diagnostic_report.md):** Original risk-calibrated safety mapping analysis.
 - **[Chain of Evidence Report (Sample)](reports/sample_report.md):** Detailed automated analysis of a projection run.
 - **[Technical Report](TECHNICAL_REPORT.md):** Mathematical proofs and architecture overview.
 - **[Project Vision & Roadmap](docs/RESEARCH_AND_COMMERCIAL_ROADMAP.md):** Our strategy for ML research validation and commercial diagnostic tools.
