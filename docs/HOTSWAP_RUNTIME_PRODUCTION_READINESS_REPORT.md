@@ -146,6 +146,17 @@ Conclusion: PyTorch-native swap overhead is extremely low (~2.35ms p99). Pending
 - **Phase 7H-2 (10K)**: Sustained 10,000 requests (896 atomic swaps) with zero degradation and stable throughput.
 - **Phase 5-C (Route-Window Optimization)**: Successfully transitioned from per-token swap/rollback to route-window persistent swapping. Verified route application with `swap_count=1` and `verified_rollbacks=1` over 1600 tokens. Checksum-level rollback verification passed.
 
+### External Proxy Fallback Compatibility Mitigation (SUCCESS)
+- **Status**: Implemented and validated (Phases Fallback-A to E).
+- **Phases**:
+    - [x] Phase Fallback-A: Configuration & serving mode selection (internal/external_proxy/fail_closed).
+    - [x] Phase Fallback-B: Backend Registry (route_id to URL resolution).
+    - [x] Phase Fallback-C: ProxyServingEngine (HTTP forwarding with 5xx/timeout health tracking).
+    - [x] Phase Fallback-D: Automatic fallback in `auto` mode based on internal compatibility check failure.
+    - [x] Phase Fallback-E: Qualitative Trade-off Analysis completed.
+- **Validation**: Live smoke test passed using a local FastAPI backend and `ProxyServingEngine` integration.
+- **Conclusion**: This fallback mitigates vLLM internal monkey-patch dependency risk, but does not eliminate all deployment risk. It trades route density and memory efficiency for process-level isolation and operational simplicity. Production-grade use still requires multi-backend load testing, operational monitoring, and the final 24h persistent-route soak.
+
 ### Real LoRA Payload Endurance Benchmark (Step 2)
 
 **Objective:** Validate Hot-Swap with real LoRA-derived safetensors payloads (not simulated dummy deltas).
@@ -299,10 +310,11 @@ The table below summarizes previously identified production gaps and their curre
 ### Priority 1: vLLM/TGI Real Integration
 
 **Step 4A: External Integration (COMPLETE)**
-- Route-aware proxy deployed.
+- Route-aware proxy deployed and integrated into `PilotServer`.
 - Strict temporal isolation validated against live vLLM backend.
 - Mixed-route batches correctly split/rejected.
 - 150-request stress test confirmed 0 route leakage.
+- **External Proxy Fallback** implemented as a version-resilient safety path.
 
 **Step 4B: Internal vLLM Plugin Integration**
 
@@ -324,9 +336,14 @@ The table below summarizes previously identified production gaps and their curre
 - [x] Phase 5-E-3 worst-case alternating route stress validation
 - [x] Phase 5-F text/top-token logprob trace determinism follow-up under tested cache-reset condition
 
-**Remaining:**
+**Remaining Production Candidate Gate:**
 - [ ] 24h persistent-route soak validation
+
+**Future Hardening / Broader Validation:**
 - [ ] Broader model coverage: Qwen/Llama-class fused attention variants
+- [ ] Broader vLLM version compatibility validation
+- [ ] Multi-GPU / multi-node validation
+- [ ] SLA-grade real-traffic pilot
 
 ### Priority 2: Real-LoRA Qualitative / Small-Sample Evaluation (PARTIAL)
 

@@ -1,0 +1,8 @@
+gamma,exact_same_rate_raw,exact_same_rate_normalized,projected_sql_signal_rate,projected_repetition_rate,projected_empty_rate,projected_avg_length,behavioral_status
+0.0,1.0,1.0,0.75,0.0,0.0,502.25,IDENTICAL_TO_BASE
+1.0,1.0,1.0,0.75,0.0,0.0,502.25,IDENTICAL_TO_BASE
+2.0,1.0,1.0,0.75,0.0,0.0,502.25,IDENTICAL_TO_BASE
+4.0,1.0,1.0,0.75,0.0,0.0,502.25,IDENTICAL_TO_BASE
+8.0,1.0,1.0,0.75,0.0,0.0,502.25,IDENTICAL_TO_BASE
+16.0,1.0,1.0,0.75,0.0,0.0,502.25,IDENTICAL_TO_BASE
+32.0,1.0,1.0,0.75,0.0,0.0,502.25,IDENTICAL_TO_BASE

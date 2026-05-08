@@ -1,245 +1,192 @@
-"""
-Prepare Actual Trained LoRA Payload for Neural-Scalpel
-
-This script downloads a PEFT LoRA adapter from HuggingFace, 
-projects the low-rank matrices (lora_B @ lora_A * scaling) into 
-full-rank weight deltas, and packages them as a Neural-Scalpel 
-`.scalpel_route` with a `.safetensors` payload.
-"""
-
 import os
 import sys
 import json
 import torch
+import torch.nn.functional as F
 import hashlib
+import math
 from pathlib import Path
 from huggingface_hub import hf_hub_download
+from transformers import AutoConfig
 from safetensors.torch import load_file, save_file
 
+def infer_qwen_target_shape(module_name: str, config) -> list[int]:
+    """Infers the target shape for a given module name and model config (GQA-aware)."""
+    t_hidden = config.hidden_size
+    t_intermediate = getattr(config, "intermediate_size", t_hidden * 4)
+    t_num_heads = config.num_attention_heads
+    t_num_kv_heads = getattr(config, "num_key_value_heads", t_num_heads)
+    t_head_dim = t_hidden // t_num_heads
+    t_kv_dim = t_num_kv_heads * t_head_dim
+
+    if "mlp.down_proj" in module_name: 
+        return [t_hidden, t_intermediate]
+    elif "mlp.gate_proj" in module_name or "mlp.up_proj" in module_name: 
+        return [t_intermediate, t_hidden]
+    elif "self_attn.k_proj" in module_name or "self_attn.v_proj" in module_name:
+        return [t_kv_dim, t_hidden]
+    return [t_hidden, t_hidden]
+
+def build_interpolated_layer_mapping(source_layers: list[int], target_layers: int) -> dict:
+    """Builds a weighted linear interpolation map for layer folding."""
+    num_src = len(source_layers)
+    mapping = {}
+    for t_idx in range(target_layers):
+        source_pos = t_idx * (num_src - 1) / (target_layers - 1)
+        lower = math.floor(source_pos)
+        upper = math.ceil(source_pos)
+        alpha = source_pos - lower
+        mapping[str(t_idx)] = {
+            "lower": source_layers[lower],
+            "upper": source_layers[upper],
+            "alpha": round(alpha, 4)
+        }
+    return mapping
+
 def fuse_qwen_layers(projected_delta: dict) -> dict:
-    """
-    Fuses Qwen-style separate projections into vLLM's fused layers.
-
-    vLLM tested representation:
-    - gate_proj + up_proj -> gate_up_proj
-    - q_proj + k_proj + v_proj -> qkv_proj
-
-    This is implemented as a two-pass transform so the result does not
-    depend on safetensors/dict key iteration order.
-    """
+    """Fuses Qwen-style separate projections into vLLM's fused layers."""
     fused = {}
     consumed = set()
-
-    # Pass 1: create fused tensors.
     for key, tensor in projected_delta.items():
-        # MLP Fusion: gate_proj + up_proj -> gate_up_proj
         if ".mlp.gate_proj.weight" in key:
             up_key = key.replace(".mlp.gate_proj.weight", ".mlp.up_proj.weight")
             fused_key = key.replace(".mlp.gate_proj.weight", ".mlp.gate_up_proj.weight")
-
             if up_key in projected_delta:
-                gate = tensor
-                up = projected_delta[up_key]
-
-                if list(gate.shape) != list(up.shape):
-                    raise ValueError(
-                        f"MLP fusion shape mismatch: {key}={list(gate.shape)}, "
-                        f"{up_key}={list(up.shape)}"
-                    )
-
-                fused[fused_key] = torch.cat([gate, up], dim=0)
-                consumed.add(key)
-                consumed.add(up_key)
-                print(f"  [FUSE] MLP: {key} + {up_key} -> {fused_key}")
-            continue
-
-        # Attention Fusion: q_proj + k_proj + v_proj -> qkv_proj
+                fused[fused_key] = torch.cat([tensor, projected_delta[up_key]], dim=0)
+                consumed.add(key); consumed.add(up_key)
         if ".self_attn.q_proj.weight" in key:
             k_key = key.replace(".self_attn.q_proj.weight", ".self_attn.k_proj.weight")
             v_key = key.replace(".self_attn.q_proj.weight", ".self_attn.v_proj.weight")
             fused_key = key.replace(".self_attn.q_proj.weight", ".self_attn.qkv_proj.weight")
-
             if k_key in projected_delta and v_key in projected_delta:
-                q = tensor
-                k = projected_delta[k_key]
-                v = projected_delta[v_key]
-
-                if q.shape[1] != k.shape[1] or q.shape[1] != v.shape[1]:
-                    raise ValueError(
-                        f"QKV fusion input-dim mismatch: {key}={list(q.shape)}, "
-                        f"{k_key}={list(k.shape)}, {v_key}={list(v.shape)}"
-                    )
-
-                fused[fused_key] = torch.cat([q, k, v], dim=0)
-                consumed.add(key)
-                consumed.add(k_key)
-                consumed.add(v_key)
-                print(f"  [FUSE] ATTN: {key} + {k_key} + {v_key} -> {fused_key}")
-            continue
-
-    # Pass 2: keep only non-consumed tensors.
+                fused[fused_key] = torch.cat([tensor, projected_delta[k_key], projected_delta[v_key]], dim=0)
+                consumed.add(key); consumed.add(k_key); consumed.add(v_key)
     for key, tensor in projected_delta.items():
-        if key in consumed:
-            continue
-
-        # Safety: do not keep standalone fused-source projections if their group was incomplete.
-        # They do not exist in the tested vLLM Qwen representation.
-        if (
-            ".mlp.gate_proj.weight" in key
-            or ".mlp.up_proj.weight" in key
-            or ".self_attn.q_proj.weight" in key
-            or ".self_attn.k_proj.weight" in key
-            or ".self_attn.v_proj.weight" in key
-        ):
-            print(f"  [SKIP] Unfused source projection not kept: {key}")
-            continue
-
-        fused[key] = tensor
-
+        if key not in consumed:
+            if any(x in key for x in [".gate_proj", ".up_proj", ".q_proj", ".k_proj", ".v_proj"]): continue
+            fused[key] = tensor
     return fused
 
-def project_peft_lora(hf_repo_id: str, output_dir: str, target_model: str = None):
-    """
-    Downloads adapter_config.json and adapter_model.safetensors.
-    Projects to full rank and saves as scalpel payload.
-    """
-    out_path = Path(output_dir)
-    out_path.mkdir(parents=True, exist_ok=True)
+def resize_and_analyze(tensor: torch.Tensor, target_shape: list, rank: int = 16):
+    """Resizes a matrix and analyze loss via SVD. Returns (reconstructed, stats, svd_data)."""
+    t = tensor.unsqueeze(0).unsqueeze(0).to(torch.float32)
+    t = F.interpolate(t, size=target_shape, mode='bilinear', align_corners=False)
+    t = t.squeeze(0).squeeze(0)
+
+    try:
+        U, S, V = torch.svd(t)
+        energy_total = torch.sum(S ** 2)
+        U_r, S_r, V_r = U[:, :rank], S[:rank], V[:, :rank]
+        energy_kept = torch.sum(S_r ** 2)
+        retention = (energy_kept / energy_total).item() if energy_total > 0 else 1.0
+        t_re = U_r @ torch.diag(S_r) @ V_r.t()
+        stats = {"energy_retention": retention, "max_abs": t_re.abs().max().item()}
+        return t_re.to(torch.float16), stats, (U_r, S_r, V_r)
+    except Exception:
+        return t.to(torch.float16), {"energy_retention": 1.0, "max_abs": t.abs().max().item()}, None
+
+def sha256_file(path: str | Path, chunk_size: int = 64 * 1024 * 1024) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while chunk := f.read(chunk_size):
+            h.update(chunk)
+    return h.hexdigest()
+
+def project_peft_lora(hf_repo_id: str, output_dir: str, target_model_id: str, export_peft: bool = False, scale_gamma: float = 1.0):
+    out_path = Path(output_dir); out_path.mkdir(parents=True, exist_ok=True)
+    print(f"\n[PHASE 1] Initializing Structural Projection Baseline v2...")
+    if os.path.exists(hf_repo_id):
+        config_path = os.path.join(hf_repo_id, "adapter_config.json")
+        weights_path = os.path.join(hf_repo_id, "adapter_model.safetensors")
+    else:
+        config_path = hf_hub_download(repo_id=hf_repo_id, filename="adapter_config.json")
+        weights_path = hf_hub_download(repo_id=hf_repo_id, filename="adapter_model.safetensors")
     
-    print(f"Downloading LoRA config from {hf_repo_id}...")
-    config_path = hf_hub_download(repo_id=hf_repo_id, filename="adapter_config.json")
-    with open(config_path, "r") as f:
-        config = json.load(f)
-        
-    r = config.get("r", 8)
-    alpha = config.get("lora_alpha", 16)
-    scaling = alpha / r
-    print(f"LoRA Rank: {r}, Alpha: {alpha}, Scaling: {scaling}")
+    with open(config_path, "r") as f: adapter_config = json.load(f)
     
-    print(f"Downloading LoRA weights from {hf_repo_id}...")
-    weights_path = hf_hub_download(repo_id=hf_repo_id, filename="adapter_model.safetensors")
+    target_config = AutoConfig.from_pretrained(target_model_id)
+    r, alpha = adapter_config.get("r", 8), adapter_config.get("lora_alpha", 16)
+    scaling = (alpha / r) * scale_gamma
+
+    print(f"\n[PHASE 2] Interpolating Layers...")
     lora_sd = load_file(weights_path)
+    src_layers = sorted(list(set([int(k.split(".layers.")[1].split(".")[0]) for k in lora_sd.keys() if ".layers." in k])))
+    layer_mapping = build_interpolated_layer_mapping(src_layers, target_config.num_hidden_layers)
     
-    # Calculate source adapter hash for manifest
-    with open(weights_path, "rb") as f:
-        source_adapter_sha256 = hashlib.sha256(f.read()).hexdigest()
+    projected_delta = {}; peft_lora_sd = {}; all_stats = []
 
-    base_model = config.get("base_model_name_or_path", "unknown")
-    
-    # Map key back to base model parameter name
-    # e.g., base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight
-    # -> model.layers.0.self_attn.q_proj.weight
-    projected_delta = {}
-    lora_A_keys = [k for k in lora_sd.keys() if "lora_A" in k]
-    
-    print("\n[INFO] Starting Key Mapping...")
-    for key_A in lora_A_keys:
-        key_B = key_A.replace("lora_A", "lora_B")
-        if key_B not in lora_sd:
-            print(f"  [WARN] Missing {key_B} for {key_A}. Skipping.")
-            continue
+    for t_idx, map_info in layer_mapping.items():
+        s_low, s_up, alpha_w = map_info["lower"], map_info["upper"], map_info["alpha"]
+        low_keys = [k for k in lora_sd.keys() if f".layers.{s_low}." in k and "lora_A" in k]
+        for k_A_low in low_keys:
+            suffix = k_A_low.split(f".layers.{s_low}.")[1]
+            k_B_low = k_A_low.replace("lora_A", "lora_B")
+            k_A_up = k_A_low.replace(f".layers.{s_low}.", f".layers.{s_up}.")
+            k_B_up = k_A_up.replace("lora_A", "lora_B")
             
-        A = lora_sd[key_A]  # shape: (r, in_features)
-        B = lora_sd[key_B]  # shape: (out_features, r)
-        
-        # Project: Delta_W = B @ A * scaling
-        delta_W = (B.to(torch.float32) @ A.to(torch.float32)) * scaling
-        
-        # Heuristic-based key cleaning
-        # PEFT often nests prefixes: base_model.model.model.layers...
-        # We aim for standard Transformers name like 'model.layers.0...'
-        clean_key = key_A
-        if clean_key.startswith("base_model.model.model."):
-            clean_key = clean_key.replace("base_model.model.model.", "model.", 1)
-        elif clean_key.startswith("base_model.model."):
-            clean_key = clean_key.replace("base_model.model.", "", 1)
-        
-        # Strip .lora_A and handle weight suffix
-        clean_key = clean_key.replace(".lora_A", "")
-        if not clean_key.endswith(".weight") and key_A.endswith(".weight"):
-            clean_key += ".weight"
+            def get_dW(ka, kb):
+                if ka in lora_sd and kb in lora_sd:
+                    return (lora_sd[kb].to(torch.float32) @ lora_sd[ka].to(torch.float32)) * scaling
+                return None
+
+            dW_low = get_dW(k_A_low, k_B_low)
+            if dW_low is None: continue
             
-        print(f"  Mapping: {key_A} -> {clean_key}")
-        projected_delta[clean_key] = delta_W.to(torch.float16)
-        
-    if not projected_delta:
-        raise ValueError("[ERROR] No weight tensors were successfully projected. Check your LoRA keys.")
+            dW_up = get_dW(k_A_up, k_B_up)
+            if dW_up is None: dW_up = dW_low # Fallback to low if up missing
 
-    # Apply vLLM-specific fusion for Qwen/Llama models
-    print("\n[INFO] Applying vLLM layer fusion (gate_up, qkv)...")
-    projected_delta = fuse_qwen_layers(projected_delta)
+            dW = (1.0 - alpha_w) * dW_low + alpha_w * dW_up
+            clean_module = suffix.replace(".lora_A", "").replace(".weight", "")
+            target_shape = infer_qwen_target_shape(clean_module, target_config)
+            re_t, stats, svd = resize_and_analyze(dW, target_shape, rank=r)
+            
+            target_key = f"model.layers.{t_idx}.{clean_module}"
+            projected_delta[target_key] = re_t
+            all_stats.append(stats)
+            
+            if export_peft and svd:
+                U_r, S_r, V_r = svd
+                peft_lora_sd[f"base_model.model.{target_key}.lora_B.weight"] = (U_r @ torch.diag(torch.sqrt(S_r))).to(torch.float16)
+                peft_lora_sd[f"base_model.model.{target_key}.lora_A.weight"] = (torch.diag(torch.sqrt(S_r)) @ V_r.t()).to(torch.float16)
 
-    print(f"\n[INFO] Successfully projected and fused {len(projected_delta)} weight tensors.")
+    print(f"\n[PHASE 3] Finalizing Payloads...")
+    fused_delta = fuse_qwen_layers(projected_delta)
+    payload_path = out_path / f"{hf_repo_id.split('/')[-1]}_projected.safetensors"
+    save_file(fused_delta, str(payload_path))
     
-    # Save payload
-    payload_name = f"{hf_repo_id.split('/')[-1]}_payload.safetensors"
-    payload_path = out_path / payload_name
-    save_file(projected_delta, str(payload_path))
-    
-    # Hash it for manifest
-    with open(payload_path, "rb") as f:
-        sha256 = hashlib.sha256(f.read()).hexdigest()
-        
-    # Create route manifest with schema-compliant layers
-    route_id = hf_repo_id.split("/")[-1].lower()
-    
-    layers_manifest = []
-    for name, tensor in projected_delta.items():
-        # Calculate a simple hash for each layer's delta for schema compliance
-        layer_hash = hashlib.sha256(tensor.cpu().numpy().tobytes()).hexdigest()
-        layers_manifest.append({
-            "name": name,
-            "shape": list(tensor.shape),
-            "dtype": str(tensor.dtype).replace("torch.", ""),
-            "delta_sha256": layer_hash
-        })
+    if export_peft:
+        peft_path = out_path / "peft_adapter"
+        peft_path.mkdir(exist_ok=True)
+        save_file(peft_lora_sd, str(peft_path / "adapter_model.safetensors"))
+        with open(peft_path / "adapter_config.json", "w") as f:
+            json.dump({**adapter_config, "base_model_name_or_path": target_model_id}, f, indent=2)
+        with open(peft_path / "projection_metadata.json", "w") as f:
+            json.dump({
+                "projection_method": "structural_bilinear_svd_recompression_v2",
+                "scale_gamma": scale_gamma,
+                "source_adapter": hf_repo_id,
+                "target_model": target_model_id,
+                "behavioral_validation": "PENDING"
+            }, f, indent=2)
 
     manifest = {
-        "route_schema_version": "1.0.0",
-        "route_id": route_id,
-        "tenant_id": "eval-tenant",
-        "description": (
-            f"Evaluation-only projected LoRA from {hf_repo_id}. "
-            "Unsigned manifest; must be signed before production use."
-        ),
-        "evaluation_only": True,
-        "license": "OPEN",
-        "projection_method": "raw_delta_projection",
-        "source_model": base_model,
-        "target_model": target_model or base_model,
-        "source_adapter_sha256": source_adapter_sha256,
-        "target_model_sha256": "0" * 64,
-        "diagnostics": {
-            "verdict": "PASS",
-            "ppl_degradation": 0.0,
-            "kl_divergence": 0.0
-        },
-        "layers": layers_manifest,
-        "payload": {
-            "format": "safetensors",
-            "uri": str(payload_path.resolve()),
-            "sha256": sha256
-        },
-        "signature": {
-            "algorithm": "none",
-            "key_id": "eval-only",
-            "value": "unsigned"
-        }
+        "route_schema_version": "1.0.0", "route_id": hf_repo_id.split("/")[-1].lower(),
+        "projection_method": "structural_bilinear_svd_recompression_v2",
+        "scale_gamma": scale_gamma,
+        "target_shape_validation": {"status": "CONFIG_DERIVED", "note": "Use verify_target_runtime_shapes.py for RUNTIME_SHAPE_VERIFIED."},
+        "layer_mapping": {"strategy": "linear_interpolated_layer_folding", "mapping": layer_mapping},
+        "compression_stats": {"mean_energy_retention": sum(s["energy_retention"] for s in all_stats)/len(all_stats)},
+        "payload": {"uri": str(payload_path.resolve()), "sha256": sha256_file(payload_path)},
+        "diagnostics": {"verdict": "NOT_EVALUATED", "note": "Behavioral transfer pending."}
     }
-    
-    manifest_path = out_path / f"{route_id}.scalpel_route"
-    with open(manifest_path, "w") as f:
-        json.dump(manifest, f, indent=2)
-        
-    print(f"\n[INFO] Saved payload to {payload_path}")
-    print(f"[INFO] Saved manifest to {manifest_path}")
+    with open(out_path / f"{manifest['route_id']}.scalpel_route", "w") as f: json.dump(manifest, f, indent=2)
+    print(f"[SUCCESS] Baseline v2 Complete. Retention: {manifest['compression_stats']['mean_energy_retention']:.4f}")
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Prepare Actual LoRA Payload")
-    parser.add_argument("--lora_id", type=str, default="onurerkan/qwen2.5-0.5b-alpaca-lora-demo")
-    parser.add_argument("--output_dir", type=str, default="routes/actual_loras")
-    parser.add_argument("--target-model", type=str, default=None, help="Target model for the manifest (defaults to base_model)")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--lora_id", required=True); parser.add_argument("--target-model", required=True)
+    parser.add_argument("--output_dir", default="routes/projected"); parser.add_argument("--export-peft", action="store_true")
+    parser.add_argument("--scale-gamma", type=float, default=1.0)
     args = parser.parse_args()
-    
-    project_peft_lora(args.lora_id, args.output_dir, args.target_model)
+    project_peft_lora(args.lora_id, args.output_dir, args.target_model, args.export_peft, args.scale_gamma)

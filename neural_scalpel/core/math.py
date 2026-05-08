@@ -344,117 +344,108 @@ def sinkhorn_knopp(
     stop_thr: float = 1e-9
 ) -> torch.Tensor:
     """
-    Standard Sinkhorn-Knopp algorithm for Entropic Regularized Optimal Transport.
-    
-    Args:
-        C (torch.Tensor): Cost matrix of shape (N, M).
-        epsilon (float): Entropic regularization parameter (higher = smoother).
-        n_iter (int): Maximum number of iterations.
-        stop_thr (float): Stopping threshold for convergence.
-        
-    Returns:
-        P (torch.Tensor): The optimal transport plan (N, M).
+    Log-domain Sinkhorn-Knopp algorithm for Entropic Regularized Optimal Transport.
+    Improved with marginal residual stopping criteria.
     """
+    if epsilon <= 0:
+        raise ValueError("epsilon must be positive.")
+        
     device = C.device
     dtype = C.dtype
     n, m = C.shape
     
-    # K is the Gibbs kernel
-    K = torch.exp(-C / epsilon)
+    K_log = -C / epsilon
     
-    # Initial scalings
-    u = torch.ones(n, device=device, dtype=dtype) / n
-    v = torch.ones(m, device=device, dtype=dtype) / m
+    # Uniform marginals in log domain
+    log_a = torch.full((n,), -math.log(n), device=device, dtype=dtype)
+    log_b = torch.full((m,), -math.log(m), device=device, dtype=dtype)
     
-    # Uniform marginals
-    a = torch.ones(n, device=device, dtype=dtype) / n
-    b = torch.ones(m, device=device, dtype=dtype) / m
+    # Initial dual variables in log domain
+    log_u = torch.zeros(n, device=device, dtype=dtype)
+    log_v = torch.zeros(m, device=device, dtype=dtype)
 
     for i in range(n_iter):
-        u_prev = u
-        # u = a / (K @ v)
-        u = a / (torch.matmul(K, v) + 1e-12)
-        # v = b / (K.T @ u)
-        v = b / (torch.matmul(K.t(), u) + 1e-12)
+        log_u = log_a - torch.logsumexp(K_log + log_v.unsqueeze(0), dim=1)
+        log_v = log_b - torch.logsumexp(K_log.t() + log_u.unsqueeze(0), dim=1)
         
-        # Check convergence
+        # Marginal Residual Stopping Criteria
         if i % 10 == 0:
-            err = (u - u_prev).abs().sum()
-            if err < stop_thr:
+            log_P = log_u.unsqueeze(1) + K_log + log_v.unsqueeze(0)
+            row_err = (torch.logsumexp(log_P, dim=1) - log_a).abs().max()
+            col_err = (torch.logsumexp(log_P, dim=0) - log_b).abs().max()
+            
+            if max(row_err.item(), col_err.item()) < stop_thr:
                 break
                 
-    # Transport plan P = diag(u) @ K @ diag(v)
-    P = u.unsqueeze(1) * K * v.unsqueeze(0)
-    return P
+    log_P = log_u.unsqueeze(1) + K_log + log_v.unsqueeze(0)
+    return torch.exp(log_P)
 
 def wasserstein_discrete_routing(
     source_heads: torch.Tensor,
     target_heads: torch.Tensor,
     epsilon: float = 0.01,
     alpha: float = 0.1,
-    mode: str = "hard"
-) -> torch.Tensor:
+    mode: str = "hard",
+    return_diagnostics: bool = False
+) -> Union[torch.Tensor, Tuple[torch.Tensor, dict]]:
     """
     Wasserstein Discrete Routing (WDR) with Soft-Merge Fallback.
-    
-    Finds a discrete matching between source heads and target heads.
-    Supports "hard" mode (1-to-1 primary matching) with "Soft-Merge"救済 (fallback)
-    to prevent the loss of information from unmatched heads (robotomy).
-    
-    Args:
-        source_heads (torch.Tensor): Source head activations (N, num_s_heads, head_dim).
-        target_heads (torch.Tensor): Target head activations (N, num_t_heads, head_dim).
-        epsilon (float): Sinkhorn regularization parameter.
-        alpha (float): Soft-merge weight for remnant heads (default: 0.1).
-        mode (str): "soft" for raw Sinkhorn, "hard" for Hard-WDR with fallback.
-        
-    Returns:
-        P (torch.Tensor): Routing matrix of shape (num_s_heads, num_t_heads).
+    Numerically stabilized for Baseline v2 with diagnostic reporting.
     """
+    if mode not in {"soft", "hard"}:
+        raise ValueError("mode must be 'soft' or 'hard'")
+        
     S_heads = source_heads.shape[1]
     T_heads = target_heads.shape[1]
+    dtype = source_heads.dtype
     
     # 1. Compute Cost Matrix (Normalized Squared L2 Distance)
-    H_s = source_heads.transpose(0, 1).reshape(S_heads, -1)
-    H_t = target_heads.transpose(0, 1).reshape(T_heads, -1)
+    H_s = source_heads.transpose(0, 1).reshape(S_heads, -1).to(torch.float32)
+    H_t = target_heads.transpose(0, 1).reshape(T_heads, -1).to(torch.float32)
     
     H_s_norm = (H_s ** 2).sum(dim=1, keepdim=True) 
     H_t_norm = (H_t ** 2).sum(dim=1, keepdim=True).t() 
     C = torch.clamp(H_s_norm + H_t_norm - 2 * torch.matmul(H_s, H_t.t()), min=0.0)
     C = C / (C.max() + 1e-12)
     
-    # 2. Solve Soft Optimal Transport (Sinkhorn)
+    # 2. Solve Soft Optimal Transport (Log-domain Sinkhorn)
     P_soft = sinkhorn_knopp(C, epsilon=epsilon)
     
+    col_sums = P_soft.sum(dim=0, keepdim=True)
+    tiny = torch.finfo(P_soft.dtype).tiny
+    fallback_used = bool(torch.any(col_sums <= tiny).item())
+    
     if mode == "soft":
-        return P_soft / (P_soft.sum(dim=0, keepdim=True) + 1e-12)
+        if fallback_used:
+            P_col = torch.softmax(-C / max(epsilon, 1e-6), dim=0)
+            P_final = (P_col / P_col.sum(dim=0, keepdim=True)).to(dtype)
+        else:
+            P_final = (P_soft / col_sums.clamp_min(tiny)).to(dtype)
+            
+        if return_diagnostics:
+            diag = {"sinkhorn_fallback_used": fallback_used, "epsilon": epsilon, "mode": mode}
+            return P_final, diag
+        return P_final
 
     # 3. Hard-WDR with Soft-Merge Fallback
-    # Each target head selects its primary "winner" source head
-    # winner_indices: index of source head for each target head
-    winner_indices = torch.argmax(P_soft, dim=0) # (T_heads,)
-    
-    # Create Hard Assignment Matrix (0 or 1)
+    winner_indices = torch.argmax(P_soft, dim=0) 
     P_hard = torch.zeros_like(P_soft)
     P_hard[winner_indices, torch.arange(T_heads, device=P_soft.device)] = 1.0
     
-    # 4. Identify Remnant (Unmatched) Source Heads
     all_source_indices = set(range(S_heads))
     matched_source_indices = set(winner_indices.tolist())
     remnant_indices = list(all_source_indices - matched_source_indices)
     
     if remnant_indices and alpha > 0:
-        # For each remnant head, find the most similar target head and blend it
-        # We reuse the cost matrix C (lower cost = more similar)
         for i in remnant_indices:
-            # Find target head j with minimum cost for source head i
             j = torch.argmin(C[i, :])
             P_hard[i, j] = alpha
             
-    # 5. Final Column-wise Renormalization
-    # Ensures each target head receives a total weight of 1.0
-    P_final = P_hard / (P_hard.sum(dim=0, keepdim=True) + 1e-12)
+    P_final = (P_hard / (P_hard.sum(dim=0, keepdim=True) + 1e-12)).to(dtype)
     
+    if return_diagnostics:
+        diag = {"sinkhorn_fallback_used": False, "epsilon": epsilon, "mode": mode}
+        return P_final, diag
     return P_final
 
 # ==============================================================================
@@ -797,6 +788,210 @@ def router_logic_preservation_mapping(
     # A simplified simulation: align the gating logic via PCA subspace injection
     # In reality, this requires evaluating the routing probability distribution.
     return pca_guided_subspace_injection(source_gate, target_gate)
+
+def solve_ridge(X: torch.Tensor, Y: torch.Tensor, alpha: float = 1.0) -> torch.Tensor:
+    """
+    Solves for W in the equation X @ W = Y using Ridge Regression (L2 regularization).
+    
+    Args:
+        X (torch.Tensor): Input activations of shape (n_samples, d_in).
+        Y (torch.Tensor): Target activations/deltas of shape (n_samples, d_out).
+        alpha (float): L2 regularization strength.
+        
+    Returns:
+        W (torch.Tensor): The solved weight matrix of shape (d_in, d_out).
+    """
+    # X: (n, d_in), Y: (n, d_out)
+    n, d_in = X.shape
+    device = X.device
+    dtype = X.dtype
+    
+    # Use float64 for stability during matrix inversion
+    X_f64 = X.to(torch.float64)
+    Y_f64 = Y.to(torch.float64)
+    
+    # (X.T @ X + alpha * I) @ W = X.T @ Y
+    XTX = torch.matmul(X_f64.t(), X_f64)
+    reg = alpha * torch.eye(d_in, device=device, dtype=torch.float64)
+    
+    # Solve via Cholesky or pseudo-inverse
+    W_f64 = torch.linalg.solve(XTX + reg, torch.matmul(X_f64.t(), Y_f64))
+    
+    return W_f64.to(dtype)
+
+def low_rank_decompose_for_peft(W: torch.Tensor, rank: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Decomposes a full-rank delta matrix W into low-rank matrices A and B using SVD.
+    A: (rank, d_in), B: (d_out, rank) such that W approx A.T @ B.T.
+    Matches the PEFT/LoRA weight format for linear layers.
+    """
+    # W: (d_in, d_out)
+    # We want W approx A^T @ B^T
+    # SVD: W = U S V^T
+    # W_r = U_r S_r V_r^T = (U_r sqrt(S_r)) (sqrt(S_r) V_r^T)
+    # A^T = U_r sqrt(S_r) -> A = (U_r sqrt(S_r))^T = sqrt(S_r) U_r^T
+    # B^T = sqrt(S_r) V_r^T -> B = (sqrt(S_r) V_r^T)^T = V_r sqrt(S_r)
+    
+    U, S, Vh = torch.linalg.svd(W.to(torch.float64), full_matrices=False)
+    
+    # Truncate to rank
+    U_r = U[:, :rank]
+    S_r = S[:rank]
+    Vh_r = Vh[:rank, :]
+    
+    sqrtS = torch.sqrt(S_r)
+    
+    # A: (rank, d_in)
+    A = (sqrtS[:, None] * U_r.T).to(W.dtype)
+    # B: (d_out, rank) -> Vh_r is (rank, d_out), so Vh_r.T is (d_out, rank)
+    B = (Vh_r.T * sqrtS[None, :]).to(W.dtype)
+    
+    return A, B
+
+def piecewise_svd_projection(
+    W_delta: torch.Tensor,
+    r_target: int,
+    high_energy_ratio: float = 0.3,
+    mid_energy_ratio: float = 0.5,
+    high_scale: float = 1.0,
+    mid_scale: float = 0.9,
+    low_scale: float = 0.0
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Piecewise Component Projection (v2.8)
+    Splits the delta weight into different energy components via SVD.
+    """
+    U, S, Vh = torch.linalg.svd(W_delta.float(), full_matrices=False)
+    num_s = len(S)
+    k_high = max(1, int(num_s * high_energy_ratio))
+    k_mid = max(1, int(num_s * mid_energy_ratio))
+    S_new = S.clone()
+    S_new[:k_high] *= high_scale
+    S_new[k_high:k_high+k_mid] *= mid_scale
+    S_new[k_high+k_mid:] *= low_scale
+    U_trunc = U[:, :r_target]
+    S_trunc = S_new[:r_target]
+    Vh_trunc = Vh[:r_target, :]
+    return U_trunc, S_trunc, Vh_trunc
+
+def kernel_orthogonal_procrustes(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    num_heads: int,
+    sigma: float = 1.0,
+    n_components: int = 100
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Kernel Orthogonal Procrustes (KOP) with Nyström Approximation (v2.9)."""
+    N, d = A.shape
+    head_dim = d // num_heads
+    A_heads = A.view(N, num_heads, head_dim)
+    B_heads = B.view(N, num_heads, head_dim)
+    R_list, s_list, A_trans_list = [], [], []
+    for i in range(num_heads):
+        A_i, B_i = A_heads[:, i, :], B_heads[:, i, :]
+        indices = torch.randperm(N)[:min(n_components, N)]
+        landmarks = A_i[indices]
+        dist = torch.cdist(A_i, landmarks) ** 2
+        K_am = torch.exp(-dist / (2 * sigma ** 2))
+        dist_mm = torch.cdist(landmarks, landmarks) ** 2
+        K_mm = torch.exp(-dist_mm / (2 * sigma ** 2)) + 1e-6 * torch.eye(len(indices), device=A.device)
+        L, Q = torch.linalg.eigh(K_mm)
+        K_mm_inv_half = Q @ torch.diag(1.0 / torch.sqrt(torch.clamp(L, min=1e-7))) @ Q.t()
+        Phi_A = torch.matmul(K_am, K_mm_inv_half)
+        Phi_B = torch.matmul(torch.matmul(B_i, torch.linalg.pinv(B_i)), Phi_A)
+        U, S, Vh = torch.linalg.svd(torch.matmul(Phi_A.t(), Phi_B), full_matrices=False)
+        R_k = torch.matmul(U, Vh)
+        Phi_A_trans = torch.matmul(Phi_A, R_k)
+        W_reconstruct = torch.matmul(torch.linalg.pinv(Phi_A), B_i)
+        A_trans_list.append(torch.matmul(Phi_A_trans, W_reconstruct))
+        R_list.append(R_k)
+        s_list.append(torch.tensor(1.0, device=A.device))
+    A_transformed = torch.stack(A_trans_list, dim=1).reshape(N, d)
+    return A_transformed, torch.stack(R_list), torch.stack(s_list)
+
+def swiglu_jacobian(x: torch.Tensor) -> torch.Tensor:
+    """Calculates the diagonal Jacobian of the SiLU/Swish component of SwiGLU."""
+    sig = torch.sigmoid(x)
+    return sig * (1 + x * (1 - sig))
+
+def geglu_jacobian(x: torch.Tensor) -> torch.Tensor:
+    """Calculates the diagonal Jacobian of the GELU component of GeGLU."""
+    return 0.5 * (1 + torch.erf(x / math.sqrt(2))) + (x / math.sqrt(2 * math.pi)) * torch.exp(-0.5 * x**2)
+
+def swiglu_hessian(x: torch.Tensor) -> torch.Tensor:
+    """Calculates the diagonal Hessian (2nd derivative) of the SiLU/Swish component."""
+    sig = torch.sigmoid(x)
+    return sig * (1 - sig) * (2 + x * (1 - 2 * sig))
+
+def geglu_hessian(x: torch.Tensor) -> torch.Tensor:
+    """Calculates the diagonal Hessian of the GELU component."""
+    return (2 - x**2) / math.sqrt(2 * math.pi) * torch.exp(-0.5 * x**2)
+
+def jacobian_tangent_space_alignment(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    num_heads: int,
+    activation_type: str = "swiglu",
+    activation_states: Optional[torch.Tensor] = None
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Jacobian Tangent Space Alignment (JTSA) (v2.9)."""
+    N, d = A.shape
+    head_dim = d // num_heads
+    A_heads, B_heads = A.view(N, num_heads, head_dim), B.view(N, num_heads, head_dim)
+    state_heads = activation_states.view(N, num_heads, head_dim) if activation_states is not None else None
+    j_func = swiglu_jacobian if activation_type == "swiglu" else geglu_jacobian
+    R_list, s_list, A_trans_list = [], [], []
+    for i in range(num_heads):
+        A_i, B_i = A_heads[:, i, :], B_heads[:, i, :]
+        state = state_heads[:, i, :] if state_heads is not None else B_i / (torch.norm(B_i, dim=0, keepdim=True) + 1e-6)
+        J = j_func(state)
+        M = torch.matmul((J * A_i).t(), B_i)
+        U, S, Vh = torch.linalg.svd(M, full_matrices=False)
+        R = torch.matmul(U, Vh)
+        A_trans_list.append(torch.matmul(A_i, R))
+        R_list.append(R)
+        s_list.append(torch.tensor(1.0, device=A.device))
+    return torch.stack(A_trans_list, dim=1).reshape(N, d), torch.stack(R_list), torch.stack(s_list)
+
+def hessian_aware_manifold_alignment(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    num_heads: int,
+    activation_type: str = "swiglu",
+    alpha: float = 0.5,
+    activation_states: Optional[torch.Tensor] = None
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Hessian-Aware Manifold Alignment (HAMA) (v2.9)."""
+    N, d = A.shape
+    head_dim = d // num_heads
+    A_heads, B_heads = A.view(N, num_heads, head_dim), B.view(N, num_heads, head_dim)
+    state_heads = activation_states.view(N, num_heads, head_dim) if activation_states is not None else None
+    j_func = swiglu_jacobian if activation_type == "swiglu" else geglu_jacobian
+    h_func = swiglu_hessian if activation_type == "swiglu" else geglu_hessian
+    R_list, s_list, A_trans_list = [], [], []
+    for i in range(num_heads):
+        A_i, B_i = A_heads[:, i, :], B_heads[:, i, :]
+        state = state_heads[:, i, :] if state_heads is not None else B_i / (torch.norm(B_i, dim=0, keepdim=True) + 1e-6)
+        J, H = j_func(state), h_func(state)
+        curvature_factor = J + 0.5 * alpha * H * state
+        M = torch.matmul((curvature_factor * A_i).t(), B_i)
+        U, S, Vh = torch.linalg.svd(M, full_matrices=False)
+        R = torch.matmul(U, Vh)
+        A_trans_list.append(torch.matmul(A_i, R))
+        R_list.append(R)
+        s_list.append(torch.tensor(1.0, device=A.device))
+    return torch.stack(A_trans_list, dim=1).reshape(N, d), torch.stack(R_list), torch.stack(s_list)
+
+def factorize_to_lora(W_delta: torch.Tensor, rank: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Factorizes a delta matrix back into LoRA A and B components via SVD (v2.8)."""
+    U, S, Vh = torch.linalg.svd(W_delta.float(), full_matrices=False)
+    U_r = U[:, :rank]
+    S_r = S[:rank]
+    Vh_r = Vh[:rank, :]
+    sqrtS = torch.sqrt(S_r)
+    A = (sqrtS[:, None] * Vh_r).to(W_delta.dtype)
+    B = (U_r * sqrtS[None, :]).to(W_delta.dtype)
+    return A, B
 
 if __name__ == "__main__":
     print("Task Vector Projection Core Algorithms Loaded Successfully.")

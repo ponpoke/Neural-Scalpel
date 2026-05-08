@@ -91,3 +91,215 @@ class E2EEngineBenchmarker:
             
         outputs = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+class SQLCapabilityEvaluator:
+    """
+    Evaluator specifically for SQL generation tasks.
+    Checks syntax validity and structural correctness.
+    """
+    def __init__(self, model: Any, tokenizer: Any):
+        self.model = model
+        self.tokenizer = tokenizer
+
+    def extract_sql(self, text: str) -> str:
+        """
+        Heuristically extracts the first SQL block from model output.
+        """
+        import re
+        # 1. Check for markdown code blocks
+        sql_match = re.search(r"```sql\n(.*?)\n```", text, re.DOTALL | re.IGNORECASE)
+        if sql_match:
+            return sql_match.group(1).strip()
+            
+        sql_match = re.search(r"```\n(.*?)\n```", text, re.DOTALL | re.IGNORECASE)
+        if sql_match:
+            return sql_match.group(1).strip()
+
+        # 2. Heuristic: Look for SELECT/WITH and optional semicolon
+        text_clean = text.strip()
+        start_keywords = ["SELECT", "WITH", "UPDATE", "INSERT", "DELETE", "CREATE", "DROP"]
+        
+        best_start = -1
+        for kw in start_keywords:
+            idx = text_clean.upper().find(kw)
+            if idx != -1:
+                if best_start == -1 or idx < best_start:
+                    best_start = idx
+        
+        if best_start != -1:
+            sql_snippet = text_clean[best_start:]
+            
+            # Look for common stop sequences in base models
+            stop_patterns = ["\nSQL:", "\nTABLE:", "\nOUTPUT:", "\n\n", "```"]
+            min_stop = len(sql_snippet)
+            for pattern in stop_patterns:
+                idx = sql_snippet.upper().find(pattern)
+                if idx != -1 and idx < min_stop:
+                    min_stop = idx
+            
+            sql_snippet = sql_snippet[:min_stop].strip()
+
+            # Look for semicolon within the snippet
+            semi_idx = sql_snippet.find(";")
+            if semi_idx != -1:
+                return sql_snippet[:semi_idx+1].strip()
+            return sql_snippet.strip()
+
+        return text_clean
+
+    @torch.no_grad()
+    def generate_sql(self, prompt: str, max_new_tokens: int = 128) -> str:
+        self.model.eval()
+        device = next(self.model.parameters()).device
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(device)
+        
+        outputs = self.model.generate(
+            **inputs, 
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            pad_token_id=self.tokenizer.eos_token_id
+        )
+        input_len = inputs.input_ids.shape[1]
+        gen_ids = outputs[0, input_len:]
+        raw_text = self.tokenizer.decode(gen_ids, skip_special_tokens=True)
+        return self.extract_sql(raw_text)
+
+    def validate_syntax(self, sql: str) -> Dict[str, Any]:
+        """
+        Uses sqlglot to check if the generated SQL is syntactically valid.
+        """
+        try:
+            import sqlglot
+            # Basic parse check
+            sqlglot.parse_one(sql, read=None)
+            return {"valid": True, "error": None}
+        except Exception as e:
+            return {"valid": False, "error": str(e)}
+
+    def validate_schema(self, sql: str, expected_tables: List[str], expected_columns: List[str]) -> Dict[str, Any]:
+        """
+        Uses sqlglot AST to extract tables and columns for stricter validation.
+        """
+        try:
+            import sqlglot
+            from sqlglot import exp
+            parsed = sqlglot.parse_one(sql)
+            
+            # Extract tables
+            found_tables = {t.name.lower() for t in parsed.find_all(exp.Table)}
+            # Extract columns
+            found_cols = {c.name.lower() for c in parsed.find_all(exp.Column)}
+            
+            table_ok = all(t.lower() in found_tables for t in expected_tables)
+            column_ok = all(c.lower() in found_cols for c in expected_columns)
+            
+            return {
+                "table_ok": table_ok,
+                "column_ok": column_ok,
+                "found_tables": list(found_tables),
+                "found_columns": list(found_cols)
+            }
+        except Exception:
+            return {"table_ok": False, "column_ok": False, "found_tables": [], "found_columns": []}
+
+    def execute_sqlite(self, sql: str, setup_script: str) -> Dict[str, Any]:
+        """
+        Executes the SQL against an in-memory SQLite database.
+        """
+        import sqlite3
+        conn = sqlite3.connect(":memory:")
+        try:
+            cursor = conn.cursor()
+            cursor.executescript(setup_script)
+            cursor.execute(sql)
+            results = cursor.fetchall()
+            return {"success": True, "results": results, "error": None}
+        except Exception as e:
+            return {"success": False, "results": None, "error": str(e)}
+        finally:
+            conn.close()
+
+    def evaluate_suite(self, test_cases: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Evaluates a list of test cases with syntax, schema, and execution checks.
+        """
+        results = []
+        failure_cases = []
+        stats = {
+            "total": len(test_cases),
+            "syntax_valid": 0,
+            "execution_success": 0,
+            "exact_match": 0,
+            "categories": {}
+        }
+        
+        for case in test_cases:
+            prompt = case["prompt"]
+            gen_sql = self.generate_sql(prompt)
+            syntax = self.validate_syntax(gen_sql)
+            
+            # Schema check
+            schema = self.validate_schema(
+                gen_sql, 
+                case.get("tables", []), 
+                case.get("columns", [])
+            )
+            
+            # Execution check
+            execution = {"success": None, "results": None}
+            if case.get("sqlite_setup") and syntax["valid"]:
+                execution = self.execute_sqlite(gen_sql, case["sqlite_setup"])
+            
+            # Result correctness check
+            is_correct = False
+            expected = case.get("expected_result")
+            order_sensitive = case.get("order_sensitive", False)
+            
+            if execution.get("success") and expected is not None:
+                actual_res = execution["results"]
+                if not order_sensitive:
+                    # Sort both if order doesn't matter
+                    try:
+                        is_correct = sorted(actual_res) == sorted(expected)
+                    except:
+                        # Fallback for complex results that might not sort easily
+                        is_correct = actual_res == expected
+                else:
+                    is_correct = actual_res == expected
+            
+            res = {
+                "id": case.get("id", "unknown"),
+                "category": case.get("category", "general"),
+                "prompt": prompt,
+                "generated": gen_sql,
+                "syntax_valid": syntax["valid"],
+                "schema_ok": schema["table_ok"] and schema["column_ok"],
+                "execution_success": execution.get("success"),
+                "is_correct": is_correct,
+                "error": syntax["error"] or execution.get("error")
+            }
+            
+            # Update stats
+            if syntax["valid"]: stats["syntax_valid"] += 1
+            if execution.get("success"): stats["execution_success"] += 1
+            if is_correct: stats["exact_match"] += 1
+            
+            cat = res["category"]
+            if cat not in stats["categories"]:
+                stats["categories"][cat] = {"total": 0, "pass": 0, "correct": 0}
+            stats["categories"][cat]["total"] += 1
+            if execution.get("success"): stats["categories"][cat]["pass"] += 1
+            if is_correct: stats["categories"][cat]["correct"] += 1
+            
+            results.append(res)
+            if not is_correct:
+                failure_cases.append(res)
+            
+        stats["execution_success_rate"] = stats["execution_success"] / stats["total"] if stats["total"] > 0 else 0
+        stats["execution_accuracy"] = stats["exact_match"] / stats["total"] if stats["total"] > 0 else 0
+        
+        return {
+            "stats": stats,
+            "results": results,
+            "failure_cases": failure_cases
+        }

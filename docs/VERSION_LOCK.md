@@ -33,6 +33,10 @@ The following versions have been tested together and form the Production Candida
 > The Neural-Scalpel scheduler patch and model runner hook are validated
 > only against the version listed above. Using other versions may cause
 > silent failures in route isolation.
+>
+> - Internal vLLM plugin mode remains version-locked and controlled-validation-only.
+> - External Proxy Fallback provides a safer compatibility fallback when internal patching is unsupported.
+> - External Proxy Fallback trades VRAM efficiency and route density for operational stability.
 
 ### CUDA / GPU
 
@@ -62,7 +66,9 @@ Before updating any dependency:
 4. Run the coarse E2E benchmark
 5. Run Phase 5-D repeated median benchmark
 6. Run Phase 5-E-1 two-route mixed-batch validation
-7. Run Phase 5-F determinism follow-up
-8. Run or schedule the 24h mixed-route soak test before Production Candidate declaration
-9. Update this document with the new validated version
-10. Tag the commit with the new version lock
+7. Run Phase 5-E-2 3+ route mixed-batch validation
+8. Run Phase 5-E-3 worst-case alternating route stress validation
+9. Run Phase 5-F determinism follow-up
+10. Run or schedule the 24h mixed-route soak test before Production Candidate declaration
+11. Update this document with the new validated version
+12. Tag the commit with the new version lock

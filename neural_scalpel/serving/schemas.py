@@ -12,7 +12,7 @@ Design notes:
   - `audit_ref` in responses links back to the structured audit log
 """
 
-from typing import Optional
+from typing import Optional, Any
 from pydantic import BaseModel, Field
 import uuid
 
@@ -33,7 +33,7 @@ class InferResponse(BaseModel):
     request_id: str
     route_id: str
     status: str = Field(..., description="'success' | 'error' | 'rejected'")
-    output: str = Field(default="", description="Model output text")
+    output: Any = Field(default="", description="Model output text or structured response")
     latency_ms: float = Field(default=0.0, description="End-to-end request latency in ms")
     audit_ref: str = Field(default="", description="Reference to the audit log event")
     error_detail: Optional[str] = Field(default=None, description="Error message on failure")

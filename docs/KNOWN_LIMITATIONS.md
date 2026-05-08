@@ -27,6 +27,11 @@ but increases cold-start latency for the new route.
 
 ## Operational
 
+### vLLM Version Dependency & Fallback
+- Internal vLLM plugin mode remains version-locked and controlled-validation-only.
+- **Mitigation**: Neural-Scalpel uses strict version locking (`VERSION_LOCK.md`) and a "Fail-Closed" startup policy. In environments where internal patching is unsupported or risky, **External Proxy Fallback** is now available as a safer operational path.
+- External Proxy Fallback trades VRAM efficiency and route density for operational stability.
+
 ### 24h Soak Pending
 
 The runtime has passed 10K endurance and 6-hour extended soak tests. The final 24h persistent-route soak test remains pending. Until this test passes, Neural-Scalpel is best described as a validated prototype with strong controlled runtime evidence, and a paradigm-shift-class candidate under controlled validation.
@@ -90,4 +95,3 @@ This result is validated for the tested prompt/cache-reset condition. Broader pr
 ### Multi-route Transitions
 
 Phase 5-E-1 passed two-route mixed-batch validation (`__base__` ↔ Alpaca, 1000 requests, 0 violations). 3+ route mixed-batch and worst-case alternating-route stress remain pending.
-

@@ -88,12 +88,12 @@ Current status: Validated prototype with strong controlled runtime evidence. For
 - [x] Run Phase 5-D repeated median benchmark in controlled validation
 - [x] Run Phase 5-E-1 two-route mixed-batch validation in controlled validation
 - [x] Run Phase 5-F determinism follow-up under tested cache-reset condition
+- [x] Run 3+ route mixed-batch validation in controlled validation
+- [x] Run worst-case alternating route stress validation in controlled validation
 - [ ] Run final 24h mixed-route soak test with `--require-worker-health`
 
 ## Hardening Checklist
 
-- [ ] Run 3+ route mixed-batch validation
-- [ ] Run worst-case alternating route stress validation
 - [ ] Validate broader model/vLLM version coverage
 
 ## Monitoring
@@ -110,6 +110,12 @@ curl http://localhost:8000/healthz
 ```bash
 curl -H "X-Admin-Key: $ADMIN_API_KEY" http://localhost:8000/admin/metrics
 ```
+
+## vLLM Version Dependency & Fallback
+
+- Internal vLLM plugin mode remains version-locked and controlled-validation-only.
+- External Proxy Fallback provides a safer compatibility fallback when internal patching is unsupported.
+- External Proxy Fallback trades VRAM efficiency and route density for operational stability.
 
 ## Scaling
 

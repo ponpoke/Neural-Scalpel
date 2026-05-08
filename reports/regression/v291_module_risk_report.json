@@ -1,0 +1,35 @@
+{
+  "attention": {
+    "risk_level": "CONDITIONAL_LOW",
+    "safe_alpha_max": 4,
+    "tested_alphas": [
+      4,
+      6,
+      8,
+      12,
+      16
+    ],
+    "first_sentinel_regression_alpha": 6,
+    "recommendation": "ALLOW_ALPHA_LE_4",
+    "risk_score": 0.0,
+    "fixed": 0,
+    "regressed": 0,
+    "sentinel_regression": false
+  },
+  "mlp": {
+    "risk_level": "CRITICAL",
+    "risk_score": 0.9,
+    "recommendation": "EXCLUDE_OR_ALPHA_LE_1",
+    "fixed": 0,
+    "regressed": 1,
+    "sentinel_regression": true
+  },
+  "down_proj": {
+    "risk_level": "CRITICAL",
+    "risk_score": 0.9,
+    "recommendation": "EXCLUDE",
+    "fixed": 0,
+    "regressed": 2,
+    "sentinel_regression": true
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "summary": {
+    "num_samples": 4,
+    "base": {
+      "parse": 0.75,
+      "adv": 0.0,
+      "hallu": 0.0,
+      "rep": 0.0
+    },
+    "lora": {
+      "parse": 0.75,
+      "adv": 0.25,
+      "hallu": 0.0,
+      "rep": 0.0
+    },
+    "sqlglot_active": false
+  },
+  "details": [
+    {
+      "prompt_preview": "Table: sales(id, product, amount, date). SQL to find total s...",
+      "base_parsed": true,
+      "base_adv": {
+        "has_cte": false,
+        "has_window": false,
+        "has_subquery": false,
+        "has_join": false,
+        "has_groupby": false
+      },
+      "base_hallu": false,
+      "base_rep": false,
+      "lora_parsed": true,
+      "lora_adv": {
+        "has_cte": false,
+        "has_window": false,
+        "has_subquery": false,
+        "has_join": false,
+        "has_groupby": false
+      },
+      "lora_hallu": false,
+      "lora_rep": false
+    },
+    {
+      "prompt_preview": "Table: employees(id, name, department, salary). SQL for aver...",
+      "base_parsed": true,
+      "base_adv": {
+        "has_cte": false,
+        "has_window": false,
+        "has_subquery": false,
+        "has_join": false,
+        "has_groupby": false
+      },
+      "base_hallu": false,
+      "base_rep": false,
+      "lora_parsed": true,
+      "lora_adv": {
+        "has_cte": true,
+        "has_window": true,
+        "has_subquery": false,
+        "has_join": false,
+        "has_groupby": false
+      },
+      "lora_hallu": false,
+      "lora_rep": false
+    },
+    {
+      "prompt_preview": "Write a SQL query to list all students who scored above 90 i...",
+      "base_parsed": true,
+      "base_adv": {
+        "has_cte": false,
+        "has_window": false,
+        "has_subquery": false,
+        "has_join": false,
+        "has_groupby": false
+      },
+      "base_hallu": false,
+      "base_rep": false,
+      "lora_parsed": true,
+      "lora_adv": {
+        "has_cte": false,
+        "has_window": false,
+        "has_subquery": false,
+        "has_join": false,
+        "has_groupby": false
+      },
+      "lora_hallu": false,
+      "lora_rep": false
+    },
+    {
+      "prompt_preview": "Write a Python function for palindrome check....",
+      "base_parsed": false,
+      "base_adv": {},
+      "base_hallu": false,
+      "base_rep": false,
+      "lora_parsed": false,
+      "lora_adv": {},
+      "lora_hallu": false,
+      "lora_rep": false
+    }
+  ]
+}

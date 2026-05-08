@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neural-scalpel"
-version = "1.0.0"
+version = "2.5.0"
 description = "A mathematical framework for cross-architecture intelligence transplantation."
 license = {text = "Apache-2.0"}
 authors = [
@@ -15,13 +15,17 @@ requires-python = ">=3.9"
 dependencies = [
     "torch>=2.0.0",
     "gguf>=0.6.0",
+    "huggingface_hub",
+    "sqlglot",
 ]
 
 [project.optional-dependencies]
 cli = [
     "transformers",
+    "huggingface_hub",
     "safetensors",
     "peft",
+    "sqlglot",
     "fastapi",
     "uvicorn",
     "pyjwt",
@@ -44,7 +48,7 @@ test = [
 ]
 
 [project.scripts]
-neural-scalpel = "neural_scalpel.cli.main:main"
+neural-scalpel = "neural_scalpel.cli.__main__:main"
 
 [tool.pytest.ini_options]
 markers = [

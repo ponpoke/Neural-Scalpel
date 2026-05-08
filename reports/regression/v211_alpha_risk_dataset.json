@@ -1,0 +1,1014 @@
+[
+  {
+    "setting": "baseline",
+    "alpha_map": {},
+    "outcome": {
+      "accuracy": 0.24,
+      "syntax_valid": "19/50",
+      "fixed": 0,
+      "regressed": 0,
+      "joins_007": "PASS",
+      "verdict": "BASELINE"
+    },
+    "metrics": {}
+  },
+  {
+    "setting": "v210_A_g0.0625_u0.0625",
+    "alpha_map": {
+      "q_proj": 4.0,
+      "k_proj": 4.0,
+      "v_proj": 4.0,
+      "o_proj": 4.0,
+      "gate_proj": 0.0625,
+      "up_proj": 0.0625,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.24,
+      "syntax_valid": "19/50",
+      "fixed": 1,
+      "regressed": 1,
+      "joins_007": "FAIL",
+      "verdict": "BOUNDARY"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.001992,
+        "max_norm_ratio": 0.002819,
+        "p90_norm_ratio": 0.002593,
+        "std_norm_ratio": 0.000494,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.001881,
+        "max_norm_ratio": 0.00319,
+        "p90_norm_ratio": 0.002639,
+        "std_norm_ratio": 0.000613,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.002077,
+        "max_norm_ratio": 0.003423,
+        "p90_norm_ratio": 0.002909,
+        "std_norm_ratio": 0.00059,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00216,
+        "max_norm_ratio": 0.003067,
+        "p90_norm_ratio": 0.002598,
+        "std_norm_ratio": 0.000304,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "gate_proj": {
+        "mean_norm_ratio": 3.4e-05,
+        "max_norm_ratio": 4.7e-05,
+        "p90_norm_ratio": 4.1e-05,
+        "std_norm_ratio": 6e-06,
+        "mean_effective_rank": 13.28,
+        "max_effective_rank": 15.18
+      },
+      "up_proj": {
+        "mean_norm_ratio": 3.2e-05,
+        "max_norm_ratio": 3.5e-05,
+        "p90_norm_ratio": 3.4e-05,
+        "std_norm_ratio": 2e-06,
+        "mean_effective_rank": 13.67,
+        "max_effective_rank": 15.25
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 4.0,
+          "k_proj": 4.0,
+          "v_proj": 4.0,
+          "o_proj": 4.0,
+          "gate_proj": 0.0625,
+          "up_proj": 0.0625,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
+    "setting": "v210_B_g0.125_u0.125",
+    "alpha_map": {
+      "q_proj": 4.0,
+      "k_proj": 4.0,
+      "v_proj": 4.0,
+      "o_proj": 4.0,
+      "gate_proj": 0.125,
+      "up_proj": 0.125,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.24,
+      "syntax_valid": "19/50",
+      "fixed": 1,
+      "regressed": 1,
+      "joins_007": "FAIL",
+      "verdict": "BOUNDARY"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.001992,
+        "max_norm_ratio": 0.002819,
+        "p90_norm_ratio": 0.002593,
+        "std_norm_ratio": 0.000494,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.001881,
+        "max_norm_ratio": 0.00319,
+        "p90_norm_ratio": 0.002639,
+        "std_norm_ratio": 0.000613,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.002077,
+        "max_norm_ratio": 0.003423,
+        "p90_norm_ratio": 0.002909,
+        "std_norm_ratio": 0.00059,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00216,
+        "max_norm_ratio": 0.003067,
+        "p90_norm_ratio": 0.002598,
+        "std_norm_ratio": 0.000304,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "gate_proj": {
+        "mean_norm_ratio": 6.8e-05,
+        "max_norm_ratio": 9.5e-05,
+        "p90_norm_ratio": 8.2e-05,
+        "std_norm_ratio": 1.2e-05,
+        "mean_effective_rank": 13.28,
+        "max_effective_rank": 15.18
+      },
+      "up_proj": {
+        "mean_norm_ratio": 6.4e-05,
+        "max_norm_ratio": 7e-05,
+        "p90_norm_ratio": 6.9e-05,
+        "std_norm_ratio": 3e-06,
+        "mean_effective_rank": 13.67,
+        "max_effective_rank": 15.25
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 4.0,
+          "k_proj": 4.0,
+          "v_proj": 4.0,
+          "o_proj": 4.0,
+          "gate_proj": 0.125,
+          "up_proj": 0.125,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
+    "setting": "v210_C_g0.1875_u0.1875",
+    "alpha_map": {
+      "q_proj": 4.0,
+      "k_proj": 4.0,
+      "v_proj": 4.0,
+      "o_proj": 4.0,
+      "gate_proj": 0.1875,
+      "up_proj": 0.1875,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.22,
+      "syntax_valid": "18/50",
+      "fixed": 0,
+      "regressed": 1,
+      "joins_007": "FAIL",
+      "verdict": "UNSAFE"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.001992,
+        "max_norm_ratio": 0.002819,
+        "p90_norm_ratio": 0.002593,
+        "std_norm_ratio": 0.000494,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.001881,
+        "max_norm_ratio": 0.00319,
+        "p90_norm_ratio": 0.002639,
+        "std_norm_ratio": 0.000613,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.002077,
+        "max_norm_ratio": 0.003423,
+        "p90_norm_ratio": 0.002909,
+        "std_norm_ratio": 0.00059,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00216,
+        "max_norm_ratio": 0.003067,
+        "p90_norm_ratio": 0.002598,
+        "std_norm_ratio": 0.000304,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "gate_proj": {
+        "mean_norm_ratio": 0.000102,
+        "max_norm_ratio": 0.000142,
+        "p90_norm_ratio": 0.000123,
+        "std_norm_ratio": 1.8e-05,
+        "mean_effective_rank": 13.28,
+        "max_effective_rank": 15.18
+      },
+      "up_proj": {
+        "mean_norm_ratio": 9.6e-05,
+        "max_norm_ratio": 0.000106,
+        "p90_norm_ratio": 0.000103,
+        "std_norm_ratio": 5e-06,
+        "mean_effective_rank": 13.67,
+        "max_effective_rank": 15.25
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 4.0,
+          "k_proj": 4.0,
+          "v_proj": 4.0,
+          "o_proj": 4.0,
+          "gate_proj": 0.1875,
+          "up_proj": 0.1875,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
+    "setting": "v210_D_g0.25_u0.25",
+    "alpha_map": {
+      "q_proj": 4.0,
+      "k_proj": 4.0,
+      "v_proj": 4.0,
+      "o_proj": 4.0,
+      "gate_proj": 0.25,
+      "up_proj": 0.25,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.22,
+      "syntax_valid": "18/50",
+      "fixed": 0,
+      "regressed": 1,
+      "joins_007": "FAIL",
+      "verdict": "UNSAFE"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.001992,
+        "max_norm_ratio": 0.002819,
+        "p90_norm_ratio": 0.002593,
+        "std_norm_ratio": 0.000494,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.001881,
+        "max_norm_ratio": 0.00319,
+        "p90_norm_ratio": 0.002639,
+        "std_norm_ratio": 0.000613,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.002077,
+        "max_norm_ratio": 0.003423,
+        "p90_norm_ratio": 0.002909,
+        "std_norm_ratio": 0.00059,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00216,
+        "max_norm_ratio": 0.003067,
+        "p90_norm_ratio": 0.002598,
+        "std_norm_ratio": 0.000304,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "gate_proj": {
+        "mean_norm_ratio": 0.000136,
+        "max_norm_ratio": 0.000189,
+        "p90_norm_ratio": 0.000164,
+        "std_norm_ratio": 2.4e-05,
+        "mean_effective_rank": 13.28,
+        "max_effective_rank": 15.18
+      },
+      "up_proj": {
+        "mean_norm_ratio": 0.000127,
+        "max_norm_ratio": 0.000141,
+        "p90_norm_ratio": 0.000138,
+        "std_norm_ratio": 7e-06,
+        "mean_effective_rank": 13.67,
+        "max_effective_rank": 15.25
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 4.0,
+          "k_proj": 4.0,
+          "v_proj": 4.0,
+          "o_proj": 4.0,
+          "gate_proj": 0.25,
+          "up_proj": 0.25,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
+    "setting": "v210_E_g0.125_u0.0625",
+    "alpha_map": {
+      "q_proj": 4.0,
+      "k_proj": 4.0,
+      "v_proj": 4.0,
+      "o_proj": 4.0,
+      "gate_proj": 0.125,
+      "up_proj": 0.0625,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.24,
+      "syntax_valid": "20/50",
+      "fixed": 1,
+      "regressed": 1,
+      "joins_007": "FAIL",
+      "verdict": "BOUNDARY"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.001992,
+        "max_norm_ratio": 0.002819,
+        "p90_norm_ratio": 0.002593,
+        "std_norm_ratio": 0.000494,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.001881,
+        "max_norm_ratio": 0.00319,
+        "p90_norm_ratio": 0.002639,
+        "std_norm_ratio": 0.000613,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.002077,
+        "max_norm_ratio": 0.003423,
+        "p90_norm_ratio": 0.002909,
+        "std_norm_ratio": 0.00059,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00216,
+        "max_norm_ratio": 0.003067,
+        "p90_norm_ratio": 0.002598,
+        "std_norm_ratio": 0.000304,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "gate_proj": {
+        "mean_norm_ratio": 6.8e-05,
+        "max_norm_ratio": 9.5e-05,
+        "p90_norm_ratio": 8.2e-05,
+        "std_norm_ratio": 1.2e-05,
+        "mean_effective_rank": 13.28,
+        "max_effective_rank": 15.18
+      },
+      "up_proj": {
+        "mean_norm_ratio": 3.2e-05,
+        "max_norm_ratio": 3.5e-05,
+        "p90_norm_ratio": 3.4e-05,
+        "std_norm_ratio": 2e-06,
+        "mean_effective_rank": 13.67,
+        "max_effective_rank": 15.25
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 4.0,
+          "k_proj": 4.0,
+          "v_proj": 4.0,
+          "o_proj": 4.0,
+          "gate_proj": 0.125,
+          "up_proj": 0.0625,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
+    "setting": "v210_F_g0.0625_u0.125",
+    "alpha_map": {
+      "q_proj": 4.0,
+      "k_proj": 4.0,
+      "v_proj": 4.0,
+      "o_proj": 4.0,
+      "gate_proj": 0.0625,
+      "up_proj": 0.125,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.24,
+      "syntax_valid": "19/50",
+      "fixed": 1,
+      "regressed": 1,
+      "joins_007": "FAIL",
+      "verdict": "BOUNDARY"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.001992,
+        "max_norm_ratio": 0.002819,
+        "p90_norm_ratio": 0.002593,
+        "std_norm_ratio": 0.000494,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.001881,
+        "max_norm_ratio": 0.00319,
+        "p90_norm_ratio": 0.002639,
+        "std_norm_ratio": 0.000613,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.002077,
+        "max_norm_ratio": 0.003423,
+        "p90_norm_ratio": 0.002909,
+        "std_norm_ratio": 0.00059,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00216,
+        "max_norm_ratio": 0.003067,
+        "p90_norm_ratio": 0.002598,
+        "std_norm_ratio": 0.000304,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "gate_proj": {
+        "mean_norm_ratio": 3.4e-05,
+        "max_norm_ratio": 4.7e-05,
+        "p90_norm_ratio": 4.1e-05,
+        "std_norm_ratio": 6e-06,
+        "mean_effective_rank": 13.28,
+        "max_effective_rank": 15.18
+      },
+      "up_proj": {
+        "mean_norm_ratio": 6.4e-05,
+        "max_norm_ratio": 7e-05,
+        "p90_norm_ratio": 6.9e-05,
+        "std_norm_ratio": 3e-06,
+        "mean_effective_rank": 13.67,
+        "max_effective_rank": 15.25
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 4.0,
+          "k_proj": 4.0,
+          "v_proj": 4.0,
+          "o_proj": 4.0,
+          "gate_proj": 0.0625,
+          "up_proj": 0.125,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
+    "setting": "v210_G_g0.1875_u0.125",
+    "alpha_map": {
+      "q_proj": 4.0,
+      "k_proj": 4.0,
+      "v_proj": 4.0,
+      "o_proj": 4.0,
+      "gate_proj": 0.1875,
+      "up_proj": 0.125,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.24,
+      "syntax_valid": "19/50",
+      "fixed": 1,
+      "regressed": 1,
+      "joins_007": "FAIL",
+      "verdict": "BOUNDARY"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.001992,
+        "max_norm_ratio": 0.002819,
+        "p90_norm_ratio": 0.002593,
+        "std_norm_ratio": 0.000494,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.001881,
+        "max_norm_ratio": 0.00319,
+        "p90_norm_ratio": 0.002639,
+        "std_norm_ratio": 0.000613,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.002077,
+        "max_norm_ratio": 0.003423,
+        "p90_norm_ratio": 0.002909,
+        "std_norm_ratio": 0.00059,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00216,
+        "max_norm_ratio": 0.003067,
+        "p90_norm_ratio": 0.002598,
+        "std_norm_ratio": 0.000304,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "gate_proj": {
+        "mean_norm_ratio": 0.000102,
+        "max_norm_ratio": 0.000142,
+        "p90_norm_ratio": 0.000123,
+        "std_norm_ratio": 1.8e-05,
+        "mean_effective_rank": 13.28,
+        "max_effective_rank": 15.18
+      },
+      "up_proj": {
+        "mean_norm_ratio": 6.4e-05,
+        "max_norm_ratio": 7e-05,
+        "p90_norm_ratio": 6.9e-05,
+        "std_norm_ratio": 3e-06,
+        "mean_effective_rank": 13.67,
+        "max_effective_rank": 15.25
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 4.0,
+          "k_proj": 4.0,
+          "v_proj": 4.0,
+          "o_proj": 4.0,
+          "gate_proj": 0.1875,
+          "up_proj": 0.125,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
+    "setting": "v210_H_g0.125_u0.1875",
+    "alpha_map": {
+      "q_proj": 4.0,
+      "k_proj": 4.0,
+      "v_proj": 4.0,
+      "o_proj": 4.0,
+      "gate_proj": 0.125,
+      "up_proj": 0.1875,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.22,
+      "syntax_valid": "18/50",
+      "fixed": 0,
+      "regressed": 1,
+      "joins_007": "FAIL",
+      "verdict": "UNSAFE"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.001992,
+        "max_norm_ratio": 0.002819,
+        "p90_norm_ratio": 0.002593,
+        "std_norm_ratio": 0.000494,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.001881,
+        "max_norm_ratio": 0.00319,
+        "p90_norm_ratio": 0.002639,
+        "std_norm_ratio": 0.000613,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.002077,
+        "max_norm_ratio": 0.003423,
+        "p90_norm_ratio": 0.002909,
+        "std_norm_ratio": 0.00059,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00216,
+        "max_norm_ratio": 0.003067,
+        "p90_norm_ratio": 0.002598,
+        "std_norm_ratio": 0.000304,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "gate_proj": {
+        "mean_norm_ratio": 6.8e-05,
+        "max_norm_ratio": 9.5e-05,
+        "p90_norm_ratio": 8.2e-05,
+        "std_norm_ratio": 1.2e-05,
+        "mean_effective_rank": 13.28,
+        "max_effective_rank": 15.18
+      },
+      "up_proj": {
+        "mean_norm_ratio": 9.6e-05,
+        "max_norm_ratio": 0.000106,
+        "p90_norm_ratio": 0.000103,
+        "std_norm_ratio": 5e-06,
+        "mean_effective_rank": 13.67,
+        "max_effective_rank": 15.25
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 4.0,
+          "k_proj": 4.0,
+          "v_proj": 4.0,
+          "o_proj": 4.0,
+          "gate_proj": 0.125,
+          "up_proj": 0.1875,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
+    "setting": "v211_sweep_attn_a0.5",
+    "alpha_map": {
+      "q_proj": 0.5,
+      "k_proj": 0.5,
+      "v_proj": 0.5,
+      "o_proj": 0.5,
+      "gate_proj": 0.0,
+      "up_proj": 0.0,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.24,
+      "syntax_valid": "20/50",
+      "fixed": 0,
+      "regressed": 0,
+      "joins_007": "PASS",
+      "verdict": "SAFE"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.000249,
+        "max_norm_ratio": 0.000352,
+        "p90_norm_ratio": 0.000324,
+        "std_norm_ratio": 6.2e-05,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.000235,
+        "max_norm_ratio": 0.000399,
+        "p90_norm_ratio": 0.00033,
+        "std_norm_ratio": 7.7e-05,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.00026,
+        "max_norm_ratio": 0.000428,
+        "p90_norm_ratio": 0.000364,
+        "std_norm_ratio": 7.4e-05,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00027,
+        "max_norm_ratio": 0.000383,
+        "p90_norm_ratio": 0.000325,
+        "std_norm_ratio": 3.8e-05,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 0.5,
+          "k_proj": 0.5,
+          "v_proj": 0.5,
+          "o_proj": 0.5,
+          "gate_proj": 0.0,
+          "up_proj": 0.0,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
+    "setting": "v211_sweep_attn_a1.0",
+    "alpha_map": {
+      "q_proj": 1.0,
+      "k_proj": 1.0,
+      "v_proj": 1.0,
+      "o_proj": 1.0,
+      "gate_proj": 0.0,
+      "up_proj": 0.0,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.24,
+      "syntax_valid": "19/50",
+      "fixed": 0,
+      "regressed": 0,
+      "joins_007": "PASS",
+      "verdict": "SAFE"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.000498,
+        "max_norm_ratio": 0.000705,
+        "p90_norm_ratio": 0.000648,
+        "std_norm_ratio": 0.000124,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.00047,
+        "max_norm_ratio": 0.000798,
+        "p90_norm_ratio": 0.00066,
+        "std_norm_ratio": 0.000153,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.000519,
+        "max_norm_ratio": 0.000856,
+        "p90_norm_ratio": 0.000727,
+        "std_norm_ratio": 0.000148,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00054,
+        "max_norm_ratio": 0.000767,
+        "p90_norm_ratio": 0.00065,
+        "std_norm_ratio": 7.6e-05,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 1.0,
+          "k_proj": 1.0,
+          "v_proj": 1.0,
+          "o_proj": 1.0,
+          "gate_proj": 0.0,
+          "up_proj": 0.0,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
+    "setting": "v211_sweep_attn_a2.0",
+    "alpha_map": {
+      "q_proj": 2.0,
+      "k_proj": 2.0,
+      "v_proj": 2.0,
+      "o_proj": 2.0,
+      "gate_proj": 0.0,
+      "up_proj": 0.0,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.24,
+      "syntax_valid": "19/50",
+      "fixed": 0,
+      "regressed": 0,
+      "joins_007": "PASS",
+      "verdict": "SAFE"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.000996,
+        "max_norm_ratio": 0.001409,
+        "p90_norm_ratio": 0.001296,
+        "std_norm_ratio": 0.000247,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.000941,
+        "max_norm_ratio": 0.001595,
+        "p90_norm_ratio": 0.001319,
+        "std_norm_ratio": 0.000306,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.001038,
+        "max_norm_ratio": 0.001712,
+        "p90_norm_ratio": 0.001455,
+        "std_norm_ratio": 0.000295,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00108,
+        "max_norm_ratio": 0.001533,
+        "p90_norm_ratio": 0.001299,
+        "std_norm_ratio": 0.000152,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 2.0,
+          "k_proj": 2.0,
+          "v_proj": 2.0,
+          "o_proj": 2.0,
+          "gate_proj": 0.0,
+          "up_proj": 0.0,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
+    "setting": "v211_sweep_attn_a3.0",
+    "alpha_map": {
+      "q_proj": 3.0,
+      "k_proj": 3.0,
+      "v_proj": 3.0,
+      "o_proj": 3.0,
+      "gate_proj": 0.0,
+      "up_proj": 0.0,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.22,
+      "syntax_valid": "18/50",
+      "fixed": 0,
+      "regressed": 1,
+      "joins_007": "FAIL",
+      "verdict": "UNSAFE"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.001494,
+        "max_norm_ratio": 0.002114,
+        "p90_norm_ratio": 0.001945,
+        "std_norm_ratio": 0.000371,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.001411,
+        "max_norm_ratio": 0.002393,
+        "p90_norm_ratio": 0.001979,
+        "std_norm_ratio": 0.000459,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.001558,
+        "max_norm_ratio": 0.002567,
+        "p90_norm_ratio": 0.002182,
+        "std_norm_ratio": 0.000443,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00162,
+        "max_norm_ratio": 0.0023,
+        "p90_norm_ratio": 0.001949,
+        "std_norm_ratio": 0.000228,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 3.0,
+          "k_proj": 3.0,
+          "v_proj": 3.0,
+          "o_proj": 3.0,
+          "gate_proj": 0.0,
+          "up_proj": 0.0,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
+    "setting": "v211_sweep_attn_a4.0",
+    "alpha_map": {
+      "q_proj": 4.0,
+      "k_proj": 4.0,
+      "v_proj": 4.0,
+      "o_proj": 4.0,
+      "gate_proj": 0.0,
+      "up_proj": 0.0,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.24,
+      "syntax_valid": "19/50",
+      "fixed": 0,
+      "regressed": 0,
+      "joins_007": "PASS",
+      "verdict": "SAFE"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.001992,
+        "max_norm_ratio": 0.002819,
+        "p90_norm_ratio": 0.002593,
+        "std_norm_ratio": 0.000494,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.001881,
+        "max_norm_ratio": 0.00319,
+        "p90_norm_ratio": 0.002639,
+        "std_norm_ratio": 0.000613,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.002077,
+        "max_norm_ratio": 0.003423,
+        "p90_norm_ratio": 0.002909,
+        "std_norm_ratio": 0.00059,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00216,
+        "max_norm_ratio": 0.003067,
+        "p90_norm_ratio": 0.002598,
+        "std_norm_ratio": 0.000304,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 4.0,
+          "k_proj": 4.0,
+          "v_proj": 4.0,
+          "o_proj": 4.0,
+          "gate_proj": 0.0,
+          "up_proj": 0.0,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  }
+]

@@ -2,9 +2,9 @@
 
 **No-Retraining LoRA Migration & Diagnostic Toolkit**
 
-[![Version](https://img.shields.io/badge/version-1.0.0--alpha-orange)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-2.11.0-blue)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-193%20non--live%20passed-brightgreen)](tests/TEST_REPORT.md)
+[![Tests](https://img.shields.io/badge/tests-200%2B%20non--live%20passed-brightgreen)](tests/TEST_REPORT.md)
 [![Verification](https://img.shields.io/badge/Status-Validated%20Prototype-blue)](docs/PRODUCTION_READINESS_CRITERIA.md)
 
 Neural-Scalpel is an experimental no-retraining LoRA migration toolkit for projecting learned adapter weights (Task Vectors / LoRAs) across partially compatible neural architectures.
@@ -38,198 +38,129 @@ Neural-Scalpel helps answer:
 
 ---
 
-## Status: Validated Prototype with Strong Controlled Runtime Evidence
+## Status: Adapter Transfer Diagnostic v2.11.0 (Risk-Calibrated Safety Mapping)
 
-Neural-Scalpel remains an experimental research prototype, but recent controlled vLLM validation has produced strong evidence for the route-window hot-swap runtime design.
+Neural-Scalpel now provides a **comprehensive diagnostic-to-publishing workflow**:
 
-Phase 5-C and Phase 5-D provide controlled evidence that route-window persistent swapping removes the Phase 5-B per-token swap bottleneck under the tested Qwen2.5-0.5B / Alpaca workload. Phase 5-D further showed that the result was not limited to a single prompt, using a 50-prompt repeated benchmark.
+1. `diagnose-adapter`: Multi-stage structural and behavioral feasibility check.
+2. `project-adapter`: Experimental Structural Projection of weight deltas.
+3. `evaluate-projected`: Target-side benchmarking and behavioral delta analysis.
+4. `safe-project`: Unified orchestrator for the complete end-to-end pipeline.
+5. **`generate-report`**: Automated creation of detailed scientific analysis reports.
+6. **`generate-model-card`**: Automated generation of Hugging Face compatible Model Cards.
 
-In the latest strict 50-prompt repeated benchmark (Phase 5-D):
-- **Base throughput:** ~3813 tok/s
-- **Scalpel v2 throughput:** ~2574 tok/s (median of 3 runs)
-- **vLLM Native LoRA throughput:** ~983 tok/s (median of 3 runs)
-- **Scalpel outperformed Native LoRA by +161.80%** under these controlled conditions.
-- Route application (`swap_count > 0`) and at least one checksum-verified rollback event (`verified_rollbacks > 0`) were recorded in every Scalpel run.
+The framework classifies adapters as `PROJECTION_CANDIDATE`, runs structural projection, evaluates student-side behavior, and promotes successful runs to `RELEASE_READY` as a research artifact, subject to benchmark-specific validation.
 
-The primary remaining gate for formal "Production Candidate" status is the 24h persistent-route soak test. Broader 3+ route and worst-case alternation stress tests remain future hardening work.
+> [!NOTE]
+> Neural-Scalpel remains a research toolkit. `RELEASE_READY` means validated as a research artifact on the selected benchmark, not production deployment readiness.
 
-These results are strong enough to describe Neural-Scalpel as a **paradigm-shift-class candidate in controlled validation**, but not yet as production-ready serving software.
+In the latest real-model benchmark (Qwen2.5-Coder 7B → 0.5B SQL transplantation), we observed systematic performance changes in execution success, accuracy, and syntax validity as a function of the module-wise scaling factor ($\alpha$). This confirmed the effectiveness of **Interference-Aware Gating (IAPG)** in mitigating knowledge rejection.
 
-### Stable / Verified
-- **Route-Window Swap Optimization (Phase 5-C):** Confirmed route application with `swap_count=1` over 1600 generated tokens and `verified_rollbacks=1`. This demonstrated removal of the Phase 5-B per-token swap/rollback bottleneck under the tested route-window workload. The latest single-prompt, route-homogeneous benchmark showed high throughput, though this should be interpreted as prompt-specific rather than a universal speedup.
-- **Internal vLLM Validated Prototype:** Live vLLM V1 monkey-patch integration validated through route-window persistent swapping, real safetensors payload swap/rollback inside `_model_forward`, latest-branch 10K mixed-route endurance, and 6-hour mixed-route extended soak.
-- **Refined Benchmarking (Phase 5-A):** Established a rigorous performance anchor against native vLLM LoRA.
-- **Repeated Median Benchmarking (Phase 5-D):** 50 prompts × 3 runs showed Scalpel v2 median throughput of ~2574 tok/s versus Native LoRA at ~983 tok/s under controlled conditions, with route application and verified rollback events enforced in every Scalpel run.
-- **Determinism Follow-up (Phase 5-F):** After explicit route cleanup and vLLM cache reset, Base-before and Base-after matched exactly, with 100.0% top-token logprob trace similarity for the tested prompt. This is a top-token trace proxy, not a full-vocabulary logits distribution comparison.
+### Phase 7 Success: Sentinel-Safe Positive Transfer (v2.10)
 
-### Roadmap / Future Work
+For the first time, Neural-Scalpel achieved **True Positive Transfer** involving both Attention and MLP components while maintaining zero regressions on sentinel cases.
 
-- Final 24h mixed-route soak validation with `--require-worker-health`
-- Precise vLLM TTFT / TPOT regression measurement using real timing hooks
-- Real swap / rollback / payload-load latency measurement
-- Broader model coverage: Qwen/Llama-class fused attention variants
-- Long-running multi-tenant production pilots
-- GGUF/AWQ direct surgery
+| Setting | Accuracy | Fixed | Regressed | joins_007 | Status |
+|---|---:|---:|---:|---|---|
+| Baseline (0.5B Instruct) | 24.0% | 0 | 0 | **PASS** | Reference |
+| v210_v0 (Attention-Only) | 24.0% | 0 | 0 | **PASS** | Validated |
+| v210_v1c (Hybrid-Gated) | 26.0% | 1 | 0 | **PASS** | Best-Tested |
 
-- **24h Soak Pending:** 6-hour and 10K endurance tests passed, but final 24h persistent-route soak validation remains pending.
-- **Two-route Mixed-Batch Validation Completed:** Phase 5-E-1 successfully demonstrated 0 route violations and verified safe isolation over 1000 dynamically routed requests across `__base__` and the Alpaca route. Broader 3+ route and worst-case alternation stress remain future hardening work.
-- **Determinism Follow-up Completed:** Phase 5-F demonstrated 100.0% top-token logprob trace similarity and exact text match after a verified checksum rollback for the tested prompt under explicit route cleanup and vLLM cache reset.
-- **Monkey-Patch Fragility:** The internal vLLM integration depends on vLLM V1 internals and may break across vLLM releases.
-- **Broader Model Coverage:** Validation beyond OPT-125M/Qwen2.5-class controlled tests remains future work.
-- **SLA-Grade Serving:** Not ready for uncontrolled public enterprise traffic or SLA commitments.
+### v2.11 Evolution: Risk-Calibrated Safety Mapping (Diagnostic Infrastructure)
 
----
+Neural-Scalpel v2.11 transitions from heuristic tuning to an **Empirical Diagnostic Framework**. Rather than searching for a universal alpha constant, v2.11 enables the construction of model-specific **Safety Maps**.
 
-## Recommended Workflow
+- **Non-Monotonic Safety Discovery**: Targeted sweeps revealed that safety does not follow a linear path. For example, in the Qwen2.5 7B→0.5B setup, **Alpha=3.0 was identified as a localized Failure Zone** (triggering Python hallucination), while higher (4.0) and lower (2.0) values remained safe.
+- **Automated Risk Profiling**: The system now automatically generates `safety_map.json`, categorizing alpha ranges into `SAFE`, `UNSAFE`, and `AVOID BANDS`.
+- **Reproducible Metrics**: Integrated `eval_metadata` (dtype/merge tracking) and true "Effective Delta" norm calculations for scientific traceability.
 
-1. Run `diagnose` to estimate whether no-retraining migration is feasible.
-2. Review the generated portability report.
-3. Run `diagnose --ablation all` if structural confidence is required.
-4. Run `port` only if the adapter passes diagnostic gates.
-5. Run downstream task validation before production use.
+**Current Validated Safety Map (v2.11):**
+- **Attention**: SAFE at [0.5, 1.0, 2.0, 4.0]. **AVOID BAND: [2.75, 3.25]**.
+- **MLP**: High-sensitivity. Recommended Alpha: **0.0 (Gated)** or <0.02.
 
-Recommended principle:
-> Diagnose first. Port second. Deploy only after downstream validation.
+**Current Best Validated Configuration (v2.10):**
+`--module-alpha-map q_proj=4,k_proj=4,v_proj=4,o_proj=4,gate_proj=0.125,up_proj=0.125,down_proj=0`
+*(Note: Alpha values are relative to a global alpha of 16)*
 
----
+> [!NOTE]
+> The v2.10 hybrid-gated configuration is preserved as a successful historical run under its documented evaluation conditions. v2.11 re-evaluates the transfer landscape under stricter metadata-tracked conditions and reframes the result as part of a model-specific safety map rather than a universal recipe.
 
-## 1. What This Toolkit Can and Cannot Do
+### Historical Scale Sensitivity: Alpha Sweep (Legacy Extractor)
 
-### ✅ Verified / Supported Capabilities
-* **No-Retraining Adapter Migration:** Attempts to project LoRA / task-vector deltas into a target architecture without gradient-based fine-tuning.
-* **Portability Diagnostics:** Generates feasibility reports using PPL, KL divergence, calibration coverage, architecture homology, and adapter drift metrics.
-* **Mathematical Subspace Alignment:** Successfully maps attention heads and MLP layers between architectures with low Procrustes error in localized tests.
-* **Qualitative Style Shifts (Vision):** Can project styling LoRAs (e.g., Animagine XL) from an SDXL base to another structurally compatible model, resulting in observable stylistic changes without retraining.
-* **Memory-Efficient Processing:** Streams multi-gigabyte delta computations layer-by-layer, keeping VRAM usage under 16GB.
+The following results were obtained under an earlier SQL extraction/evaluation setup (Legacy Extractor) and are preserved for historical comparison. They should not be directly compared with the v2.10 fixed-extractor results above.
 
-### ❌ Known Limitations & Failure Modes
-*   **Zero-Dataset Collapse:** Projecting LLM adapters without a representative calibration dataset destroys massive emergent outliers, causing the model to output gibberish. **Gradient-free does not mean data-free.**
-*   **OOD Approximation Failure:** JTSA and HAMA rely on Taylor approximations. Extreme Out-Of-Distribution (OOD) prompts will break the structural alignment, leading to hallucination or logical collapse.
-*   **No Empirical Task Guarantee:** A mathematically perfect projection does not guarantee that the target model can execute the complex logic (e.g., math, coding) learned by the source model.
+| Setting | Accuracy | Delta | Execution Success | Delta | Syntax Valid |
+|---|---:|---:|---:|---:|---:|
+| Baseline | 32.0% | - | 38.0% | - | 37/50 |
+| alpha=8 | 34.0% | +2.0% | 42.0% | +4.0% | 39/50 |
+| **alpha=16** | **36.0%** | **+4.0%** | 44.0% | +6.0% | 40/50 |
+| alpha=24 | 36.0% | +4.0% | 44.0% | +6.0% | 40/50 |
+| alpha=32 | 34.0% | +2.0% | 46.0% | +8.0% | 41/50 |
 
----
+*Historical Interpretation:* The best balanced setting was observed at `alpha=16–24`. At `alpha=32`, execution success continued to improve, but exact accuracy declined, suggesting signal saturation.
 
-## 2. Evaluation Metrics
+### Historical Recommended Baseline Before Interference-Aware Gating (Legacy)
 
-We strictly divide our evaluation to avoid conflating mathematical success with downstream model capability.
+Under the Qwen2.5 7B → 0.5B SQL-50 setup, **Structural Projection is the current recommended baseline**.
 
-| Category | Metric | Status / Result |
-| :--- | :--- | :--- |
-| **Structural Metric** | Procrustes Relative Error | $1.3392 \times 10^{-6}$ localized hidden-state alignment |
-| **LM Metric** | PPL Degradation | +0.06% on a localized 4,000-token calibration/eval set |
-| **Ablation Metric** | `diagnose --ablation all` | Calibrated JTSA+WDR outperforms naive/random/procrustes-only baselines |
-| **Downstream Metric** | HumanEval subset | 27.0% pass@1 on N=100 small subset; full HumanEval/GSM8K pending |
+| Method | Accuracy | Delta | Exec Success | Delta | Syntax Valid |
+|---|---:|---:|---:|---:|---:|
+| Baseline 0.5B | 32.0% | - | 38.0% | - | 37/50 |
+| **Structural Projection alpha=16** | **36.0%** | **+4.0%** | **44.0%** | **+6.0%** | **40/50** |
+| Behavioral Alignment (Research) | 32.0% | +0.0% | 38.0% | +0.0% | 37/50 |
+| Behavioral Alignment (Standard) | 0.0% | -32.0% | 0.0% | -38.0% | 0/50 |
 
-*For full details on our testing methodology and failure modes, read the [Empirical Consistency Report](docs/LOGIC_CONSISTENCY_REPORT.md).*
+#### Interpretation
 
----
+In this Qwen2.5 7B → 0.5B SQL-50 experiment, Structural Projection was the strongest tested method. It improved execution accuracy from 32% to 36% and execution success from 38% to 44%, with no observed regression against baseline-correct cases. **These results were confirmed stable across 3 independent evaluation runs (greedy decoding).**
 
-## 3. Qualitative Visual Demo
+The calibrated Behavioral Alignment adapter avoided collapse but did not improve over the 0.5B baseline. The standard Behavioral Alignment adapter collapsed completely. This suggests that Structural Projection currently provides the best balance of stability and functional improvement for extreme cross-scale migration.
 
-This visual A/B test demonstrates a successful weight-delta projection from an SDXL Anime LoRA onto a standard SDXL base model without retraining.
+#### Research Track: Behavioral Alignment
 
-| Baseline (Vanilla SDXL Base) | Projected (SDXL Base + Converted LoRA) |
-| :---: | :---: |
-| ![Before](verification_demo/assets/sdxl_standard.png) | ![After](verification_demo/assets/sdxl_transplanted.png) |
-| *Identical Prompt & Seed (6000).* | *Identical Prompt & Seed (6000). The converted adapter successfully forces the anime aesthetic.* |
+Behavioral Alignment remains an active research direction. Current implementations either collapsed or preserved baseline behavior without improvement. Future work will focus on delta-based objectives, module-wise scaling, and distillation support.
 
-*Note: This visual demo demonstrates adapter projection behavior in an SDXL-compatible setting. Full SDXL-to-FLUX visual validation remains highly experimental and is tracked in the compatibility matrix.*
+#### Qualitative Analysis (Structural Projection alpha=16)
 
----
-
-## 4. Core Algorithms
-
-1. **Hard-WDR (Wasserstein Discrete Routing):** Attempts to map specialized Attention Heads via Sinkhorn-Knopp optimization.
-2. **JTSA & HAMA (Hessian-Aware Manifold Alignment):** Pre-compensates for non-linear GeGLU/SwiGLU distortions using Taylor approximations across a **calibrated activation manifold**.
-3. **Adaptive Variance-Preserving Sparsity (AVPS):** Truncates noise in the Task Vector prior to SVD, preserving 99% of L2 energy to enable calculation on consumer GPUs.
-4. **Synchronized Tensor Swapping:** Experimental PyTorch-level pointer swapping for runtime adapter injection, using `torch.cuda.synchronize()` to implement basic rollback semantics (Note: single-digit to low-double-digit millisecond swap overhead in controlled tests).
-
----
-
-## 5. Compatibility Matrix
-
-To ensure realistic expectations, Neural-Scalpel maintains a strict compatibility matrix.
-
-| Source Adapter | Target Model | Status | Evidence | Recommended Use |
+| Case ID | Category | Baseline Result | Adapter Result | Classification |
 |---|---|---|---|---|
-| LLaMA-3 LoRA | Qwen2.5-0.5B | Experimental | PPL/KL localized | Research only |
-| SDXL LoRA | SDXL-compatible | Qualitative pass | Visual A/B | Style testing |
-| SDXL LoRA | FLUX | Highly experimental | Limited qualitative | Not for production |
-| GGUF/AWQ | Any | Roadmap | Not implemented | N/A |
-| Text LoRA | Vision Model | Unsupported | Cross-modality failure | Do not use |
+| `joins_004` | joins | failed syntax / conversational | correct SQL | fixed |
+| `subqueries_001` | subqueries | failed syntax / conversational | correct SQL | fixed |
 
-## 6. Experimental Hot-Swap Runtime
+**No baseline-correct case regressed under alpha=16 in this SQL-50 run.**
 
-Neural-Scalpel includes an experimental PyTorch-native Hot-Swap Runtime for testing signed `.scalpel_route` injection with rollback, audit logging, tenant isolation, and route-aware serving.
+#### Failure Case Classification (alpha=16)
 
-**Current validation:**
-- Signed route registry with HMAC-SHA256 verification
-- Fail-closed policy gates (tenant, license, revocation, quarantine)
-- Checksum rollback verification for targeted weights
-- Structured JSON-L audit logging for critical runtime events
-- External FastAPI proxy with route-isolated request handling
-- Live stress-tested with `Qwen2.5-0.5B`, real safetensors payloads, and an evaluation-only projected Alpaca LoRA payload for qualitative route smoke testing.
-- Internal vLLM live validation through Phase 7H-2 and extended soak:
-  - route metadata injection
-  - active route-homogeneous scheduling via shelving
-  - real safetensors payload swap/rollback inside `_model_forward`
-  - latest-branch 10K mixed-route endurance with 896 atomic swap/rollback cycles
-  - 6-hour mixed-route extended soak with 1,956,000 requests and 1,114,920 swap/rollback cycles
-  - zero route violations and zero errors in the tested environment
-  - 0.0MB VRAM growth during the 6-hour soak
+| Failure Type | Count | Interpretation |
+|---|---:|---|
+| Adapter fixed baseline failure | 2 | Positive correction candidates (e.g., `joins_004`) |
+| Adapter regressed baseline success | 0 | No observed regression in this run |
+| Both failed | 32 | Remaining dataset/model difficulty |
+| Both succeeded | 16 | Stable cases |
 
-**⚠️ What is NOT Production Ready:**
-- **24h Soak Pending:** Controlled live validations and coarse E2E throughput benchmarks have passed, but the final long-duration mixed-route soak test remains pending.
-- **Precise Performance Regression Pending:** Current benchmark results are coarse E2E throughput measurements. TTFT, TPOT, swap latency, and rollback latency still require precise timing hooks.
-- **Monkey-Patch Fragility:** The internal vLLM integration depends on vLLM V1 internals and may break across vLLM releases.
-- **Broader Model Coverage:** Validation beyond OPT-125M/Qwen2.5-class controlled tests remains future work.
-- **SLA-Grade Serving:** Not ready for uncontrolled public enterprise traffic or SLA commitments.
-- **1-GPU Multi-Tenant Scale:** Cannot yet serve hundreds of concurrent routes seamlessly without internal KV cache integration.
+- **Released Adapter:** [qwen2.5-0.5b-instruct-sql-structural-projection-lora](https://huggingface.co/ponpoke/qwen2.5-0.5b-instruct-sql-structural-projection-lora)
 
-*For full details on what works and what doesn't, see the [Production Readiness Report](docs/HOTSWAP_RUNTIME_PRODUCTION_READINESS_REPORT.md).*
+**Case Study: Fixing Baseline Hallucination**
+- **Case ID:** `joins_004` (Names of products in category 4)
+- **Baseline (Student):** Generated conversational text instead of a code block.
+- **Adapter (alpha=16):** Corrected behavior to greedy SQL generation: `SELECT name FROM products WHERE cat_id = (SELECT id FROM categories WHERE name = 'category 4')`.
 
 ---
 
-## 7. Commercialization Roadmap
+### Recommended Workflow (v2.11.0)
 
-The core research framework and diagnostic CLI are licensed under the Apache License 2.0.
-
-Future commercial offerings may focus on:
-- No-retraining LoRA migration feasibility reports
-- Adapter asset reuse during model refresh cycles
-- Batch portability scoring for large LoRA libraries
-- Private/on-premise migration diagnostics
-- License risk checks and audit-ready reports
-- Safe-mode adapter generation and rollback strategies
-
-No production-grade guarantees are currently provided in v1.0.0-alpha.
+1.  **Diagnose & Project**: Run `diagnose-adapter` and `safe-project` to establish source and target risk profiles.
+2.  **Construct Safety Map**: Use targeted alpha sweeps (e.g., Attention-only) to construct a model-specific **Safety Map**.
+3.  **Prescribe Surgery**: Use `project-adapter --module-alpha-map` with the validated safe region or avoid-band policy identified in the map.
+4.  **Behavioral Validation**: Evaluate with `evaluate-projected` and inspect **Fixed / Regressed / Sentinel** cases.
+5.  **Publish Artifacts**: Generate reports and model cards only after target-side validation confirms acceptable risk levels.
 
 ---
 
-## 8. Quick Start
-
-```bash
-# 1. Run a capability transfer evaluation (e.g., Text-to-SQL)
-python tests/bench_text_to_sql.py
-
-# 2. Run the Hot-Swap Runtime external proxy with vLLM
-VLLM_BACKEND_URL="http://localhost:8000/v1/completions" uvicorn neural_scalpel.serving.vllm_proxy:app --port 8080
-```
-
----
-
-## 9. Documentation & Reports
-- **[Hot-Swap Runtime Production Readiness Report](docs/HOTSWAP_RUNTIME_PRODUCTION_READINESS_REPORT.md):** 🚀 *Read this first!* Contains the endurance test results, actual LoRA evaluations, and integration benchmarks.
-- **[Production Readiness Criteria](docs/PRODUCTION_READINESS_CRITERIA.md):** Tracks remaining gates before constrained Production Candidate declaration.
-- **[Performance Regression Report](docs/PERFORMANCE_REGRESSION_REPORT.md):** Coarse E2E throughput benchmark and pending precise latency work.
-- **[Known Limitations](docs/KNOWN_LIMITATIONS.md):** Current runtime, benchmark, and deployment limitations.
-- **[vLLM Internal Integration Design](docs/VLLM_INTERNAL_INTEGRATION_DESIGN.md):** Architectural design for Step 4B integration.
-- **[Empirical Consistency Report](docs/LOGIC_CONSISTENCY_REPORT.md):** Details on mathematical evaluation metrics and failure modes.
-- **[Project Vision & Roadmap](docs/RESEARCH_AND_COMMERCIAL_ROADMAP.md):** Our strategy for ML research validation and commercial diagnostic tools.
+## Documentation & Reports
+- **[Usage Guide](docs/USAGE.md):** Practical commands for research CLI, Phase 5 validation, and External Proxy Fallback.
+- **[v2.11 Safety Map](reports/regression/v211_safety_map.json):** Model-specific safe/unsafe alpha regions and avoid bands for Qwen2.5-Coder 7B→0.5B.
+- **[v2.11 Diagnostic Report](reports/regression/v211_diagnostic_report.md):** Full risk-calibrated safety mapping analysis.
+- **[Chain of Evidence Report (Sample)](reports/sample_report.md):** Detailed automated analysis of a projection run.
 - **[Technical Report](TECHNICAL_REPORT.md):** Mathematical proofs and architecture overview.
-- **[Security Policy](SECURITY.md):** Important security considerations and vulnerability reporting.
-- **[Model License Policy](MODEL_LICENSE_POLICY.md):** Legal and licensing responsibility regarding derivative adapter works.
-- **[Disclaimer](DISCLAIMER.md):** Experimental software disclaimer and lack of production guarantees.
-
----
-*Developed and tested locally on an NVIDIA RTX 5060 Ti 16GB.*
+- **[Project Vision & Roadmap](docs/RESEARCH_AND_COMMERCIAL_ROADMAP.md):** Our strategy for ML research validation and commercial diagnostic tools.

@@ -1,120 +1,76 @@
-# Task Vector Projection: A Mathematical Framework for Cross-Architecture Adapter Conversion
+# Technical Report: Neural-Scalpel
 
-**Date:** May 2026
-**Status:** Experimental Research Preview (v1.0.0-alpha)
+## 1. Overview
+Neural-Scalpel is a framework for cross-architecture intelligence transplantation. It extracts learned weight deltas (Task Vectors) from a source model and projects them onto a target architecture using a combination of Manifold Alignment and Structural Projection.
 
-## Abstract
-This report proposes "Task Vector Projection," an experimental mathematical framework attempting to approximate and project learned weight deltas (Task Vectors / LoRAs) between neural architectures without gradient-based fine-tuning. By defining knowledge as a geometric vector within the weight space, we explore methods to project these vectors across distinct architectures (e.g., UNet to DiT, or LLaMA to Qwen). Our methodology incorporates memory-efficient sparse hacking, adaptive singular value decomposition, and structural non-linear compensation. Preliminary localized validations on a single-node setup indicate that calibrated projection can preserve structural alignment and language-modeling stability in limited settings. A small HumanEval subset experiment suggests partial coding-behavior retention for one LLaMA-3-to-Qwen-2.5 configuration, but broader downstream validation across full benchmark sets, additional LoRA types, and additional model pairs remains future work. Core mathematical and runtime components are covered by an automated test suite; the repository badge currently tracks 193 non-live tests passed; live vLLM tests are executed separately.
+## 2. Core Engines
 
----
+### 2.1 Structural Projection
+Structural projection handles the geometric transformation of weight matrices.
+- **AVPS (Adaptive Variance Preserving Sparsity)**: Identifies the high-variance sparse core of a weight delta.
+- **rSVD Extraction**: Compresses the delta into a low-rank representation suitable for PEFT architectures.
 
-## 1. Introduction
-Traditional AI development relies heavily on dataset-driven training. We propose an experimental "surgical approach": if a model has learned a concept, that adaptation exists as a Task Vector ($\tau = W_{tuned} - W_{base}$). This framework extracts $\tau$, attempts to structurally align the semantic manifolds of the models, and mathematically injects the vector.
+### 2.2 Manifold Alignment
+Manifold alignment ensures that the semantic behavior of the adapter is preserved across different architectural dimensions.
+- **Head-wise Orthogonal Procrustes**: Aligns attention heads between source and target dimensions.
+- **CKA Calibration**: Measures the feature-map similarity to verify that the projection hasn't collapsed the internal representations.
 
-## 2. Mathematical Framework (Core Algorithms)
+## 3. The 7-Stage Diagnostic Pipeline
 
-### 2.1. Physical Sparse Memory Hack
-To manipulate multi-gigabyte weight deltas on consumer hardware (16GB RAM), we perform Pre-SVD Trimming. We truncate noise by zeroing the bottom $20\%$ of absolute values in $\tau$, then casting to Compressed Sparse Row (CSR) format.
-*Efficacy:* A $640 \times 2048$ matrix was compressed by $20\%$, mathematically preserving the primary signal while slashing memory requirements during the SVD phase.
+Neural-Scalpel enforces a rigorous validation pipeline to ensure scientific integrity:
 
-### 2.2. Adaptive rSVD Bootstrap
-We extract "core components" using Randomized SVD with a Bootstrap Stopping criterion. The algorithm iteratively expands the rank block-by-block, stopping when the largest singular value of the new subspace falls below a threshold $\epsilon$.
-
-### 2.3. Head-wise Scaling Orthogonal Procrustes
-Different architectures map concepts to different coordinates. We independently solve the Orthogonal Procrustes problem for each attention head $i$:
-$$ \min_{s_i, R_i} \| s_i A_i R_i - B_i \|_F $$
-
----
-
-## 3. Experimental Validation
-
-### 3.1. LLM Alignment (LLaMA-3 $\to$ Qwen-2)
-We tested the logic by projecting a fine-tuned LoRA from LLaMA-3 (32 heads) to Qwen-2 (28 heads).
-The Head-wise Procrustes analysis aligned the multi-head attention spaces with a relative transformation error of **$1.3392 \times 10^{-6}$** (measured locally on hidden states). 
-
-### 3.2. Cross-Architecture Projection (Vision: SDXL $\to$ FLUX)
-We projected an "anime-style" LoRA from SDXL (Animagine XL 3.1) to FLUX.1-schnell.
-1.  **Padding:** Dynamically padded SDXL's 10x64 heads into FLUX's 24x128 format.
-2.  **Procrustes:** Used CLIP-L hidden states as semantic anchors for all 24 heads.
-3.  **Result:** Qualitative A/B tests demonstrated a stylistic shift toward anime illustrations without gradient descent. Note that visual quality depends highly on the prompt and seed.
+1. **Stage 1: Metadata Gate**: Verifies model lineage, licensing, and base-model hashes.
+2. **Stage 2: Source Quality Gate**: Confirms the adapter is a "Positive Teacher" on its original architecture.
+3. **Stage 3: Delta Health Gate**: Spectral analysis of weights to detect rank collapse or instability.
+4. **Stage 4: Compatibility Gate**: Hidden-size ratio and tokenizer vocabulary verification.
+5. **Stage 5: Feasibility Gate**: Configuration-level structural mapping (GQA-awareness, layer mapping).
+6. **Stage 6: Target Evaluation Gate**: Final benchmarking on the target student model.
+7. **Stage 7: Release Decision Gate**: Automated unified decision engine (RELEASE_READY / RESEARCH_ONLY).
 
 ---
 
-## 4. Hardware Context & Scalability Disclaimers
-Unless otherwise noted, live GPU validations reported here were obtained on a single NVIDIA RTX 5060 Ti (16GB VRAM). Non-live unit tests may run in CPU or mixed local CI environments.
-*   **Scalability:** Performance in multi-GPU clusters or distributed vLLM environments is unverified.
-*   **VRAM Hot-Swapping:** We implemented a framework-agnostic C++/CUDA extension (`Scalpel-Kernel`) for atomic tensor swapping. When compiled with `nvcc`, it achieves synchronized tensor swaps with rollback semantics by leveraging CUDA stream synchronization. Without `nvcc`, it falls back to Python-level operations which lack strict hardware isolation.
+## 4. Scientific Release Pipeline (v2.3)
 
-### 4.1. Experimental VRAM Hot-Swap Verification (Scalpel-Kernel)
-To test the `Scalpel-Kernel`'s robustness, we conducted verification tests:
-1. **Resource Exhaustion ($O(1)$ Footprint):** Over 1,000 continuous hot-swap cycles, `torch.cuda.memory_allocated()` was monitored. The final memory footprint matched the baseline.
-2. **Multi-Layer Contention:** Simulated simultaneous, asynchronous hot-swaps across 5 separate layers using multiple threads. The system handled this with zero exceptions.
-3. **Latency Impact & TPOT:** The p99 latency spike during a hot-swap was firmly under **50ms**, demonstrating that the `cudaStreamSynchronize` barrier imposes a momentary stall but does not indefinitely freeze the pipeline. This result applies to the experimental Scalpel-Kernel verification path, not to the current vLLM monkey-patch route path. vLLM TTFT/TPOT and payload-load latency remain pending.
-4. **Fault Tolerance (Rollback):** Attempting to inject malformed tensors triggered framework exceptions and rolled back the transaction.
-
-### 4.2. Non-linear Robustness (Perplexity Impact)
-Transformers are non-linear due to GeGLU/SwiGLU. Linear alignment alone is insufficient.
-*   **Result:** Initial SVD-based transplant (SRHP) yielded a PPL degradation of **+4.80%**, confirming the need for non-linear structural compensation.
-
-### 4.3. Sparsity Ablation Study (The 20% Rule)
-We evaluated the reconstruction error across varying trim ratios using the **actual Task Vector extracted from SDXL base to Animagine XL 3.1** (1,310,720 parameters):
-*   **0.0% (Full):** Error $= 0.7847$ (Baseline rSVD loss)
-*   **10.0%:** Error $= 0.7808$ (Noise filtered)
-*   **20.0%:** Error $= 0.7847$ (Equivalent to baseline)
-*   **Conclusion:** Trimming the bottom 20% is a sound heuristic for real-world LoRA deltas. However, for general robustness, we have moved to **Adaptive Variance-Preserving Sparsity (AVPS)**.
+To ensure reproducibility and scientific transparency, Neural-Scalpel v2.3 automates the generation of a **Chain of Evidence Report**. This report consolidates all internal metrics (CKA, rSVD rank, spectral health, and behavioral fixed/regressed counts) into a single, immutable audit trail for each transplantation run.
 
 ---
 
-## 5. Architectural Features (Precision Upgrades)
+## 5. Interference-Aware Gating (v2.10)
 
-### 5.1. Adaptive Variance-Preserving Sparsity (AVPS)
-Replaces hardcoded thresholds with energy-aware thresholding, preserving exactly $99\%$ of the total L2 variance to ensure heavy-tailed connections are never severed.
+Neural-Scalpel v2.10 introduces **Interference-Aware Gating (IAPG)**, a surgical refinement layer that mitigates destructive interference between task-specific weight deltas and target-base knowledge.
 
-### 5.2. Principal Component Subspace Injection (PCSI)
-Projects the source concept onto the **Principal Components** of the target space via SVD. When the number of SVD components is fewer than the source dimensionality, PCSI gracefully falls back to projecting through all available principal components.
+- **Module-Alpha-Map**: Enables per-module-family alpha scaling (e.g., Attention vs. MLP).
+- **Strict Gating**: Physically excludes modules with `alpha=0` from the final adapter configuration, rather than including them with zero weights.
+- **Sentinel-Safe Transfer**: Prioritizes structural integrity by monitoring "Sentinel Cases" (sensitive task primitives) to detect internal behavioral collapse before regressions occur.
 
-### 5.3. Wasserstein Discrete Routing (WDR), Jacobian Tangent Space Alignment (JTSA) & HAMA
-To mitigate non-linear distortion:
-1.  **Hard-WDR:** Attempts to map specialized Attention Heads via Sinkhorn-Knopp.
-2.  **Jacobian Tangent Space Alignment (JTSA):** Pre-compensates for SwiGLU/GeGLU curves via a high-precision first-order Taylor alignment across a **calibrated activation manifold**, with an optional zero-dataset synthetic fallback.
-3.  **Hessian-Aware Manifold Alignment (HAMA):** Introduces a 2nd-order Taylor expansion to pre-compensate for extreme curvature in Out-Of-Distribution (OOD) regions, stabilizing the projection. Both JTSA and HAMA rely heavily on a small set of activation states (datasets) to accurately capture emergent outliers.
-*   **Result:** This multi-strategy approach aims to stabilize the projection. Preliminary small-scale evaluations on a 4,000-token corpus indicate a localized PPL degradation of **+0.06%**, provided calibration data is used to preserve outliers. Downstream task preservation is not guaranteed.
+---
 
-### 5.4. Universal I/O Bridge & Streaming Processing
-To overcome the physical limitations of consumer hardware, we implemented a modular I/O architecture:
-- **Multi-Format Thawing:** Direct loading and vectorized auto-dequantization of quantized formats (**GGUF, AWQ**) into high-precision FP16 tensors for alignment.
-- **Streaming Processing:** The pipeline processes models layer-by-layer. This ensures a constant, O(1 layer) memory footprint, enabling the processing of 7B+ models on a single 16GB VRAM node.
-- **Manifold Re-calibration (LMR):** Addresses scale recalculation for data-dependent formats like **AWQ**. The system profiles a small activation dataset post-conversion to safely handle outliers before recalculating optimal quantization scales. A mathematically synthesized manifold fallback is available if datasets cannot be provided (at risk of quality loss).
+---
 
-## 6. Executable Ablation Study Framework
+## 6. Risk-Calibrated Safety Mapping (v2.11)
 
-To rigorously prove the necessity of each mathematical component, Neural-Scalpel defines an executable ablation framework. Rather than theoretical assumptions, structural and downstream retention must be validated across the following modes:
+Neural-Scalpel v2.11 reframes alpha selection as a model-specific **Safety Mapping** problem rather than a universal constant prediction problem. The framework establishes a diagnostic foundation for constructing empirical maps of stable and unstable scaling regions.
 
-1. **Naive Padding / Resize Baseline:** Zero-padding or truncating the source adapter to fit the target dimensions without structural rotation.
-2. **Random Orthogonal Projection:** Applying a random orthogonal matrix to isolate the effect of intentional alignment from random noise injection.
-3. **Procrustes Only (Linear):** Applying only the Singular Value Decomposition (SVD) and Orthogonal Procrustes alignment without non-linear compensation.
-4. **Procrustes + AVPS:** Adding Adaptive Variance-Preserving Sparsity to measure the impact of noise filtering on projection fidelity.
-5. **Procrustes + WDR:** Introducing Wasserstein Discrete Routing to evaluate the necessity of attention head re-routing.
-6. **JTSA + WDR (Uncalibrated):** Applying Taylor approximations assuming a standard normal distribution, demonstrating the failure mode of zero-dataset projection.
-7. **JTSA + WDR (Calibrated):** The complete Neural-Scalpel pipeline, relying on an empirical calibration manifold.
-8. **Route-Window Persistent Swapping (Phase 5-C):** Implementing a stateful runtime that maintains the active route until a transition is required, reducing swap overhead from $O(tokens)$ to $O(windows)$.
+Key features of the v2.11 workflow include:
+- **Comprehensive Metadata Tracking**: Records both projection metadata (global alpha, module-alpha-map) and evaluation metadata (dtype, adapter merge state) to ensure 100% scientific reproducibility.
+- **Effective Delta Metrics**: Calculates projected-delta norm ratios across all layers to estimate the physical "Safety Budget" of the target model.
+- **Case-Level Regression Analysis**: Quantifies the delta in behavioral performance (Fixed vs. Regressed) to determine an empirical Verdict (WINNER/SAFE/BOUNDARY/UNSAFE).
+- **Avoid-Band Identification**: Recognizes non-monotonic safety behavior, such as the localized failure zones observed in 0.5B models (e.g., Alpha=3.0 instability), and generates actionable safety maps with excluded scaling intervals.
 
+### 6.1 Limitations
 
-Each ablation mode must be measured against a strict 6-way empirical comparison to isolate the exact contribution of each algorithm.
+The current safety map is specific to the tested Qwen2.5-Coder 7B SQL DPO → Qwen2.5-Coder 0.5B SQL-50 setting. Avoid bands and safe alpha regions should not be assumed to transfer to other model families, tasks, decoding settings, or evaluation dtypes without re-running the safety mapping workflow.
 
-## 7. Conclusion
-Neural-Scalpel Version 1.0.0-alpha establishes an experimental foundation for cross-architecture adapter conversion. Phase 5-C introduced **Route-Window Persistent Swapping**, which removed the catastrophic per-token swap overhead under the tested route-window workloads. In a recent Qwen2.5-0.5B / Alpaca payload benchmark, Neural-Scalpel recorded only 1 confirmed swap and 1 verified rollback across 1,600 generated tokens, with checksum-level rollback verification passing (`verified_rollbacks=1`).
+---
 
-While the Phase 5-C benchmark showed a positive throughput delta over base (+69.98%), this result was prompt-specific. Phase 5-D extended this result beyond a single prompt: 50 prompts × 3 runs showed Scalpel v2 median throughput of ~2574 tok/s versus Native LoRA at ~983 tok/s under controlled conditions.
+## 7. Performance Metrics
 
-Phase 5-E-1 validated two-route mixed-batch safety across 1000 dynamically routed requests (`__base__` ↔ Alpaca), with 0 route violations, 0 quarantine events, and a healthy worker.
+Validated locally on an NVIDIA RTX 5060 Ti 16GB under SQL-50 case-study conditions.
 
-Phase 5-F addressed the previous text-level determinism concern under the tested cache-reset condition: Base-before and Base-after matched exactly, with 100.0% top-token logprob trace similarity after verified checksum rollback.
-
-Neural-Scalpel is currently best described as a validated prototype with strong controlled runtime evidence, and a paradigm-shift-class candidate under controlled validation. Formal Production Candidate status remains pending the 24h persistent-route soak. Broader 3+ route and worst-case alternation stress tests remain future hardening work. By leveraging **Hessian-Aware Manifold Alignment (HAMA)** and the **Streaming I/O Bridge**, we have shown that adapter weights can be structurally mapped and physically managed across architectures within the limits of high-precision linear and 2nd-order non-linear approximations. All core mathematical components have been validated by a comprehensive automated suite (193 non-live tests passed; live vLLM tests are executed separately; see `tests/TEST_REPORT.md`).
-
-## 8. Future Roadmap
-### 8.1. ExL2 Direct Integration
-Binary orchestration for non-uniform bit-rate formats.
-
-*Note: All algorithms were verified locally on an NVIDIA RTX 5060 Ti.*
+- **Source Adapter Quality Gate:** Positive Teacher behavior observed for the tested Qwen2.5-Coder SQL-DPO adapter.
+- **Internal Signal Retention:** Maintained **~92%** CKA similarity (internal representation proxy) for identity-sized projections. Note: This is a structural metric and does not directly equate to behavioral task performance.
+- **v2.11 Safety Mapping Results:** In the Qwen2.5-Coder 7B→0.5B setup, attention-only projections were validated as SAFE at Alpha=[0.5, 1.0, 2.0, 4.0], with a localized **UNSAFE "Avoid Band" at [2.75, 3.25]**.
+- **v2.10 Fixed-Extractor Result:** **+2.0pt accuracy improvement** (from 24.0% to 26.0%) with **zero regressions** and `joins_007=PASS` in the documented sentinel set.
+- **Historical Structural Projection Result:** +4.0% improvement (from 32% to 36%) under the earlier SQL-50 extraction setup.
+- **Cross-size Generalization:** Preliminary positive SQL-50 deltas observed across 1.5B and 3B targets under selected benchmark conditions.
+- **Scope:** These metrics are benchmark-specific and do not guarantee general SQL or production performance. Regression may occur depending on target model local minima.

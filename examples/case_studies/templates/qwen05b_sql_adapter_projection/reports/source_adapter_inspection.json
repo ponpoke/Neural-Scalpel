@@ -1,0 +1,17 @@
+{
+  "adapter_path": "temp_adapter/adapter_model.safetensors",
+  "target_model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+  "mode": "REAL",
+  "lora_rank": 16,
+  "num_tensors": 392,
+  "target_modules": [
+    "down_proj",
+    "gate_proj",
+    "k_proj",
+    "o_proj",
+    "q_proj",
+    "up_proj",
+    "v_proj"
+  ],
+  "status": "COMPLETED"
+}

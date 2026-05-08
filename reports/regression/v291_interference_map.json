@@ -1,0 +1,80 @@
+{
+  "runs": {
+    "attention_a4": {
+      "fixed": [],
+      "regressed": [],
+      "risk_score": 0.0,
+      "sentinel_regressed": false
+    },
+    "attention_a6": {
+      "fixed": [
+        "joins_002"
+      ],
+      "regressed": [
+        "joins_007"
+      ],
+      "risk_score": 0.499999750000125,
+      "sentinel_regressed": true
+    },
+    "attention_a8": {
+      "fixed": [],
+      "regressed": [
+        "basic_select_004",
+        "joins_007"
+      ],
+      "risk_score": 0.99999950000025,
+      "sentinel_regressed": true
+    },
+    "attention_a12": {
+      "fixed": [
+        "joins_002"
+      ],
+      "regressed": [
+        "basic_select_001",
+        "basic_select_003",
+        "basic_select_004",
+        "basic_select_006",
+        "joins_007"
+      ],
+      "risk_score": 0.8333331944444675,
+      "sentinel_regressed": true
+    },
+    "attention_a16": {
+      "fixed": [
+        "joins_002",
+        "joins_005"
+      ],
+      "regressed": [
+        "basic_select_001",
+        "basic_select_003",
+        "basic_select_004",
+        "basic_select_006",
+        "joins_006",
+        "joins_007"
+      ],
+      "risk_score": 0.7499999062500118,
+      "sentinel_regressed": true
+    },
+    "mlp_a4": {
+      "fixed": [],
+      "regressed": [
+        "joins_007"
+      ],
+      "risk_score": 0.9999990000010001,
+      "sentinel_regressed": true
+    },
+    "down_proj_a4": {
+      "fixed": [],
+      "regressed": [
+        "basic_select_004",
+        "joins_007"
+      ],
+      "risk_score": 0.99999950000025,
+      "sentinel_regressed": true
+    }
+  },
+  "metadata": {
+    "source": "v2.9.1",
+    "sentinel": "joins_007"
+  }
+}

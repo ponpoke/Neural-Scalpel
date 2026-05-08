@@ -166,25 +166,53 @@ class TestSRHP(unittest.TestCase):
 
 class TestWDR(unittest.TestCase):
     def test_sinkhorn_marginals(self):
+        torch.manual_seed(0)
         C = torch.rand(8, 8)
         P = sinkhorn_knopp(C, epsilon=0.1)
         expected = 1.0 / 8
         torch.testing.assert_close(P.sum(dim=0), torch.full((8,), expected), atol=1e-4, rtol=1e-4)
         torch.testing.assert_close(P.sum(dim=1), torch.full((8,), expected), atol=1e-4, rtol=1e-4)
 
+    def test_sinkhorn_rectangular_marginals(self):
+        """Test Sinkhorn logic with non-square cost matrices."""
+        torch.manual_seed(0)
+        C = torch.rand(5, 3)
+        P = sinkhorn_knopp(C, epsilon=0.05)
+        torch.testing.assert_close(P.sum(dim=0), torch.full((3,), 1/3), atol=1e-3, rtol=1e-3)
+        torch.testing.assert_close(P.sum(dim=1), torch.full((5,), 1/5), atol=1e-3, rtol=1e-3)
+
+    def test_sinkhorn_rejects_non_positive_epsilon(self):
+        C = torch.rand(4, 4)
+        with self.assertRaises(ValueError):
+            sinkhorn_knopp(C, epsilon=0.0)
+
     def test_hard_wdr_column_sums(self):
+        torch.manual_seed(0)
         src = torch.randn(4, 5, 16)
         tgt = torch.randn(4, 3, 16)
         P = wasserstein_discrete_routing(src, tgt, mode="hard", alpha=0.1)
         torch.testing.assert_close(P.sum(dim=0), torch.ones(3), atol=1e-5, rtol=1e-5)
 
     def test_soft_wdr_column_sums(self):
+        torch.manual_seed(0)
         src = torch.randn(4, 5, 16)
         tgt = torch.randn(4, 3, 16)
         P = wasserstein_discrete_routing(src, tgt, mode="soft")
         col_sums = P.sum(dim=0)
-        for s in col_sums:
-            self.assertAlmostEqual(s.item(), 1.0, delta=0.05)
+        torch.testing.assert_close(col_sums, torch.ones(3), atol=5e-2, rtol=5e-2)
+
+    def test_wdr_rejects_invalid_mode(self):
+        src = torch.randn(4, 5, 16)
+        tgt = torch.randn(4, 3, 16)
+        with self.assertRaises(ValueError):
+            wasserstein_discrete_routing(src, tgt, mode="invalid")
+
+    def test_wdr_fp16_input_returns_finite(self):
+        src = torch.randn(4, 5, 16, dtype=torch.float16)
+        tgt = torch.randn(4, 3, 16, dtype=torch.float16)
+        P = wasserstein_discrete_routing(src, tgt, epsilon=0.01, mode="soft")
+        self.assertEqual(P.dtype, torch.float16)
+        self.assertTrue(torch.isfinite(P.float()).all())
 
 
 class TestJTSA(unittest.TestCase):

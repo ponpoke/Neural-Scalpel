@@ -1,0 +1,7 @@
+[
+  "SELECT name FROM students WHERE score > 90;",
+  "Table: sales(id, amount). Total sales query.",
+  "Write a SQL query to join employees and departments.",
+  "Average salary of engineers in San Francisco.",
+  "Find the top 5 most expensive products in the inventory."
+]
