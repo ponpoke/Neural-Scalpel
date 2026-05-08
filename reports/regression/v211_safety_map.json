@@ -1,0 +1,40 @@
+{
+  "attention": {
+    "safe_alphas": [
+      0.5,
+      1.0,
+      2.0,
+      4.0
+    ],
+    "boundary_alphas": [],
+    "unsafe_alphas": [
+      3.0
+    ],
+    "avoid_bands": [
+      [
+        2.75,
+        3.25
+      ]
+    ],
+    "recommended_alpha": 2.0,
+    "policy": "UNIFORM_SCALING_REQUIRED"
+  },
+  "mlp": {
+    "safe_alphas": [],
+    "boundary_alphas": [
+      0.0625,
+      0.0625,
+      0.125,
+      0.125,
+      0.1875
+    ],
+    "unsafe_alphas": [
+      0.125,
+      0.1875,
+      0.25
+    ],
+    "recommended_alpha": 0.0,
+    "policy": "DISABLE_BY_DEFAULT_PENDING_VALIDATION"
+  },
+  "status": "VALIDATED_RISK_MAP"
+}

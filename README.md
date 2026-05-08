@@ -2,7 +2,7 @@
 
 **No-Retraining LoRA Migration & Diagnostic Toolkit**
 
-[![Version](https://img.shields.io/badge/version-2.10.0-blue)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-2.11.0-blue)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-200%2B%20non--live%20passed-brightgreen)](tests/TEST_REPORT.md)
 [![Verification](https://img.shields.io/badge/Status-Validated%20Prototype-blue)](docs/PRODUCTION_READINESS_CRITERIA.md)
@@ -38,7 +38,7 @@ Neural-Scalpel helps answer:
 
 ---
 
-## Status: Adapter Transfer Diagnostic v2.10.0 (Strict Gating & Hybrid Projection)
+## Status: Adapter Transfer Diagnostic v2.11.0 (Risk-Calibrated Safety Mapping)
 
 Neural-Scalpel now provides a **comprehensive diagnostic-to-publishing workflow**:
 
@@ -64,11 +64,26 @@ For the first time, Neural-Scalpel achieved **True Positive Transfer** involving
 |---|---:|---:|---:|---|---|
 | Baseline (0.5B Instruct) | 24.0% | 0 | 0 | **PASS** | Reference |
 | v210_v0 (Attention-Only) | 24.0% | 0 | 0 | **PASS** | Validated |
-| **v210_v1c (Hybrid-Gated)** | **26.0%** | **1** | **0** | **PASS** | **Best-Tested** |
+| v210_v1c (Hybrid-Gated) | 26.0% | 1 | 0 | **PASS** | Best-Tested |
+
+### v2.11 Evolution: Risk-Calibrated Safety Mapping (Diagnostic Infrastructure)
+
+Neural-Scalpel v2.11 transitions from heuristic tuning to an **Empirical Diagnostic Framework**. Rather than searching for a universal alpha constant, v2.11 enables the construction of model-specific **Safety Maps**.
+
+- **Non-Monotonic Safety Discovery**: Targeted sweeps revealed that safety does not follow a linear path. For example, in the Qwen2.5 7B→0.5B setup, **Alpha=3.0 was identified as a localized Failure Zone** (triggering Python hallucination), while higher (4.0) and lower (2.0) values remained safe.
+- **Automated Risk Profiling**: The system now automatically generates `safety_map.json`, categorizing alpha ranges into `SAFE`, `UNSAFE`, and `AVOID BANDS`.
+- **Reproducible Metrics**: Integrated `eval_metadata` (dtype/merge tracking) and true "Effective Delta" norm calculations for scientific traceability.
+
+**Current Validated Safety Map (v2.11):**
+- **Attention**: SAFE at [0.5, 1.0, 2.0, 4.0]. **AVOID BAND: [2.75, 3.25]**.
+- **MLP**: High-sensitivity. Recommended Alpha: **0.0 (Gated)** or <0.02.
 
 **Current Best Validated Configuration (v2.10):**
 `--module-alpha-map q_proj=4,k_proj=4,v_proj=4,o_proj=4,gate_proj=0.125,up_proj=0.125,down_proj=0`
 *(Note: Alpha values are relative to a global alpha of 16)*
+
+> [!NOTE]
+> The v2.10 hybrid-gated configuration is preserved as a successful historical run under its documented evaluation conditions. v2.11 re-evaluates the transfer landscape under stricter metadata-tracked conditions and reframes the result as part of a model-specific safety map rather than a universal recipe. (v2.10 の hybrid-gated 構成は、当時の評価条件下で成功した履歴として保持する。v2.11 では、評価条件をより厳密に追跡したうえで、これを普遍的な処方箋ではなく、対象モデル固有の安全地図の一部として再解釈する。)
 
 ### Historical Scale Sensitivity: Alpha Sweep (Legacy Extractor)
 

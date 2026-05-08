@@ -878,6 +878,73 @@
     }
   },
   {
+    "setting": "v211_sweep_attn_a3.0",
+    "alpha_map": {
+      "q_proj": 3.0,
+      "k_proj": 3.0,
+      "v_proj": 3.0,
+      "o_proj": 3.0,
+      "gate_proj": 0.0,
+      "up_proj": 0.0,
+      "down_proj": 0.0
+    },
+    "outcome": {
+      "accuracy": 0.22,
+      "syntax_valid": "18/50",
+      "fixed": 0,
+      "regressed": 1,
+      "joins_007": "FAIL",
+      "verdict": "UNSAFE"
+    },
+    "metrics": {
+      "q_proj": {
+        "mean_norm_ratio": 0.001494,
+        "max_norm_ratio": 0.002114,
+        "p90_norm_ratio": 0.001945,
+        "std_norm_ratio": 0.000371,
+        "mean_effective_rank": 13.02,
+        "max_effective_rank": 13.99
+      },
+      "k_proj": {
+        "mean_norm_ratio": 0.001411,
+        "max_norm_ratio": 0.002393,
+        "p90_norm_ratio": 0.001979,
+        "std_norm_ratio": 0.000459,
+        "mean_effective_rank": 12.53,
+        "max_effective_rank": 13.72
+      },
+      "v_proj": {
+        "mean_norm_ratio": 0.001558,
+        "max_norm_ratio": 0.002567,
+        "p90_norm_ratio": 0.002182,
+        "std_norm_ratio": 0.000443,
+        "mean_effective_rank": 13.08,
+        "max_effective_rank": 14.47
+      },
+      "o_proj": {
+        "mean_norm_ratio": 0.00162,
+        "max_norm_ratio": 0.0023,
+        "p90_norm_ratio": 0.001949,
+        "std_norm_ratio": 0.000228,
+        "mean_effective_rank": 13.96,
+        "max_effective_rank": 14.82
+      },
+      "_metadata": {
+        "global_alpha": 16,
+        "module_alpha_map": {
+          "q_proj": 3.0,
+          "k_proj": 3.0,
+          "v_proj": 3.0,
+          "o_proj": 3.0,
+          "gate_proj": 0.0,
+          "up_proj": 0.0,
+          "down_proj": 0.0
+        },
+        "rank": 16
+      }
+    }
+  },
+  {
     "setting": "v211_sweep_attn_a4.0",
     "alpha_map": {
       "q_proj": 4.0,
