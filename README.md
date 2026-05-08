@@ -38,7 +38,7 @@ Neural-Scalpel helps answer:
 
 ---
 
-## Status: Adapter Transfer Diagnostic v2.11.0 (Risk-Calibrated Safety Mapping)
+## Status: Adapter Transfer Diagnostic v2.12.0 (1.5B Manifold Harmonization)
 
 Neural-Scalpel now provides a **comprehensive diagnostic-to-publishing workflow**:
 
@@ -107,7 +107,7 @@ The following results were obtained under an earlier SQL extraction/evaluation s
 
 ### Historical Recommended Baseline Before Interference-Aware Gating (Legacy)
 
-Under the Qwen2.5 7B → 0.5B SQL-50 setup, **Structural Projection is the current recommended baseline**.
+Under the earlier Qwen2.5 7B → 0.5B SQL-50 setup, Structural Projection was the strongest tested baseline before Interference-Aware Gating and Safety Mapping.
 
 | Method | Accuracy | Delta | Exec Success | Delta | Syntax Valid |
 |---|---:|---:|---:|---:|---:|
@@ -153,11 +153,11 @@ Behavioral Alignment remains an active research direction. Current implementatio
 
 ---
 
-### Recommended Workflow (v2.11.0)
+### Recommended Workflow (v2.12.0)
 
 1.  **Diagnose & Project**: Run `diagnose-adapter` and `safe-project` to establish source and target risk profiles.
 2.  **Construct Safety Map**: Use targeted alpha sweeps (e.g., Attention-only) to construct a model-specific **Safety Map**.
-3.  **Prescribe Surgery**: Use `project-adapter --module-alpha-map` with the validated safe region or avoid-band policy identified in the map.
+3.  **Prescribe Surgery**: Use `project-adapter --module-alpha-map` with validated safe regions, avoid bands, and **layer-selective alpha profiles** identified in the map.
 4.  **Behavioral Validation**: Evaluate with `evaluate-projected` and inspect **Fixed / Regressed / Sentinel** cases.
 5.  **Publish Artifacts**: Generate reports and model cards only after target-side validation confirms acceptable risk levels.
 
