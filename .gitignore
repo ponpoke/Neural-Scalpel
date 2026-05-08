@@ -116,3 +116,12 @@ Thumbs.db
 qwen2.5-0.5b-sql-structural-projection/
 
 runs/
+
+# Private research sandbox
+/private_lab/
+/private_lab/**
+
+# Private experiment artifacts
+*.private.md
+*_private.json
+*_secret.yaml
