@@ -35,12 +35,23 @@ To ensure reproducibility and scientific transparency, Neural-Scalpel v2.3 autom
 
 ---
 
-## 5. Performance Metrics
+## 5. Interference-Aware Gating (v2.10)
+
+Neural-Scalpel v2.10 introduces **Interference-Aware Gating (IAPG)**, a surgical refinement layer that mitigates destructive interference between task-specific weight deltas and target-base knowledge.
+
+- **Module-Alpha-Map**: Enables per-module-family alpha scaling (e.g., Attention vs. MLP).
+- **Strict Gating**: Physically excludes modules with `alpha=0` from the final adapter configuration, rather than including them with zero weights.
+- **Sentinel-Safe Transfer**: Prioritizes structural integrity by monitoring "Sentinel Cases" (sensitive task primitives) to detect internal behavioral collapse before regressions occur.
+
+---
+
+## 6. Performance Metrics
 
 Validated locally on an NVIDIA RTX 5060 Ti 16GB under SQL-50 case-study conditions.
 
 - **Source Adapter Quality Gate:** Positive Teacher behavior observed for the tested Qwen2.5-Coder SQL-DPO adapter.
 - **Internal Signal Retention:** Maintained **~92%** CKA similarity (internal representation proxy) for identity-sized projections. Note: This is a structural metric and does not directly equate to behavioral task performance.
-- **Qwen2.5-Coder-0.5B Target Delta:** **+4.0% accuracy improvement** (from 32% to 36%) in the documented SQL-50 case study.
+- **v2.10 Fixed-Extractor Result:** **+2.0pt accuracy improvement** (from 24.0% to 26.0%) with **zero regressions** and `joins_007=PASS` in the documented sentinel set.
+- **Historical Structural Projection Result:** +4.0% improvement (from 32% to 36%) under the earlier SQL-50 extraction setup.
 - **Cross-size Generalization:** Preliminary positive SQL-50 deltas observed across 1.5B and 3B targets under selected benchmark conditions.
 - **Scope:** These metrics are benchmark-specific and do not guarantee general SQL or production performance. Regression may occur depending on target model local minima.

@@ -49,7 +49,7 @@ Neural-Scalpel now provides a **comprehensive diagnostic-to-publishing workflow*
 5. **`generate-report`**: Automated creation of detailed scientific analysis reports.
 6. **`generate-model-card`**: Automated generation of Hugging Face compatible Model Cards.
 
-The framework classifies adapters as `PROJECTION_CANDIDATE`, runs structural projection, evaluates student-side behavior, and promotes successful runs to `RELEASE_READY`.
+The framework classifies adapters as `PROJECTION_CANDIDATE`, runs structural projection, evaluates student-side behavior, and promotes successful runs to `RELEASE_READY` as a research artifact, subject to benchmark-specific validation.
 
 > [!NOTE]
 > Neural-Scalpel remains a research toolkit. `RELEASE_READY` means validated as a research artifact on the selected benchmark, not production deployment readiness.
@@ -70,7 +70,9 @@ For the first time, Neural-Scalpel achieved **True Positive Transfer** involving
 `--module-alpha-map q_proj=4,k_proj=4,v_proj=4,o_proj=4,gate_proj=0.125,up_proj=0.125,down_proj=0`
 *(Note: Alpha values are relative to a global alpha of 16)*
 
-### Scale Sensitivity: Alpha Sweep (Structural Projection)
+### Historical Scale Sensitivity: Alpha Sweep (Legacy Extractor)
+
+The following results were obtained under an earlier SQL extraction/evaluation setup (Legacy Extractor) and are preserved for historical comparison. They should not be directly compared with the v2.10 fixed-extractor results above.
 
 | Setting | Accuracy | Delta | Execution Success | Delta | Syntax Valid |
 |---|---:|---:|---:|---:|---:|
@@ -80,9 +82,9 @@ For the first time, Neural-Scalpel achieved **True Positive Transfer** involving
 | alpha=24 | 36.0% | +4.0% | 44.0% | +6.0% | 40/50 |
 | alpha=32 | 34.0% | +2.0% | 46.0% | +8.0% | 41/50 |
 
-The best balanced setting was observed at `alpha=16–24`, where execution accuracy reached 36.0%. At `alpha=32`, execution success continued to improve to 46.0%, but exact accuracy declined to 34.0%, suggesting the onset of "signal saturation" or over-steering.
+*Historical Interpretation:* The best balanced setting was observed at `alpha=16–24`. At `alpha=32`, execution success continued to improve, but exact accuracy declined, suggesting signal saturation.
 
-### Current Recommended Baseline: Structural Projection
+### Historical Recommended Baseline Before Interference-Aware Gating (Legacy)
 
 Under the Qwen2.5 7B → 0.5B SQL-50 setup, **Structural Projection is the current recommended baseline**.
 
@@ -159,11 +161,11 @@ Structural Projection is not a guaranteed adapter improvement method. It behaves
 
 Passing the **Source Adapter Quality Gate** is a necessary upstream signal, but it is not a guarantee of target-side improvement. **Target evaluation is always required before any release.**
 
-### Recommended Workflow (v2.3.0)
-1. **Run `safe-project`** for the full end-to-end pipeline (Diagnose -> Project -> Evaluate).
-2. **Generate Report** using `generate-report` to summarize scientific findings.
-3. **Prepare Model Card** using `generate-model-card` for Hugging Face upload.
-4. **Verify & Publish** only if target evaluation confirms functional improvement.
+### Recommended Workflow (v2.10.0)
+1. **Run `diagnose-adapter` / `safe-project`** to establish source and target risk profiles.
+2. **Use `project-adapter` with `--module-alpha-map`** for interference-aware projection, surgically scaling or excluding problematic modules.
+3. **Evaluate with `evaluate-projected`** and rigorously inspect **Fixed / Regressed / Sentinel** cases.
+4. **Generate reports and model cards** only after target-side evaluation confirms zero-regression or acceptable risk.
 
 > [!WARNING]
 > While `safe-project` provides a unified UX, the underlying **Structural Projection backend is still experimental**. Always review the spectral and norm-based health signals in the report.

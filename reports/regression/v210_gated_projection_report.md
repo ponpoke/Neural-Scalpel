@@ -38,6 +38,15 @@ For the tested Qwen2.5-Coder 7B SQL DPO → Qwen2.5-Coder 0.5B SQL-50 setting, t
 - **Net Improvement:** +2.0% Accuracy / +1 Syntax / Zero Regressions.
 - **Status:** Validated Research Configuration for the tested SQL-50 environment.
 
+## 5. Limitations
+
+- The result is based on SQL-50, a small diagnostic benchmark.
+- The safe alpha window was identified on a single source adapter and target model pair.
+- `v210_v1c` should be treated as a validated research configuration, not a universal recipe for all 0.5B models.
+- Larger benchmark suites and additional source adapters are required before broader claims.
+
+v2.10 does not claim universal adapter transfer. Its key result is that module-wise strict gating can turn an interference-dominant projection into a sentinel-safe positive transfer under a specific tested SQL-50 setting.
+
 ---
 **Lead Maintainer:** ponpoke / Neural-Scalpel Project
 **Version:** v2.10-stable

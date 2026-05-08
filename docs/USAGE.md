@@ -1,4 +1,4 @@
-# Neural-Scalpel Usage Guide (v2.9)
+# Neural-Scalpel Usage Guide (v2.10)
 
 Neural-Scalpel provides a robust CLI for cross-architecture intelligence transplantation.
 
@@ -35,8 +35,18 @@ neural-scalpel project-adapter \
   --rank 16 \
   --alpha 16 \
   --projection-mode piecewise \
-  --adaptive-scaling-config configs/scaling_conservative.json
+  --module-alpha-map q_proj=4,k_proj=4,v_proj=4,o_proj=4,gate_proj=0.125,up_proj=0.125,down_proj=0
 ```
+
+### Interference-Aware Gating (v2.10)
+
+Use `--module-alpha-map` to assign different effective alpha values to each module family. Modules with alpha=0 are physically excluded from the generated adapter.
+
+- **`--alpha 16`**: This is the global PEFT alpha stored in `adapter_config.json`.
+- **`--module-alpha-map`**: Rescales individual LoRA deltas to the requested effective alpha.
+- **`alpha=0`**: Means physical exclusion from the weight file, not just zero-weight inclusion.
+
+---
 
 ### Projection Modes (`--projection-mode`)
 - `linear` (Default): Standard Procrustes alignment. Stable and validated.
